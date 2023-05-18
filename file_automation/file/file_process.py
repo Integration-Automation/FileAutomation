@@ -54,3 +54,5 @@ def rename_file(origin_file_path, target_name: str, file_extension=None):
             print(repr(error))
     else:
         print(repr(FileNotExistsException), file=sys.stderr)
+
+# TODO remove file

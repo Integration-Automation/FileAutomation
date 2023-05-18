@@ -1,5 +1,9 @@
+import os
 import shutil
+import sys
 from pathlib import Path
+
+from file_automation.utils.exception.exceptions import DirNotExistsException
 
 
 def copy_dir(dir_path: str, target_dir_path: str):
@@ -19,3 +23,16 @@ def remove_dir(dir_path: str):
             shutil.rmtree(dir_path)
         except shutil.Error as error:
             print(repr(error))
+
+
+def rename_dir(origin_file_path, target_dir: str):
+    origin_file_path = Path(origin_file_path)
+    if origin_file_path.exists() and origin_file_path.is_dir():
+        try:
+            os.rename(origin_file_path, target_dir)
+        except shutil.Error as error:
+            print(repr(error))
+    else:
+        print(repr(DirNotExistsException), file=sys.stderr)
+
+# TODO mkdir
