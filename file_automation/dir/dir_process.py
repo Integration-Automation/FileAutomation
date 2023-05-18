@@ -16,7 +16,7 @@ def copy_dir(dir_path: str, target_dir_path: str):
             print(repr(error))
 
 
-def remove_dir(dir_path: str):
+def remove_dir_tree(dir_path: str):
     dir_path = Path(dir_path)
     if dir_path.is_dir():
         try:
@@ -35,4 +35,4 @@ def rename_dir(origin_file_path, target_dir: str):
     else:
         print(repr(DirNotExistsException), file=sys.stderr)
 
-# TODO mkdir
+# TODO Path.mkdir, Path.rmdir Path.samefile
