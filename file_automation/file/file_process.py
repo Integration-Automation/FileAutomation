@@ -55,4 +55,8 @@ def rename_file(origin_file_path, target_name: str, file_extension=None):
     else:
         print(repr(FileNotExistsException), file=sys.stderr)
 
-# TODO remove file
+
+def remove_file(file_path: str):
+    file_path = Path(file_path)
+    if file_path.exists() and file_path.is_file():
+        file_path.unlink(missing_ok=True)

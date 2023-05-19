@@ -35,4 +35,7 @@ def rename_dir(origin_file_path, target_dir: str):
     else:
         print(repr(DirNotExistsException), file=sys.stderr)
 
-# TODO Path.mkdir, Path.rmdir Path.samefile
+
+def create_dir(dir_path: str):
+    dir_path = Path(dir_path)
+    dir_path.mkdir(exist_ok=True)
