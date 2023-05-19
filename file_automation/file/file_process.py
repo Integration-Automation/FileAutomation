@@ -1,4 +1,3 @@
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -26,7 +25,7 @@ def copy_specify_extension_file(file_dir_path: str, target_extension: str, targe
         print(repr(DirNotExistsException), file=sys.stderr)
 
 
-def copy_all_file_t_dir(dir_path: str, target_dir_path: str):
+def copy_all_file_to_dir(dir_path: str, target_dir_path: str):
     dir_path = Path(dir_path)
     target_dir_path = Path(target_dir_path)
     if dir_path.is_dir() and target_dir_path.is_dir():
@@ -40,20 +39,20 @@ def copy_all_file_t_dir(dir_path: str, target_dir_path: str):
 
 def rename_file(origin_file_path, target_name: str, file_extension=None):
     origin_file_path = Path(origin_file_path)
-    if origin_file_path.exists() and origin_file_path.is_file():
+    if origin_file_path.exists() and origin_file_path.is_dir():
         if file_extension is None:
-            file_list = origin_file_path.glob("**/*")
+            file_list = list(origin_file_path.glob("**/*"))
         else:
-            file_list = origin_file_path.glob(f"**/*.{file_extension}")
+            file_list = list(origin_file_path.glob(f"**/*.{file_extension}"))
         try:
             file_index = 0
             for file in file_list:
-                os.rename(file, target_name + str(file_index))
+                file.rename(Path(origin_file_path,  target_name))
                 file_index = file_index + 1
-        except shutil.Error as error:
+        except Exception as error:
             print(repr(error))
     else:
-        print(repr(FileNotExistsException), file=sys.stderr)
+        print(repr(DirNotExistsException), file=sys.stderr)
 
 
 def remove_file(file_path: str):
