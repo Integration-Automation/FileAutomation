@@ -1,11 +1,15 @@
 from pathlib import Path
 
 from file_automation import copy_file, copy_specify_extension_file, copy_all_file_to_dir, rename_file, remove_file
+from file_automation import create_dir
 
-first_file_dir = Path(str(Path.cwd()), "/first_file_dir")
-second_file_dir = Path(str(Path.cwd()), "/second_file_dir")
-test_file_dir = Path(str(Path.cwd()), "/test_file")
-test_file_path = Path(str(Path.cwd()), "/test_file/test_file")
+create_dir(str(Path.cwd()) + "/first_file_dir")
+create_dir(str(Path.cwd()) + "/second_file_dir")
+create_dir(str(Path.cwd()) + "/test_file")
+first_file_dir = Path(str(Path.cwd()) + "/first_file_dir")
+second_file_dir = Path(str(Path.cwd()) + "/second_file_dir")
+test_file_dir = Path(str(Path.cwd()) + "/test_file")
+test_file_path = Path(str(Path.cwd()) + "/test_file/test_file")
 
 with open(str(test_file_path), "w+") as file:
     file.write("test")
