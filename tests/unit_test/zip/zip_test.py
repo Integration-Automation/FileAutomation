@@ -1,12 +1,17 @@
-import time
 from pathlib import Path
 
+from file_automation import create_dir
 from file_automation import zip_dir, zip_file, read_zip_file, unzip_file, unzip_all, zip_info, zip_file_info, \
     set_zip_password
 
 zip_file_path = Path(Path.cwd(), "test.zip")
 dir_to_zip = Path(Path.cwd(), "dir_to_zip")
 file_to_zip = Path(Path.cwd(), "file_to_zip.txt")
+
+create_dir(str(dir_to_zip))
+
+with open(str(file_to_zip), "w+") as file:
+    file.write("test")
 
 
 def test_zip_dir():
