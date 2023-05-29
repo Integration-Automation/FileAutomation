@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "automation_file_dev"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
