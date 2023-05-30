@@ -6,31 +6,20 @@
 
 ---
 > Project Kanban \
-> https://github.com/orgs/Integration-Automation/projects/2/views/1 \
-> FileAutomation is used to manager files and dirs.
+> https://github.com/orgs/Integration-Automation/projects/2/views/1
+> * FileAutomation is used to manager files and dirs.
+> * Easily file automation.
+> * Automatically backup.
+> * Automatically download from Google Drive.
+> * Automatically upload to Google Drive.
+> * Automatically zip and unzip file.
+> * Automatically manager specify file.
+> * OS Independent.
+> * Remote automation support.
+> * Project & Template support.
+> * Detailed log file.
+> * Scheduler.
 
-
----
-### Features
-* Process multi file.
-  * copy file.
-  * copy specify extension file.
-  * copy all file to dir.
-  * rename file.
-  * remove file.
-* Process multi dir.
-  * copy dir.
-  * remove dir.
-  * rename dir.
-  * create dir.
-* Process zip files.
-  * zip a dir.
-  * zip a file.
-  * read zip file.
-  * unzip file on zip.
-  * un zip all file on zip.
-  * show zip info.
-  * show file on zip info.
 
 ## install
 > pip install automation_file
