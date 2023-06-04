@@ -40,4 +40,4 @@ class GoogleDrive(object):
             print(f'An error occurred: {error}')
 
 
-GoogleDrive(str(Path(Path.cwd(), "token.json")), str(Path(Path.cwd(), "credentials.json")))
+driver_instance = GoogleDrive(str(Path(Path.cwd(), "token.json")), str(Path(Path.cwd(), "credentials.json")))
