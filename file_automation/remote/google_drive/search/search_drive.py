@@ -16,7 +16,6 @@ def search_file_mimetype(mime_type: str):
         # pylint: disable=maybe-no-member
         response = driver_instance.service.files().list(
             q=f"mimeType='{mime_type}'",
-            spaces="drive",
             fields="nextPageToken, files(id, name)",
             pageToken=page_token).execute()
         for file in response.get("files", []):

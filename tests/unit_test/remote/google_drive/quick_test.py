@@ -1,3 +1,3 @@
-from file_automation.remote.google_drive.search.search_drive import search_file_mimetype
+from file_automation.remote.google_drive.download.download_file import download_file
 
-print(search_file_mimetype("*/*"))
+print(download_file("1s4cHS_ZSqMMikf8HV2vb1rYahbtoJvbC", "test.py"))
