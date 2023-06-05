@@ -8,5 +8,5 @@ def delete_file(file_id: str):
         file = driver_instance.service.files().delete(fileId=file_id).execute()
         return file
     except HttpError as error:
-        print(F'An error occurred: {error}')
+        print(f"An error occurred: {error}")
         return None

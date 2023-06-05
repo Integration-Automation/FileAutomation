@@ -26,5 +26,5 @@ def upload_to_drive(file_name: str, file_path: str):
             return file_id
         return False
     except HttpError as error:
-        print(F'An error occurred: {error}')
+        print(f"An error occurred: {error}")
         return None

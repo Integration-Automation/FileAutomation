@@ -16,8 +16,8 @@ def download_file(file_id: str, file_name: str):
             status, done = downloader.next_chunk()
             print(F'Download {int(status.progress() * 100)}.')
     except HttpError as error:
-        print(F'An error occurred: {error}')
-        file = None
+        print(f"An error occurred: {error}")
+        return None
     with open(file_name, "wb") as output_file:
         output_file.write(file.getbuffer())
     return file
