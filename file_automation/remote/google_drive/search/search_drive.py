@@ -4,11 +4,15 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
 def search_all_file():
-    item = dict()
-    response = driver_instance.service.files().list().execute()
-    for file in response.get("files", []):
-        item.update({file.get("name"): file.get("id")})
-    return item
+    try:
+        item = dict()
+        response = driver_instance.service.files().list().execute()
+        for file in response.get("files", []):
+            item.update({file.get("name"): file.get("id")})
+        return item
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return None
 
 
 def search_file_mimetype(mime_type: str):
@@ -28,5 +32,18 @@ def search_file_mimetype(mime_type: str):
                 break
         return files
     except HttpError as error:
-        print(F'An error occurred: {error}')
+        print(f"An error occurred: {error}")
         return None
+
+
+def search_field(field_pattern: str):
+    try:
+        files = dict()
+        response = driver_instance.service.files().list(fields=field_pattern).execute()
+        for file in response.get("files", []):
+            files.update({file.get("name"): file.get("id")})
+        return files
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return None
+

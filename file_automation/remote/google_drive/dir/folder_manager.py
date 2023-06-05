@@ -15,5 +15,5 @@ def add_folder(folder_name: str):
         ).execute()
         return file.get("id")
     except HttpError as error:
-        print(F'An error occurred: {error}')
+        print(f"An error occurred: {error}")
         return None
