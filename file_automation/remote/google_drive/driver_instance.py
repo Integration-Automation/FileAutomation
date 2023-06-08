@@ -11,11 +11,13 @@ from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 class GoogleDrive(object):
 
-    def __init__(self, token_path: str, credentials_path: str):
+    def __init__(self):
         self.google_drive_instance = None
         self.creds = None
         self.service = None
         self.scopes = ["https://www.googleapis.com/auth/drive"]
+
+    def later_init(self, token_path: str, credentials_path: str):
         token_path = Path(token_path)
         credentials_path = Path(credentials_path)
         creds = None
@@ -50,4 +52,5 @@ class GoogleDrive(object):
             )
 
 
-driver_instance = GoogleDrive(str(Path(Path.cwd(), "token.json")), str(Path(Path.cwd(), "credentials.json")))
+driver_instance = GoogleDrive()
+
