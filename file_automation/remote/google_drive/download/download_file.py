@@ -1,4 +1,6 @@
 import io
+from io import BytesIO
+from typing import Union
 
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
@@ -6,7 +8,7 @@ from googleapiclient.http import MediaIoBaseDownload
 from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
-def download_file(file_id: str, file_name: str):
+def download_file(file_id: str, file_name: str) -> BytesIO:
     try:
         request = driver_instance.service.files().get_media(fileId=file_id)
         file = io.BytesIO()
@@ -23,7 +25,7 @@ def download_file(file_id: str, file_name: str):
     return file
 
 
-def download_file_from_folder(folder_name: str):
+def download_file_from_folder(folder_name: str) -> Union[dict, None]:
     try:
         files = dict()
         response = driver_instance.service.files().list(

@@ -1,10 +1,12 @@
+from typing import Union
+
 from googleapiclient.errors import HttpError
 
 from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
 def share_file_to_user(
-        file_id: str, user: str, user_role: str = "writer"):
+        file_id: str, user: str, user_role: str = "writer") -> Union[dict, None]:
     try:
         service = driver_instance.service
         user_permission = {
@@ -21,7 +23,7 @@ def share_file_to_user(
         return None
 
 
-def share_file_to_anyone(file_id: str, share_role: str = "reader"):
+def share_file_to_anyone(file_id: str, share_role: str = "reader") -> Union[dict, None]:
     try:
         service = driver_instance.service
         user_permission = {
@@ -39,7 +41,7 @@ def share_file_to_anyone(file_id: str, share_role: str = "reader"):
 
 
 def share_file_to_domain(
-        file_id: str, domain: str, domain_role: str = "reader"):
+        file_id: str, domain: str, domain_role: str = "reader") -> Union[dict, None]:
     try:
         service = driver_instance.service
         domain_permission = {

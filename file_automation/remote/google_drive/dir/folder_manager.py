@@ -1,9 +1,11 @@
+from typing import Union
+
 from googleapiclient.errors import HttpError
 
 from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
-def add_folder(folder_name: str):
+def add_folder(folder_name: str) -> Union[dict, None]:
     try:
         file_metadata = {
             "name": folder_name,

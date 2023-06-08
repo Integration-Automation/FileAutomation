@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List, Union, Optional
 
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
@@ -6,7 +7,7 @@ from googleapiclient.http import MediaFileUpload
 from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
-def upload_to_drive(file_path: str, file_name: str = None):
+def upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -32,7 +33,7 @@ def upload_to_drive(file_path: str, file_name: str = None):
         return None
 
 
-def upload_to_folder(folder_id: str, file_path: str, file_name: str = None):
+def upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> Union[dict, None]:
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -59,7 +60,7 @@ def upload_to_folder(folder_id: str, file_path: str, file_name: str = None):
         return None
 
 
-def upload_dir_to_drive(dir_path: str):
+def upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():
@@ -72,7 +73,7 @@ def upload_dir_to_drive(dir_path: str):
         raise FileNotFoundError
 
 
-def upload_dir_to_folder(folder_id: str, dir_path: str):
+def upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():

@@ -1,9 +1,11 @@
+from typing import Union
+
 from googleapiclient.errors import HttpError
 
 from file_automation.remote.google_drive.driver_instance import driver_instance
 
 
-def delete_file(file_id: str):
+def delete_file(file_id: str) -> Union[dict, None]:
     try:
         file = driver_instance.service.files().delete(fileId=file_id).execute()
         return file
