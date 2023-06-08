@@ -5,6 +5,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 from file_automation.remote.google_drive.driver_instance import driver_instance
+from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
 def upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
@@ -25,11 +26,20 @@ def upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
                 media_body=media,
                 fields="id"
             ).execute()
+            file_automation_logger.info(
+                f"Upload file to drive file: {file_path}, "
+                f"with name: {file_name}"
+            )
             return file_id
         else:
-            raise FileNotFoundError
+            file_automation_logger.error(
+                FileNotFoundError
+            )
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        file_automation_logger.error(
+            f"Delete file failed,"
+            f"error: {error}"
+        )
         return None
 
 
@@ -52,11 +62,21 @@ def upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> U
                 media_body=media,
                 fields="id"
             ).execute()
+            file_automation_logger.info(
+                f"Upload file to folder: {folder_id},"
+                f"file_path: {file_path}, "
+                f"with name: {file_name}"
+            )
             return file_id
         else:
-            raise FileNotFoundError
+            file_automation_logger.error(
+                FileNotFoundError
+            )
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        file_automation_logger.error(
+            f"Delete file failed,"
+            f"error: {error}"
+        )
         return None
 
 
@@ -68,9 +88,14 @@ def upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
         for path in path_list:
             if path.is_file():
                 ids.append(upload_to_drive(str(path.absolute()), path.name))
+        file_automation_logger.info(
+            f"Upload all file on dir: {dir_path} to drive"
+        )
         return ids
     else:
-        raise FileNotFoundError
+        file_automation_logger.error(
+            FileNotFoundError
+        )
 
 
 def upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
@@ -81,6 +106,11 @@ def upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
         for path in path_list:
             if path.is_file():
                 ids.append(upload_to_folder(folder_id, str(path.absolute()), path.name))
+        file_automation_logger.info(
+            f"Upload all file on dir: {dir_path} to folder: {folder_id}"
+        )
         return ids
     else:
-        raise FileNotFoundError
+        file_automation_logger.error(
+            FileNotFoundError
+        )
