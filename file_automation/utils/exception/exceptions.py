@@ -1,10 +1,30 @@
-class FileNotExistsException(Exception):
+class FileAutomationException(Exception):
     pass
 
 
-class DirNotExistsException(Exception):
+class FileNotExistsException(FileAutomationException):
     pass
 
 
-class ZIPGetWrongFileException(Exception):
+class DirNotExistsException(FileAutomationException):
+    pass
+
+
+class ZIPGetWrongFileException(FileAutomationException):
+    pass
+
+
+class CallbackExecutorException(FileAutomationException):
+    pass
+
+
+class ExecuteActionException(FileAutomationException):
+    pass
+
+
+class AddCommandException(FileAutomationException):
+    pass
+
+
+class JsonActionException(FileAutomationException):
     pass
