@@ -98,5 +98,5 @@ def set_zip_password(zip_file_path: str, password: bytes):
     file_automation_logger.info(
         f"Set zip file password, "
         f"zip file: {zip_file_path}, "
-        f"zup password: {password}"
+        f"zip password: {password}"
     )

@@ -22,6 +22,7 @@ from file_automation.utils.exception.exception_tags import add_command_exception
     action_is_null_error, cant_execute_action_error
 from file_automation.utils.exception.exceptions import ExecuteActionException, AddCommandException
 from file_automation.utils.json.json_file import read_action_json
+from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
 class Executor(object):
@@ -93,20 +94,23 @@ class Executor(object):
             else:
                 raise ExecuteActionException(action_is_null_error)
         except Exception as error:
-            print(repr(error), file=sys.stderr, flush=True)
+            file_automation_logger.error(
+                f"Execute {action_list} failed. {repr(error)}"
+            )
         for action in action_list:
             try:
                 event_response = self._execute_event(action)
                 execute_record = "execute: " + str(action)
+                file_automation_logger.info(
+                    f"Execute {action}"
+                )
                 execute_record_dict.update({execute_record: event_response})
             except Exception as error:
-                print(repr(error), file=sys.stderr, flush=True)
-                print(action, file=sys.stderr, flush=True)
+                file_automation_logger.error(
+                    f"Execute {action} failed. {repr(error)}"
+                )
                 execute_record = "execute: " + str(action)
                 execute_record_dict.update({execute_record: repr(error)})
-        for key, value in execute_record_dict.items():
-            print(key, flush=True)
-            print(value, flush=True)
         return execute_record_dict
 
     def execute_files(self, execute_files_list: list) -> list:
@@ -127,6 +131,9 @@ def add_command_to_executor(command_dict: dict):
     """
     :param command_dict: dict include command we want to add to event_dict
     """
+    file_automation_logger.info(
+        f"Add command to executor {command_dict}"
+    )
     for command_name, command in command_dict.items():
         if isinstance(command, (types.MethodType, types.FunctionType)):
             executor.event_dict.update({command_name: command})

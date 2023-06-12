@@ -1,5 +1,4 @@
 import typing
-from sys import stderr
 
 from file_automation.local.dir.dir_process import copy_dir, create_dir, remove_dir_tree
 from file_automation.local.file.file_process import copy_file, remove_file, rename_file, copy_specify_extension_file, \
@@ -18,6 +17,7 @@ from file_automation.remote.google_drive.upload.upload_to_driver import \
     upload_dir_to_folder, upload_to_folder, upload_dir_to_drive, upload_to_drive
 from file_automation.utils.exception.exception_tags import get_bad_trigger_function, get_bad_trigger_method
 from file_automation.utils.exception.exceptions import CallbackExecutorException
+from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
 class CallbackFunctionExecutor(object):
@@ -76,19 +76,26 @@ class CallbackFunctionExecutor(object):
         try:
             if trigger_function_name not in self.event_dict.keys():
                 raise CallbackExecutorException(get_bad_trigger_function)
+            file_automation_logger.info(f"Callback trigger {trigger_function_name} with param {kwargs}")
             execute_return_value = self.event_dict.get(trigger_function_name)(**kwargs)
             if callback_function_param is not None:
                 if callback_param_method not in ["kwargs", "args"]:
                     raise CallbackExecutorException(get_bad_trigger_method)
                 if callback_param_method == "kwargs":
                     callback_function(**callback_function_param)
+                    file_automation_logger.info(
+                        f"Callback function {callback_function} with param {callback_function_param}")
                 else:
                     callback_function(*callback_function_param)
+                    file_automation_logger.info(
+                        f"Callback function {callback_function} with param {callback_function_param}")
             else:
                 callback_function()
+                file_automation_logger.info(f"Callback function {callback_function}")
             return execute_return_value
         except Exception as error:
-            print(repr(error), file=stderr)
+            file_automation_logger.error(
+                f"Callback function failed. {repr(error)}")
 
 
 callback_executor = CallbackFunctionExecutor()
