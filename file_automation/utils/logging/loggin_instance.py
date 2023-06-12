@@ -1,9 +1,16 @@
 import logging
+import sys
 
-logging.getLogger().setLevel(logging.INFO)
 file_automation_logger = logging.getLogger("File Automation")
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-file_automation_logger.addHandler(handler)
-file_automation_logger.setLevel(logging.DEBUG)
+file_automation_logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+# Stream handler
+stream_handler = logging.StreamHandler(stream=sys.stderr)
+stream_handler.setFormatter(formatter)
+stream_handler.setLevel(logging.WARNING)
+file_automation_logger.addHandler(stream_handler)
+# File handler
+file_handler = logging.FileHandler(filename="FileAutomation.log", mode="w+")
+file_handler.setFormatter(formatter)
+file_automation_logger.addHandler(file_handler)
+

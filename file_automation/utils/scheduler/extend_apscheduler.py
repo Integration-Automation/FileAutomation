@@ -4,6 +4,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.util import undefined
 
+from file_automation.utils.logging.loggin_instance import file_automation_logger
+
 
 class SchedulerManager(object):
 
@@ -38,9 +40,15 @@ class SchedulerManager(object):
         return self._background_schedulers
 
     def start_block_scheduler(self, *args, **kwargs):
+        file_automation_logger.info(
+            f"Start blocking scheduler with {args}, {kwargs}"
+        )
         self._blocking_schedulers.start(*args, **kwargs)
 
     def start_nonblocking_scheduler(self, *args, **kwargs):
+        file_automation_logger.info(
+            f"Start background scheduler with {args}, {kwargs}"
+        )
         self._background_schedulers.start(*args, **kwargs)
 
     def start_all_scheduler(self, *args, **kwargs):
@@ -116,13 +124,25 @@ class SchedulerManager(object):
         self.add_nonblocking_job(func=function, id=id, trigger="cron", **trigger_args)
 
     def remove_blocking_job(self, id: str, jobstore: str = 'default'):
+        file_automation_logger.info(
+            f"Remove blocking job {id}, store on {jobstore}"
+        )
         self._blocking_schedulers.remove_job(job_id=id, jobstore=jobstore)
 
     def remove_nonblocking_job(self, id: str, jobstore: str = 'default'):
+        file_automation_logger.info(
+            f"Remove nonblocking job {id}, store on {jobstore}"
+        )
         self._background_schedulers.remove_job(job_id=id, jobstore=jobstore)
 
     def shutdown_blocking_scheduler(self, wait: bool = False):
+        file_automation_logger.info(
+            f"Shutdown blocking scheduler wait = {wait}"
+        )
         self._blocking_schedulers.shutdown(wait=wait)
 
     def shutdown_nonblocking_scheduler(self, wait: bool = False):
+        file_automation_logger.info(
+            f"Shutdown nonblocking scheduler wait = {wait}"
+        )
         self._background_schedulers.shutdown(wait=wait)
