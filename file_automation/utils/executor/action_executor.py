@@ -111,6 +111,9 @@ class Executor(object):
                 )
                 execute_record = "execute: " + str(action)
                 execute_record_dict.update({execute_record: repr(error)})
+        for key, value in execute_record_dict.items():
+            print(key, flush=True)
+            print(value, flush=True)
         return execute_record_dict
 
     def execute_files(self, execute_files_list: list) -> list:
