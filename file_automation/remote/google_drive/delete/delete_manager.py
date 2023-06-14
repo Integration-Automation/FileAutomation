@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Dict
 
 from googleapiclient.errors import HttpError
 
@@ -6,7 +6,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def drive_delete_file(file_id: str) -> Union[dict, None]:
+def drive_delete_file(file_id: str) -> Union[Dict[str, str], None]:
     try:
         file = driver_instance.service.files().delete(fileId=file_id).execute()
         file_automation_logger.info(f"Delete drive file: {file_id}")

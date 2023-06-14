@@ -7,6 +7,7 @@ from file_automation.local.file.file_process import copy_file, remove_file, rena
     copy_all_file_to_dir, create_file
 from file_automation.local.zip.zip_process import zip_dir, zip_file, zip_info, zip_file_info, set_zip_password, \
     read_zip_file, unzip_file, unzip_all
+from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.remote.google_drive.delete.delete_manager import drive_delete_file
 from file_automation.remote.google_drive.dir.folder_manager import drive_add_folder
 from file_automation.remote.google_drive.download.download_file import drive_download_file, \
@@ -50,6 +51,7 @@ class Executor(object):
             "read_zip_file": read_zip_file,
             "unzip_all": unzip_all,
             # Drive
+            "drive_later_init": driver_instance.later_init,
             "drive_search_all_file": drive_search_all_file,
             "drive_search_field": drive_search_field,
             "drive_search_file_mimetype": drive_search_file_mimetype,
