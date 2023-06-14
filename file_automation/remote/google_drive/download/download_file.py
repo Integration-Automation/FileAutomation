@@ -9,7 +9,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def download_file(file_id: str, file_name: str) -> BytesIO:
+def drive_download_file(file_id: str, file_name: str) -> BytesIO:
     try:
         request = driver_instance.service.files().get_media(fileId=file_id)
         file = io.BytesIO()
@@ -34,7 +34,7 @@ def download_file(file_id: str, file_name: str) -> BytesIO:
     return file
 
 
-def download_file_from_folder(folder_name: str) -> Union[dict, None]:
+def drive_download_file_from_folder(folder_name: str) -> Union[dict, None]:
     try:
         files = dict()
         response = driver_instance.service.files().list(
@@ -46,7 +46,7 @@ def download_file_from_folder(folder_name: str) -> Union[dict, None]:
             q=f"'{folder_id}' in parents"
         ).execute()
         for file in response.get("files", []):
-            download_file(file.get("id"), file.get("name"))
+            drive_download_file(file.get("id"), file.get("name"))
             files.update({file.get("name"): file.get("id")})
         file_automation_logger.info(
             f"Download all file on {folder_name} done."

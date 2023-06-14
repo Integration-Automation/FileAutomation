@@ -6,7 +6,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def add_folder(folder_name: str) -> Union[dict, None]:
+def drive_add_folder(folder_name: str) -> Union[dict, None]:
     try:
         file_metadata = {
             "name": folder_name,

@@ -86,3 +86,8 @@ def remove_file(file_path: str):
     if file_path.exists() and file_path.is_file():
         file_path.unlink(missing_ok=True)
         file_automation_logger.info(f"Remove file, file path: {file_path}")
+
+
+def create_file(file_path: str, content: str):
+    with open(file_path, "w+") as file:
+        file.write(content)
