@@ -6,7 +6,7 @@ from file_automation.utils.exception.exceptions import DirNotExistsException
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def copy_dir(dir_path: str, target_dir_path: str):
+def copy_dir(dir_path: str, target_dir_path: str) -> None:
     dir_path = Path(dir_path)
     target_dir_path = Path(target_dir_path)
     if dir_path.is_dir():
@@ -19,7 +19,7 @@ def copy_dir(dir_path: str, target_dir_path: str):
         file_automation_logger.error(f"Copy dir {dir_path} failed: {repr(DirNotExistsException)}")
 
 
-def remove_dir_tree(dir_path: str):
+def remove_dir_tree(dir_path: str) -> None:
     dir_path = Path(dir_path)
     if dir_path.is_dir():
         try:
@@ -29,7 +29,7 @@ def remove_dir_tree(dir_path: str):
             file_automation_logger.error(f"Remove dir tree {dir_path} error: {repr(error)}")
 
 
-def rename_dir(origin_dir_path, target_dir: str):
+def rename_dir(origin_dir_path, target_dir: str) -> None:
     origin_dir_path = Path(origin_dir_path)
     if origin_dir_path.exists() and origin_dir_path.is_dir():
         try:
@@ -48,7 +48,7 @@ def rename_dir(origin_dir_path, target_dir: str):
             f"target dir path: {target_dir}")
 
 
-def create_dir(dir_path: str):
+def create_dir(dir_path: str) -> None:
     dir_path = Path(dir_path)
     dir_path.mkdir(exist_ok=True)
     file_automation_logger.info(f"Create dir {dir_path}")

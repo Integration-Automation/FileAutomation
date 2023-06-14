@@ -6,7 +6,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def search_all_file() -> Union[dict, None]:
+def drive_search_all_file() -> Union[dict, None]:
     try:
         item = dict()
         response = driver_instance.service.files().list().execute()
@@ -24,7 +24,7 @@ def search_all_file() -> Union[dict, None]:
         return None
 
 
-def search_file_mimetype(mime_type: str) -> Union[dict, None]:
+def drive_search_file_mimetype(mime_type: str) -> Union[dict, None]:
     try:
         files = dict()
         page_token = None
@@ -51,7 +51,7 @@ def search_file_mimetype(mime_type: str) -> Union[dict, None]:
         return None
 
 
-def search_field(field_pattern: str) -> Union[dict, None]:
+def drive_search_field(field_pattern: str) -> Union[dict, None]:
     try:
         files = dict()
         response = driver_instance.service.files().list(fields=field_pattern).execute()

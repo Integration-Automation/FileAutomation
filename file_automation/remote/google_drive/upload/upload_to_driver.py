@@ -8,7 +8,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
+def drive_upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -43,7 +43,7 @@ def upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
         return None
 
 
-def upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> Union[dict, None]:
+def drive_upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> Union[dict, None]:
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -80,14 +80,14 @@ def upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> U
         return None
 
 
-def upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
+def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():
         path_list = dir_path.iterdir()
         for path in path_list:
             if path.is_file():
-                ids.append(upload_to_drive(str(path.absolute()), path.name))
+                ids.append(drive_upload_to_drive(str(path.absolute()), path.name))
         file_automation_logger.info(
             f"Upload all file on dir: {dir_path} to drive"
         )
@@ -98,14 +98,14 @@ def upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
         )
 
 
-def upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
+def drive_upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():
         path_list = dir_path.iterdir()
         for path in path_list:
             if path.is_file():
-                ids.append(upload_to_folder(folder_id, str(path.absolute()), path.name))
+                ids.append(drive_upload_to_folder(folder_id, str(path.absolute()), path.name))
         file_automation_logger.info(
             f"Upload all file on dir: {dir_path} to folder: {folder_id}"
         )

@@ -6,7 +6,7 @@ from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 
 
-def share_file_to_user(
+def drive_share_file_to_user(
         file_id: str, user: str, user_role: str = "writer") -> Union[dict, None]:
     try:
         service = driver_instance.service
@@ -32,7 +32,7 @@ def share_file_to_user(
         return None
 
 
-def share_file_to_anyone(file_id: str, share_role: str = "reader") -> Union[dict, None]:
+def drive_share_file_to_anyone(file_id: str, share_role: str = "reader") -> Union[dict, None]:
     try:
         service = driver_instance.service
         user_permission = {
@@ -55,7 +55,7 @@ def share_file_to_anyone(file_id: str, share_role: str = "reader") -> Union[dict
         return None
 
 
-def share_file_to_domain(
+def drive_share_file_to_domain(
         file_id: str, domain: str, domain_role: str = "reader") -> Union[dict, None]:
     try:
         service = driver_instance.service
