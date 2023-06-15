@@ -66,6 +66,3 @@ def create_project_dir(project_path: str = None, parent_name: str = "FileAutomat
     create_dir(project_path + "/" + parent_name + "/keyword")
     create_dir(project_path + "/" + parent_name + "/executor")
     create_template(parent_name)
-
-
-create_project_dir()
