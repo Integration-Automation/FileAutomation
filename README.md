@@ -28,6 +28,4 @@
 > python 3.8 or later
 
 ### Architecture Diagram
-
-
-* TODO
+![architecture_diagram](architecture_diagram/FileAutomation.drawio.png)
