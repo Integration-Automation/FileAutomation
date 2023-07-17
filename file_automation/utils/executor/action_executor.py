@@ -1,17 +1,18 @@
 import builtins
 import types
 from inspect import getmembers, isbuiltin
+from typing import Union, Any
 
 from file_automation.local.dir.dir_process import copy_dir, create_dir, remove_dir_tree
 from file_automation.local.file.file_process import copy_file, remove_file, rename_file, copy_specify_extension_file, \
     copy_all_file_to_dir, create_file
 from file_automation.local.zip.zip_process import zip_dir, zip_file, zip_info, zip_file_info, set_zip_password, \
     read_zip_file, unzip_file, unzip_all
-from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.remote.google_drive.delete.delete_manager import drive_delete_file
 from file_automation.remote.google_drive.dir.folder_manager import drive_add_folder
 from file_automation.remote.google_drive.download.download_file import drive_download_file, \
     drive_download_file_from_folder
+from file_automation.remote.google_drive.driver_instance import driver_instance
 from file_automation.remote.google_drive.search.search_drive import \
     drive_search_all_file, drive_search_field, drive_search_file_mimetype
 from file_automation.remote.google_drive.share.share_file import \
@@ -24,6 +25,7 @@ from file_automation.utils.exception.exceptions import ExecuteActionException, A
 from file_automation.utils.json.json_file import read_action_json
 from file_automation.utils.logging.loggin_instance import file_automation_logger
 from file_automation.utils.package_manager.package_manager_class import package_manager
+from file_automation.utils.scheduler.extend_apscheduler import scheduler_manager
 
 
 class Executor(object):
@@ -66,10 +68,19 @@ class Executor(object):
             "drive_delete_file": drive_delete_file,
             "drive_download_file": drive_download_file,
             "drive_download_file_from_folder": drive_download_file_from_folder,
-            # execute
+            # Execute
             "execute_action": self.execute_action,
             "execute_files": self.execute_files,
             "add_package_to_executor": package_manager.add_package_to_executor,
+            # Scheduler
+            "scheduler_event_trigger": self.scheduler_event_trigger,
+            "remove_blocking_scheduler_job": scheduler_manager.remove_blocking_job,
+            "remove_nonblocking_scheduler_job": scheduler_manager.remove_nonblocking_job,
+            "start_blocking_scheduler": scheduler_manager.start_block_scheduler,
+            "start_nonblocking_scheduler": scheduler_manager.start_nonblocking_scheduler,
+            "start_all_scheduler": scheduler_manager.start_all_scheduler,
+            "shutdown_blocking_scheduler": scheduler_manager.shutdown_blocking_scheduler,
+            "shutdown_nonblocking_scheduler": scheduler_manager.shutdown_nonblocking_scheduler,
         }
         # get all builtin function and add to event dict
         for function in getmembers(builtins, isbuiltin):
@@ -135,6 +146,16 @@ class Executor(object):
         for file in execute_files_list:
             execute_detail_list.append(self.execute_action(read_action_json(file)))
         return execute_detail_list
+
+    def scheduler_event_trigger(
+            self, function: str, id: str = None, args: Union[list, tuple] = None,
+            kwargs: dict = None, scheduler_type: str = "nonblocking", wait_type: str = "secondly",
+            wait_value: int = 1, **trigger_args: Any) -> None:
+        if scheduler_type == "nonblocking":
+            scheduler_event = scheduler_manager.nonblocking_scheduler_event_dict.get(wait_type)
+        else:
+            scheduler_event = scheduler_manager.blocking_scheduler_event_dict.get(wait_type)
+        scheduler_event(self.event_dict.get(function), id, args, kwargs, wait_value, **trigger_args)
 
 
 executor = Executor()
