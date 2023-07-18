@@ -24,22 +24,22 @@ class CallbackFunctionExecutor(object):
 
     def __init__(self):
         self.event_dict: dict = {
-            "copy_file": copy_file,
-            "rename_file": rename_file,
-            "remove_file": remove_file,
-            "copy_all_file_to_dir": copy_all_file_to_dir,
-            "copy_specify_extension_file": copy_specify_extension_file,
-            "copy_dir": copy_dir,
-            "create_dir": create_dir,
-            "remove_dir_tree": remove_dir_tree,
-            "zip_dir": zip_dir,
-            "zip_file": zip_file,
-            "zip_info": zip_info,
-            "zip_file_info": zip_file_info,
-            "set_zip_password": set_zip_password,
-            "unzip_file": unzip_file,
-            "read_zip_file": read_zip_file,
-            "unzip_all": unzip_all,
+            "FA_copy_file": copy_file,
+            "FA_rename_file": rename_file,
+            "FA_remove_file": remove_file,
+            "FA_copy_all_file_to_dir": copy_all_file_to_dir,
+            "FA_copy_specify_extension_file": copy_specify_extension_file,
+            "FA_copy_dir": copy_dir,
+            "FA_create_dir": create_dir,
+            "FA_remove_dir_tree": remove_dir_tree,
+            "FA_zip_dir": zip_dir,
+            "FA_zip_file": zip_file,
+            "FA_zip_info": zip_info,
+            "FA_zip_file_info": zip_file_info,
+            "FA_set_zip_password": set_zip_password,
+            "FA_unzip_file": unzip_file,
+            "FA_read_zip_file": read_zip_file,
+            "FA_unzip_all": unzip_all,
             "driver_instance": driver_instance,
             "search_all_file": drive_search_all_file,
             "search_field": drive_search_field,
@@ -99,4 +99,3 @@ class CallbackFunctionExecutor(object):
 
 
 callback_executor = CallbackFunctionExecutor()
-
