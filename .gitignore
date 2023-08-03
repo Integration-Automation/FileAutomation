@@ -152,5 +152,7 @@ cython_debug/
 .idea/
 
 # Google Drive API token
-tests/unit_test/remote/google_drive/credentials.json
 token.json
+credentials.json
+**/token.json
+**/credentials.json

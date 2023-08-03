@@ -12,3 +12,5 @@ cant_generate_json_report: str = "can't generate json report"
 cant_find_json_error: str = "cant find json file"
 cant_save_json_error: str = "cant save json file"
 action_is_null_error: str = "json action is null"
+# argparse
+argparse_get_wrong_data: str = "argparse receive wrong data"

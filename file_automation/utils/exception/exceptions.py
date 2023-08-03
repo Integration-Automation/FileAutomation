@@ -28,3 +28,7 @@ class AddCommandException(FileAutomationException):
 
 class JsonActionException(FileAutomationException):
     pass
+
+
+class ArgparseException(FileAutomationException):
+    pass
