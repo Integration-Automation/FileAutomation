@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from file_automation import copy_dir, remove_dir_tree, rename_dir, create_dir
+from automation_file import copy_dir, remove_dir_tree, rename_dir, create_dir
 
 copy_dir_path = Path(str(Path.cwd()) + "/test_dir")
 rename_dir_path = Path(str(Path.cwd()) + "/rename_dir")
