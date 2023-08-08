@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from file_automation import create_dir
-from file_automation import zip_dir, zip_file, read_zip_file, unzip_file, unzip_all, zip_info, zip_file_info, \
+from automation_file import create_dir
+from automation_file import zip_dir, zip_file, read_zip_file, unzip_file, unzip_all, zip_info, zip_file_info, \
     set_zip_password
 
 zip_file_path = Path(Path.cwd(), "test.zip")

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from file_automation import copy_file, copy_specify_extension_file, copy_all_file_to_dir, rename_file, remove_file
-from file_automation import create_dir
+from automation_file import copy_file, copy_specify_extension_file, copy_all_file_to_dir, rename_file, remove_file
+from automation_file import create_dir
 
 create_dir(str(Path.cwd()) + "/first_file_dir")
 create_dir(str(Path.cwd()) + "/second_file_dir")
