@@ -25,7 +25,7 @@
 > pip install automation_file
 
 ## Requires
-> python 3.8 or later
+> python 3.9 or later
 
 ### Architecture Diagram
 ![architecture_diagram](architecture_diagram/FileAutomation.drawio.png)
