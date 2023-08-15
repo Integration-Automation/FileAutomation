@@ -5,8 +5,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "automation_file"
-version = "0.0.18"
+name = "automation_file_dev"
+version = "0.0.21"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
@@ -18,7 +18,7 @@ dependencies = [
     "google-api-python-client",
     "google-auth-httplib2",
     "google-auth-oauthlib",
-    "APScheduler==3.10.1"
+    "APScheduler"
 ]
 classifiers = [
     "Programming Language :: Python :: 3.9",
