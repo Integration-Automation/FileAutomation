@@ -18,7 +18,7 @@ dependencies = [
     "google-api-python-client",
     "google-auth-httplib2",
     "google-auth-oauthlib",
-    "APScheduler==3.10.1"
+    "APScheduler==3.10.3"
 ]
 classifiers = [
     "Programming Language :: Python :: 3.9",
