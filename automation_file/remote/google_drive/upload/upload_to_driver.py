@@ -9,6 +9,11 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 def drive_upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
+    """
+    :param file_path: which file do we want to upload
+    :param file_name: file name on Google Drive
+    :return: dict or None
+    """
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -44,6 +49,12 @@ def drive_upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, 
 
 
 def drive_upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> Union[dict, None]:
+    """
+    :param folder_id: which folder do we want to upload file into
+    :param file_path: which file do we want to upload
+    :param file_name: file name on Google Drive
+    :return: dict or None
+    """
     try:
         file_path = Path(file_path)
         if file_path.is_file():
@@ -81,6 +92,10 @@ def drive_upload_to_folder(folder_id: str, file_path: str, file_name: str = None
 
 
 def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
+    """
+    :param dir_path: which dir do we want to upload to drive
+    :return: List[Optional[set]]
+    """
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():
@@ -99,6 +114,11 @@ def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
 
 
 def drive_upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
+    """
+    :param folder_id: which folder do we want to put dir into
+    :param dir_path: which dir do we want to upload
+    :return: List[Optional[set]]
+    """
     dir_path = Path(dir_path)
     ids = list()
     if dir_path.is_dir():

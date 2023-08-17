@@ -7,6 +7,10 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 def drive_add_folder(folder_name: str) -> Union[dict, None]:
+    """
+    :param folder_name: folder name will create on Google Drive
+    :return: dict or None
+    """
     try:
         file_metadata = {
             "name": folder_name,

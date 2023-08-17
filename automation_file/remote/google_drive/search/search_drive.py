@@ -7,6 +7,10 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 def drive_search_all_file() -> Union[dict, None]:
+    """
+    Search all file on Google Drive
+    :return: dict or None
+    """
     try:
         item = dict()
         response = driver_instance.service.files().list().execute()
@@ -25,6 +29,10 @@ def drive_search_all_file() -> Union[dict, None]:
 
 
 def drive_search_file_mimetype(mime_type: str) -> Union[dict, None]:
+    """
+    :param mime_type: search all file with  mime_type on Google Drive
+    :return: dict or None
+    """
     try:
         files = dict()
         page_token = None
@@ -52,6 +60,10 @@ def drive_search_file_mimetype(mime_type: str) -> Union[dict, None]:
 
 
 def drive_search_field(field_pattern: str) -> Union[dict, None]:
+    """
+    :param field_pattern: which pattern will search
+    :return: dict or None
+    """
     try:
         files = dict()
         response = driver_instance.service.files().list(fields=field_pattern).execute()
