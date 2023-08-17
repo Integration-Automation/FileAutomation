@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
 project = 'FileAutomation'
-copyright = '2020 ~ 2023, JE-Chen'
+copyright = '2020 ~ Now, JE-Chen'
 author = 'JE-Chen'
 
 # -- General configuration ---------------------------------------------------
@@ -26,9 +26,7 @@ author = 'JE-Chen'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = [
-    "sphinx.ext.autosectionlabel"
-]
+extensions = []
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

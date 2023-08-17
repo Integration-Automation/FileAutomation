@@ -1,6 +1,5 @@
-====================================
 FileAutomation English Documentation
-====================================
+----
 
 .. toctree::
-   :maxdepth: 4
+    :maxdepth: 4

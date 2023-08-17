@@ -18,6 +18,11 @@ class GoogleDrive(object):
         self.scopes = ["https://www.googleapis.com/auth/drive"]
 
     def later_init(self, token_path: str, credentials_path: str):
+        """
+        :param token_path: Google Drive token path
+        :param credentials_path: Google Drive credentials path
+        :return: None
+        """
         token_path = Path(token_path)
         credentials_path = Path(credentials_path)
         creds = None

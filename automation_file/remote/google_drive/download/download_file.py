@@ -10,6 +10,11 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 def drive_download_file(file_id: str, file_name: str) -> BytesIO:
+    """
+    :param file_id: file have this id will download
+    :param file_name: file save on local name
+    :return: file
+    """
     try:
         request = driver_instance.service.files().get_media(fileId=file_id)
         file = io.BytesIO()
@@ -35,6 +40,10 @@ def drive_download_file(file_id: str, file_name: str) -> BytesIO:
 
 
 def drive_download_file_from_folder(folder_name: str) -> Union[dict, None]:
+    """
+    :param folder_name:  which folder do we want to download file
+    :return: dict or None
+    """
     try:
         files = dict()
         response = driver_instance.service.files().list(
