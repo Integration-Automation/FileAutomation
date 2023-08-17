@@ -8,7 +8,7 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 def copy_file(file_path: str, target_path: str) -> bool:
     """
-    :param file_path: which file we want to copy (str path)
+    :param file_path: which file do we want to copy (str path)
     :param target_path: put copy file on target path
     :return: True if success else False
     """
@@ -27,8 +27,8 @@ def copy_file(file_path: str, target_path: str) -> bool:
 
 def copy_specify_extension_file(file_dir_path: str, target_extension: str, target_path: str) -> bool:
     """
-    :param file_dir_path: which dir we want to search
-    :param target_extension: Which extension do we search
+    :param file_dir_path: which dir do we want to search
+    :param target_extension: what extension we will search
     :param target_path: copy file to target path
     :return: True if success else False
     """
@@ -78,7 +78,7 @@ def copy_all_file_to_dir(dir_path: str, target_dir_path: str) -> bool:
 
 def rename_file(origin_file_path, target_name: str, file_extension=None) -> bool:
     """
-    :param origin_file_path: which dir we want to search file
+    :param origin_file_path: which dir do we want to search file
     :param target_name: rename file to target name
     :param file_extension: Which extension do we search
     :return: True if success else False
@@ -113,7 +113,7 @@ def rename_file(origin_file_path, target_name: str, file_extension=None) -> bool
 
 def remove_file(file_path: str) -> None:
     """
-    :param file_path: which file we want to remove
+    :param file_path: which file do we want to remove
     :return: None
     """
     file_path = Path(file_path)

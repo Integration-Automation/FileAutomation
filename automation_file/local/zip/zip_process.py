@@ -47,8 +47,8 @@ def zip_file(zip_file_path: str, file: [str, List[str]]) -> None:
 
 def read_zip_file(zip_file_path: str, file_name: str, password: [str, None] = None) -> bytes:
     """
-    :param zip_file_path: which zip we want to read
-    :param file_name: which file on zip we want to read
+    :param zip_file_path: which zip do we want to read
+    :param file_name: which file on zip do we want to read
     :param password: if zip have password use this password to unzip zip file
     :return:
     """
@@ -86,8 +86,8 @@ def unzip_all(
         zip_file_path: str, extract_member: [str, None] = None,
         extract_path: [str, None] = None, password: [str, None] = None) -> None:
     """
-    :param zip_file_path: which zip we want to unzip
-    :param extract_member: which member we want to unzip
+    :param zip_file_path: which zip do we want to unzip
+    :param extract_member: which member do we want to unzip
     :param extract_path: extract to path
     :param password: if zip have password use this password to unzip zip file
     :return: None
@@ -133,7 +133,7 @@ def zip_file_info(zip_file_path: str) -> List[str]:
 
 def set_zip_password(zip_file_path: str, password: bytes) -> None:
     """
-    :param zip_file_path: which zip we want to set password
+    :param zip_file_path: which zip do we want to set password
     :param password: password will be set
     :return: None
     """

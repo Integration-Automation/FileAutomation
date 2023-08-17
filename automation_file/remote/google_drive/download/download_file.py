@@ -41,7 +41,7 @@ def drive_download_file(file_id: str, file_name: str) -> BytesIO:
 
 def drive_download_file_from_folder(folder_name: str) -> Union[dict, None]:
     """
-    :param folder_name:  which folder we want to download file
+    :param folder_name:  which folder do we want to download file
     :return: dict or None
     """
     try:

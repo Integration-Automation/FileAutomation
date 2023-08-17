@@ -30,7 +30,7 @@ def drive_search_all_file() -> Union[dict, None]:
 
 def drive_search_file_mimetype(mime_type: str) -> Union[dict, None]:
     """
-    :param mime_type: search all file with  mime_type on Google Drive
+    :param mime_type: search all file with mime_type on Google Drive
     :return: dict or None
     """
     try:
@@ -61,7 +61,7 @@ def drive_search_file_mimetype(mime_type: str) -> Union[dict, None]:
 
 def drive_search_field(field_pattern: str) -> Union[dict, None]:
     """
-    :param field_pattern: which pattern will search
+    :param field_pattern: what pattern will we use to search
     :return: dict or None
     """
     try:

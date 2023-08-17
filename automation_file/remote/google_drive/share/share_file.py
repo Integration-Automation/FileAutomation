@@ -9,9 +9,9 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 def drive_share_file_to_user(
         file_id: str, user: str, user_role: str = "writer") -> Union[dict, None]:
     """
-    :param file_id: which file we want to share
-    :param user: what user we want to share
-    :param user_role: what role we want to share
+    :param file_id: which file do we want to share
+    :param user: what user do we want to share
+    :param user_role: what role do we want to share
     :return: dict or None
     """
     try:
@@ -40,8 +40,8 @@ def drive_share_file_to_user(
 
 def drive_share_file_to_anyone(file_id: str, share_role: str = "reader") -> Union[dict, None]:
     """
-    :param file_id: which file we want to share
-    :param share_role: what role we want to share
+    :param file_id: which file do we want to share
+    :param share_role: what role do we want to share
     :return: dict or None
     """
     try:
@@ -69,9 +69,9 @@ def drive_share_file_to_anyone(file_id: str, share_role: str = "reader") -> Unio
 def drive_share_file_to_domain(
         file_id: str, domain: str, domain_role: str = "reader") -> Union[dict, None]:
     """
-    :param file_id: which file we want to share
-    :param domain: what domain we want to share
-    :param domain_role: what role we want to share
+    :param file_id: which file do we want to share
+    :param domain: what domain do we want to share
+    :param domain_role: what role do we want to share
     :return: dict or None
     """
     try:

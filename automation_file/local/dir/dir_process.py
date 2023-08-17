@@ -8,7 +8,7 @@ from automation_file.utils.logging.loggin_instance import file_automation_logger
 def copy_dir(dir_path: str, target_dir_path: str) -> bool:
     """
     Copy dir to target path (path need as dir path)
-    :param dir_path: which dir we want to copy (str path)
+    :param dir_path: which dir do we want to copy (str path)
     :param target_dir_path: copy dir to this path
     :return: True if success else False
     """
@@ -28,7 +28,7 @@ def copy_dir(dir_path: str, target_dir_path: str) -> bool:
 
 def remove_dir_tree(dir_path: str) -> bool:
     """
-    :param dir_path: which dir we want to remove (str path)
+    :param dir_path: which dir do we want to remove (str path)
     :return: True if success else False
     """
     dir_path = Path(dir_path)
@@ -44,7 +44,7 @@ def remove_dir_tree(dir_path: str) -> bool:
 
 def rename_dir(origin_dir_path, target_dir: str) -> bool:
     """
-    :param origin_dir_path: which dir we want to rename (str path)
+    :param origin_dir_path: which dir do we want to rename (str path)
     :param target_dir: target name as str full path
     :return: True if success else False
     """
