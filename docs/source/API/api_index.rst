@@ -2,4 +2,7 @@ FileAutomation API Documentation
 ----
 
 .. toctree::
-    :maxdepth: 4
+    :maxdepth:
+
+    local.rst
+    remote.rst
