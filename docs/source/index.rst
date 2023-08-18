@@ -4,6 +4,8 @@ FileAutomation
 .. toctree::
     :maxdepth: 4
 
+    API/api_index.rst
+
 
 ----
 
