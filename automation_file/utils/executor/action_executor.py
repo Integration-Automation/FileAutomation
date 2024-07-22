@@ -105,14 +105,12 @@ class Executor(object):
         for loop the list and execute action
         """
         if isinstance(action_list, dict):
-            action_list: list = action_list.get("auto_control", None)
+            action_list: list = action_list.get("auto_control")
             if action_list is None:
                 raise ExecuteActionException(executor_list_error)
         execute_record_dict = dict()
         try:
-            if len(action_list) > 0 or isinstance(action_list, list):
-                pass
-            else:
+            if len(action_list) == 0 or isinstance(action_list, list) is False:
                 raise ExecuteActionException(action_is_null_error)
         except Exception as error:
             file_automation_logger.error(

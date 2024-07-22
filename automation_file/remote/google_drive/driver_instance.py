@@ -30,9 +30,7 @@ class GoogleDrive(object):
         # created automatically when the authorization flow completes for the first
         # time.
         if token_path.exists():
-            file_automation_logger.info(
-                f"Token exists try to load."
-            )
+            file_automation_logger.info("Token exists try to load.")
             creds = Credentials.from_authorized_user_file(str(token_path), self.scopes)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
@@ -47,9 +45,7 @@ class GoogleDrive(object):
                 token.write(creds.to_json())
         try:
             self.service = build('drive', 'v3', credentials=creds)
-            file_automation_logger.info(
-                f"Loading service successfully."
-            )
+            file_automation_logger.info("Loading service successfully.")
         except HttpError as error:
             file_automation_logger.error(
                 f"Delete file failed,"
@@ -58,4 +54,3 @@ class GoogleDrive(object):
 
 
 driver_instance = GoogleDrive()
-
