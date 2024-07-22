@@ -9,7 +9,7 @@ from automation_file.remote.google_drive.driver_instance import driver_instance
 from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
-def drive_download_file(file_id: str, file_name: str) -> BytesIO:
+def drive_download_file(file_id: str, file_name: str) -> Union[BytesIO, None]:
     """
     :param file_id: file have this id will download
     :param file_name: file save on local name
