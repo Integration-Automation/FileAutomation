@@ -4,11 +4,11 @@ logging.root.setLevel(logging.DEBUG)
 file_automation_logger = logging.getLogger("File Automation")
 formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
 # File handler
-file_handler = logging.FileHandler(filename="AutoControlGUI.log", mode="w")
+file_handler = logging.FileHandler(filename="FileAutomation.log", mode="w")
 file_handler.setFormatter(formatter)
 file_automation_logger.addHandler(file_handler)
 
-class APITestkaLoggingHandler(logging.Handler):
+class FileAutomationLoggingHandler(logging.Handler):
 
     # redirect logging stderr output to queue
 
@@ -22,6 +22,6 @@ class APITestkaLoggingHandler(logging.Handler):
 
 
 # Stream handler
-file_automation_logger.addHandler(APITestkaLoggingHandler())
+file_automation_logger.addHandler(FileAutomationLoggingHandler())
 
 
