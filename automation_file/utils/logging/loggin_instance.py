@@ -1,16 +1,27 @@
 import logging
-import sys
 
+logging.root.setLevel(logging.DEBUG)
 file_automation_logger = logging.getLogger("File Automation")
-file_automation_logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-# Stream handler
-stream_handler = logging.StreamHandler(stream=sys.stderr)
-stream_handler.setFormatter(formatter)
-stream_handler.setLevel(logging.WARNING)
-file_automation_logger.addHandler(stream_handler)
 # File handler
-file_handler = logging.FileHandler(filename="FileAutomation.log", mode="w+")
+file_handler = logging.FileHandler(filename="AutoControlGUI.log", mode="w")
 file_handler.setFormatter(formatter)
 file_automation_logger.addHandler(file_handler)
+
+class APITestkaLoggingHandler(logging.Handler):
+
+    # redirect logging stderr output to queue
+
+    def __init__(self):
+        super().__init__()
+        self.formatter = formatter
+        self.setLevel(logging.DEBUG)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        print(self.format(record))
+
+
+# Stream handler
+file_automation_logger.addHandler(APITestkaLoggingHandler())
+
 

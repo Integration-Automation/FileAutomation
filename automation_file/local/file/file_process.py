@@ -6,16 +6,20 @@ from automation_file.utils.exception.exceptions import FileNotExistsException, D
 from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
-def copy_file(file_path: str, target_path: str) -> bool:
+def copy_file(file_path: str, target_path: str, copy_metadata: bool = True) -> bool:
     """
     :param file_path: which file do we want to copy (str path)
     :param target_path: put copy file on target path
+    :param copy_metadata: copy file metadata or not
     :return: True if success else False
     """
     file_path = Path(file_path)
     if file_path.is_file() and file_path.exists():
         try:
-            shutil.copy2(file_path, target_path)
+            if copy_metadata:
+                shutil.copy2(file_path, target_path)
+            else:
+                shutil.copy(file_path, target_path)
             file_automation_logger.info(f"Copy file origin path: {file_path}, target path : {target_path}")
             return True
         except shutil.Error as error:
@@ -25,17 +29,19 @@ def copy_file(file_path: str, target_path: str) -> bool:
         return False
 
 
-def copy_specify_extension_file(file_dir_path: str, target_extension: str, target_path: str) -> bool:
+def copy_specify_extension_file(
+        file_dir_path: str, target_extension: str, target_path: str, copy_metadata: bool = True) -> bool:
     """
     :param file_dir_path: which dir do we want to search
     :param target_extension: what extension we will search
     :param target_path: copy file to target path
+    :param copy_metadata: copy file metadata or not
     :return: True if success else False
     """
     file_dir_path = Path(file_dir_path)
     if file_dir_path.exists() and file_dir_path.is_dir():
         for file in file_dir_path.glob(f"**/*.{target_extension}"):
-            copy_file(str(file), target_path)
+            copy_file(str(file), target_path, copy_metadata=copy_metadata)
             file_automation_logger.info(
                 f"Copy specify extension file on dir"
                 f"origin dir path: {file_dir_path}, target extension: {target_extension}, "
