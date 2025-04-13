@@ -2,4 +2,7 @@ automation_file
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
-APScheduler
+PySide6
+requests
+protobuf
+tqdm
