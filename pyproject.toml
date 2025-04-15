@@ -6,19 +6,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "automation_file"
-version = "0.0.23"
+version = "0.0.26"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
 description = ""
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license-files = ["LICENSE"]
 dependencies = [
     "google-api-python-client",
     "google-auth-httplib2",
     "google-auth-oauthlib",
-    "APScheduler"
+    "requests",
+    "tqdm"
 ]
 classifiers = [
     "Programming Language :: Python :: 3.9",
@@ -26,7 +27,6 @@ classifiers = [
     "Environment :: Win32 (MS Windows)",
     "Environment :: MacOS X",
     "Environment :: X11 Applications",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
 

@@ -18,6 +18,7 @@ from automation_file.utils.executor.action_executor import execute_action, execu
 from automation_file.utils.file_process.get_dir_file_list import get_dir_files_as_list
 from automation_file.utils.json.json_file import read_action_json
 from automation_file.utils.project.create_project_structure import create_project_dir
+from automation_file.remote.download.file import download_file
 
 __all__ = [
     "copy_file", "rename_file", "remove_file", "copy_all_file_to_dir", "copy_specify_extension_file",
@@ -27,5 +28,6 @@ __all__ = [
     "drive_upload_dir_to_folder", "drive_upload_to_folder", "drive_upload_dir_to_drive", "drive_upload_to_drive",
     "drive_add_folder", "drive_share_file_to_anyone", "drive_share_file_to_domain", "drive_share_file_to_user",
     "drive_delete_file", "drive_download_file", "drive_download_file_from_folder", "execute_action", "execute_files",
-    "add_command_to_executor", "read_action_json", "get_dir_files_as_list", "create_project_dir"
+    "add_command_to_executor", "read_action_json", "get_dir_files_as_list", "create_project_dir",
+    "download_file"
 ]

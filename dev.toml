@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "automation_file_dev"
-version = "0.0.25"
+version = "0.0.28"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
@@ -18,7 +18,8 @@ dependencies = [
     "google-api-python-client",
     "google-auth-httplib2",
     "google-auth-oauthlib",
-    "APScheduler"
+    "requests",
+    "tqdm"
 ]
 classifiers = [
     "Programming Language :: Python :: 3.9",
@@ -26,7 +27,6 @@ classifiers = [
     "Environment :: Win32 (MS Windows)",
     "Environment :: MacOS X",
     "Environment :: X11 Applications",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
 
