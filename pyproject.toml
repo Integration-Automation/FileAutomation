@@ -5,15 +5,15 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "automation_file"
-version = "0.0.26"
+name = "automation_file_dev"
+version = "0.0.29"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
 description = ""
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.9"
-license-files = ["LICENSE"]
+requires-python = ">=3.10"
+license = { text = "MIT" }
 dependencies = [
     "google-api-python-client",
     "google-auth-httplib2",
@@ -22,7 +22,7 @@ dependencies = [
     "tqdm"
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Win32 (MS Windows)",
     "Environment :: MacOS X",
