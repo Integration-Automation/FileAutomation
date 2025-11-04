@@ -4,15 +4,22 @@ from typing import List, Union, Optional
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
+# 匯入 Google Drive 驅動實例與日誌工具
+# Import Google Drive driver instance and logging utility
 from automation_file.remote.google_drive.driver_instance import driver_instance
 from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 def drive_upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, None]:
     """
-    :param file_path: which file do we want to upload
-    :param file_name: file name on Google Drive
-    :return: dict or None
+    上傳單一檔案到 Google Drive 根目錄
+    Upload a single file to Google Drive root
+    :param file_path: 要上傳的檔案路徑 (str)
+                      File path to upload (str)
+    :param file_name: 在 Google Drive 上的檔案名稱 (可選)
+                      File name on Google Drive (optional)
+    :return: 成功回傳 dict (包含檔案 ID)，失敗回傳 None
+             Return dict (with file ID) if success, else None
     """
     try:
         file_path = Path(file_path)
@@ -32,28 +39,33 @@ def drive_upload_to_drive(file_path: str, file_name: str = None) -> Union[dict, 
                 fields="id"
             ).execute()
             file_automation_logger.info(
-                f"Upload file to drive file: {file_path}, "
-                f"with name: {file_name}"
+                f"Upload file to drive file: {file_path}, with name: {file_name}"
             )
             return file_id
         else:
-            file_automation_logger.error(
-                FileNotFoundError
-            )
+            # 若檔案不存在，記錄錯誤
+            # Log error if file does not exist
+            file_automation_logger.error(FileNotFoundError)
     except HttpError as error:
+        # ⚠️ 原本寫成 Delete file failed，應改為 Upload file failed
         file_automation_logger.error(
-            f"Delete file failed,"
-            f"error: {error}"
+            f"Upload file failed, error: {error}"
         )
         return None
 
 
 def drive_upload_to_folder(folder_id: str, file_path: str, file_name: str = None) -> Union[dict, None]:
     """
-    :param folder_id: which folder do we want to upload file into
-    :param file_path: which file do we want to upload
-    :param file_name: file name on Google Drive
-    :return: dict or None
+    上傳單一檔案到 Google Drive 指定資料夾
+    Upload a single file into a specific Google Drive folder
+    :param folder_id: 目標資料夾 ID (str)
+                      Target folder ID (str)
+    :param file_path: 要上傳的檔案路徑 (str)
+                      File path to upload (str)
+    :param file_name: 在 Google Drive 上的檔案名稱 (可選)
+                      File name on Google Drive (optional)
+    :return: 成功回傳 dict (包含檔案 ID)，失敗回傳 None
+             Return dict (with file ID) if success, else None
     """
     try:
         file_path = Path(file_path)
@@ -74,27 +86,26 @@ def drive_upload_to_folder(folder_id: str, file_path: str, file_name: str = None
                 fields="id"
             ).execute()
             file_automation_logger.info(
-                f"Upload file to folder: {folder_id},"
-                f"file_path: {file_path}, "
-                f"with name: {file_name}"
+                f"Upload file to folder: {folder_id}, file_path: {file_path}, with name: {file_name}"
             )
             return file_id
         else:
-            file_automation_logger.error(
-                FileNotFoundError
-            )
+            file_automation_logger.error(FileNotFoundError)
     except HttpError as error:
         file_automation_logger.error(
-            f"Delete file failed,"
-            f"error: {error}"
+            f"Upload file failed, error: {error}"
         )
         return None
 
 
-def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
+def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[dict]] | None:
     """
-    :param dir_path: which dir do we want to upload to drive
-    :return: List[Optional[set]]
+    上傳整個資料夾中的所有檔案到 Google Drive 根目錄
+    Upload all files from a local directory to Google Drive root
+    :param dir_path: 要上傳的資料夾路徑 (str)
+                     Directory path to upload (str)
+    :return: 檔案 ID 清單 (List[dict])，或空清單
+             List of file IDs (List[dict]) or empty list
     """
     dir_path = Path(dir_path)
     ids = list()
@@ -108,29 +119,41 @@ def drive_upload_dir_to_drive(dir_path: str) -> List[Optional[set]]:
         )
         return ids
     else:
-        file_automation_logger.error(
-            FileNotFoundError
-        )
+        file_automation_logger.error(FileNotFoundError)
+        return None
 
 
-def drive_upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[set]]:
+def drive_upload_dir_to_folder(folder_id: str, dir_path: str) -> List[Optional[dict]] | None:
     """
-    :param folder_id: which folder do we want to put dir into
-    :param dir_path: which dir do we want to upload
-    :return: List[Optional[set]]
+    上傳整個資料夾中的所有檔案到 Google Drive 指定資料夾
+    Upload all files from a local directory into a specific Google Drive folder
+
+    :param folder_id: 目標 Google Drive 資料夾 ID (str)
+                      Target Google Drive folder ID (str)
+    :param dir_path: 本地端要上傳的資料夾路徑 (str)
+                     Local directory path to upload (str)
+    :return: 檔案 ID 清單 (List[dict])，或 None
+             List of file IDs (List[dict]) or None
     """
     dir_path = Path(dir_path)
-    ids = list()
+    ids: List[Optional[dict]] = []
+
     if dir_path.is_dir():
         path_list = dir_path.iterdir()
         for path in path_list:
             if path.is_file():
+                # 呼叫單檔上傳函式 (drive_upload_to_folder)，並收集回傳的檔案 ID
+                # Call single-file upload function and collect returned file ID
                 ids.append(drive_upload_to_folder(folder_id, str(path.absolute()), path.name))
+
         file_automation_logger.info(
-            f"Upload all file on dir: {dir_path} to folder: {folder_id}"
+            f"Upload all files in dir: {dir_path} to folder: {folder_id}"
         )
         return ids
     else:
-        file_automation_logger.error(
-            FileNotFoundError
-        )
+        # 若資料夾不存在，記錄錯誤
+        # Log error if directory does not exist
+        file_automation_logger.error(FileNotFoundError)
+
+    return None
+

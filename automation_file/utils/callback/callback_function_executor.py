@@ -1,28 +1,54 @@
 import typing
 
+# 匯入本地檔案與資料夾處理函式
+# Import local file and directory processing functions
 from automation_file.local.dir.dir_process import copy_dir, create_dir, remove_dir_tree
-from automation_file.local.file.file_process import copy_file, remove_file, rename_file, copy_specify_extension_file, \
-    copy_all_file_to_dir
-from automation_file.local.zip.zip_process import zip_dir, zip_file, zip_info, zip_file_info, set_zip_password, \
-    read_zip_file, unzip_file, unzip_all
+from automation_file.local.file.file_process import (
+    copy_file, remove_file, rename_file,
+    copy_specify_extension_file, copy_all_file_to_dir
+)
+from automation_file.local.zip.zip_process import (
+    zip_dir, zip_file, zip_info, zip_file_info,
+    set_zip_password, read_zip_file, unzip_file, unzip_all
+)
+
+# 匯入 Google Drive 功能
+# Import Google Drive functions
 from automation_file.remote.google_drive.delete.delete_manager import drive_delete_file
 from automation_file.remote.google_drive.dir.folder_manager import drive_add_folder
-from automation_file.remote.google_drive.download.download_file import drive_download_file, drive_download_file_from_folder
+from automation_file.remote.google_drive.download.download_file import (
+    drive_download_file, drive_download_file_from_folder
+)
 from automation_file.remote.google_drive.driver_instance import driver_instance
-from automation_file.remote.google_drive.search.search_drive import \
+from automation_file.remote.google_drive.search.search_drive import (
     drive_search_all_file, drive_search_field, drive_search_file_mimetype
-from automation_file.remote.google_drive.share.share_file import \
+)
+from automation_file.remote.google_drive.share.share_file import (
     drive_share_file_to_anyone, drive_share_file_to_domain, drive_share_file_to_user
-from automation_file.remote.google_drive.upload.upload_to_driver import \
-    drive_upload_dir_to_folder, drive_upload_to_folder, drive_upload_dir_to_drive, drive_upload_to_drive
+)
+from automation_file.remote.google_drive.upload.upload_to_driver import (
+    drive_upload_dir_to_folder, drive_upload_to_folder,
+    drive_upload_dir_to_drive, drive_upload_to_drive
+)
+
+# 匯入例外與日誌工具
+# Import exceptions and logging
 from automation_file.utils.exception.exception_tags import get_bad_trigger_function, get_bad_trigger_method
 from automation_file.utils.exception.exceptions import CallbackExecutorException
 from automation_file.utils.logging.loggin_instance import file_automation_logger
 
 
 class CallbackFunctionExecutor(object):
+    """
+    CallbackFunctionExecutor 負責：
+    - 管理所有可觸發的函式 (event_dict)
+    - 執行指定的 trigger function
+    - 在 trigger function 執行後，呼叫 callback function
+    """
 
     def __init__(self):
+        # event_dict 對應 trigger_function_name 與實際函式
+        # event_dict maps trigger_function_name to actual function
         self.event_dict: dict = {
             "FA_copy_file": copy_file,
             "FA_rename_file": rename_file,
@@ -61,41 +87,66 @@ class CallbackFunctionExecutor(object):
             self,
             trigger_function_name: str,
             callback_function: typing.Callable,
-            callback_function_param: [dict, None] = None,
+            callback_function_param: typing.Optional[dict] = None,
             callback_param_method: str = "kwargs",
             **kwargs
     ) -> typing.Any:
         """
-        :param trigger_function_name: what function we want to trigger only accept function in event_dict
-        :param callback_function: what function we want to callback
-        :param callback_function_param: callback function's param only accept dict 
-        :param callback_param_method: what type param will use on callback function only accept kwargs and args
-        :param kwargs: trigger_function's param
-        :return: trigger_function_name return value
+        執行指定的 trigger function，並在完成後執行 callback function
+        Execute a trigger function, then run a callback function
+
+        :param trigger_function_name: 要觸發的函式名稱 (必須存在於 event_dict)
+                                      Function name to trigger (must exist in event_dict)
+        :param callback_function: 要執行的 callback function
+                                  Callback function to execute
+        :param callback_function_param: callback function 的參數 (dict)
+                                        Parameters for callback function (dict)
+        :param callback_param_method: callback function 的參數傳遞方式 ("kwargs" 或 "args")
+                                      Parameter passing method ("kwargs" or "args")
+        :param kwargs: trigger function 的參數
+                       Parameters for trigger function
+        :return: trigger function 的回傳值
+                 Return value of trigger function
         """
         try:
             if trigger_function_name not in self.event_dict.keys():
                 raise CallbackExecutorException(get_bad_trigger_function)
-            file_automation_logger.info(f"Callback trigger {trigger_function_name} with param {kwargs}")
+
+            file_automation_logger.info(
+                f"Callback trigger {trigger_function_name} with param {kwargs}"
+            )
+
+            # 執行 trigger function
+            # Execute trigger function
             execute_return_value = self.event_dict.get(trigger_function_name)(**kwargs)
+
+            # 執行 callback function
             if callback_function_param is not None:
                 if callback_param_method not in ["kwargs", "args"]:
                     raise CallbackExecutorException(get_bad_trigger_method)
+
                 if callback_param_method == "kwargs":
                     callback_function(**callback_function_param)
                     file_automation_logger.info(
-                        f"Callback function {callback_function} with param {callback_function_param}")
+                        f"Callback function {callback_function} with param {callback_function_param}"
+                    )
                 else:
                     callback_function(*callback_function_param)
                     file_automation_logger.info(
-                        f"Callback function {callback_function} with param {callback_function_param}")
+                        f"Callback function {callback_function} with param {callback_function_param}"
+                    )
             else:
                 callback_function()
                 file_automation_logger.info(f"Callback function {callback_function}")
+
             return execute_return_value
+
         except Exception as error:
             file_automation_logger.error(
-                f"Callback function failed. {repr(error)}")
+                f"Callback function failed. {repr(error)}"
+            )
 
 
+# 建立單例，供其他模組使用
+# Create a singleton instance for other modules to use
 callback_executor = CallbackFunctionExecutor()
