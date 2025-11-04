@@ -1,4 +1,4 @@
-name: FileAutomation Dev Python3.9
+name: FileAutomation Dev Python3.12
 
 on:
   push:

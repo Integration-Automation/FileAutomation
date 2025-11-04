@@ -1,16 +1,21 @@
-token_is_exist: str = "token file is exists"
+token_is_exist: str = "token file already exists"
+
 # Callback executor
-get_bad_trigger_method: str = "get bad trigger method, only accept kwargs and args"
-get_bad_trigger_function: str = "get bad trigger function only accept function in event_dict"
+get_bad_trigger_method: str = "invalid trigger method: only kwargs and args accepted"
+get_bad_trigger_function: str = "invalid trigger function: only functions in event_dict accepted"
+
 # add command
-add_command_exception: str = "command value type should be as method or function"
+add_command_exception: str = "command value type must be a method or function"
+
 # executor
-executor_list_error: str = "executor receive wrong data list is none or wrong type"
+executor_list_error: str = "executor received invalid data: list is empty or of wrong type"
+
 # json tag
-cant_execute_action_error: str = "cant execute action"
-cant_generate_json_report: str = "can't generate json report"
-cant_find_json_error: str = "cant find json file"
-cant_save_json_error: str = "cant save json file"
-action_is_null_error: str = "json action is null"
+cant_execute_action_error: str = "can't execute action"
+cant_generate_json_report: str = "can't generate JSON report"
+cant_find_json_error: str = "can't find JSON file"
+cant_save_json_error: str = "can't save JSON file"
+action_is_null_error: str = "JSON action is null"
+
 # argparse
-argparse_get_wrong_data: str = "argparse receive wrong data"
+argparse_get_wrong_data: str = "argparse received invalid data"
