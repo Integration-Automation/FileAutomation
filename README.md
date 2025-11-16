@@ -46,7 +46,7 @@ and remote execution through a TCP Socket Server.
   - Google Drive API enabled and credentials.json downloaded
 
 
-## install
+## Installation
 > pip install automation_file
 
 # Usage
