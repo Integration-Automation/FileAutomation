@@ -19,6 +19,7 @@ from automation_file.core.action_executor import (
     validate_action,
 )
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
+from automation_file.core.audit import AuditException, AuditLog
 from automation_file.core.callback_executor import CallbackExecutor
 from automation_file.core.checksum import (
     ChecksumMismatchException,
@@ -313,6 +314,8 @@ __all__ = [
     "ManifestException",
     "write_manifest",
     "verify_manifest",
+    "AuditException",
+    "AuditLog",
     # Triggers
     "FileWatcher",
     "TriggerManager",
