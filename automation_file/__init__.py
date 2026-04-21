@@ -55,6 +55,7 @@ from automation_file.core.secrets import (
     resolve_secret_refs,
 )
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.local.conditional import if_exists, if_newer, if_size_gt
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
 from automation_file.local.file_ops import (
     copy_all_file_to_dir,
@@ -246,6 +247,9 @@ __all__ = [
     "unzip_all",
     "safe_join",
     "is_within",
+    "if_exists",
+    "if_newer",
+    "if_size_gt",
     # Remote
     "download_file",
     "validate_http_url",

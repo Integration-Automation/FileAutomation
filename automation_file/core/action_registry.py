@@ -67,6 +67,7 @@ class ActionRegistry:
 
 def _local_commands() -> dict[str, Command]:
     from automation_file.local import (
+        conditional,
         dir_ops,
         file_ops,
         json_edit,
@@ -108,6 +109,10 @@ def _local_commands() -> dict[str, Command]:
         "FA_unzip_file": zip_ops.unzip_file,
         "FA_read_zip_file": zip_ops.read_zip_file,
         "FA_unzip_all": zip_ops.unzip_all,
+        # Conditional dispatch
+        "FA_if_exists": conditional.if_exists,
+        "FA_if_newer": conditional.if_newer,
+        "FA_if_size_gt": conditional.if_size_gt,
     }
 
 
