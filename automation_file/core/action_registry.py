@@ -184,7 +184,12 @@ def _register_progress_ops(registry: ActionRegistry) -> None:
 
 
 def build_default_registry() -> ActionRegistry:
-    """Return a registry pre-populated with every built-in ``FA_*`` action."""
+    """Return a registry pre-populated with every built-in ``FA_*`` action.
+
+    After the built-ins are registered, any third-party package advertising
+    an ``automation_file.actions`` entry point is loaded so its commands
+    land in the same registry. Plugins may override built-in names.
+    """
     registry = ActionRegistry()
     registry.register_many(_local_commands())
     registry.register_many(_http_commands())
@@ -194,7 +199,14 @@ def build_default_registry() -> ActionRegistry:
     _register_trigger_ops(registry)
     _register_scheduler_ops(registry)
     _register_progress_ops(registry)
+    _load_plugins(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)
     )
     return registry
+
+
+def _load_plugins(registry: ActionRegistry) -> None:
+    from automation_file.core.plugins import load_entry_point_plugins
+
+    load_entry_point_plugins(registry.register_many)
