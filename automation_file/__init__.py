@@ -51,6 +51,7 @@ from automation_file.local.file_ops import (
     rename_file,
 )
 from automation_file.local.safe_paths import is_within, safe_join
+from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.zip_ops import (
     read_zip_file,
     set_zip_password,
@@ -189,6 +190,8 @@ __all__ = [
     "create_dir",
     "remove_dir_tree",
     "rename_dir",
+    "sync_dir",
+    "SyncException",
     "zip_dir",
     "zip_file",
     "zip_info",
