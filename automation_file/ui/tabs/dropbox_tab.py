@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
 from automation_file.remote.dropbox_api.client import dropbox_instance
@@ -19,18 +18,11 @@ from automation_file.remote.dropbox_api.upload_ops import (
     dropbox_upload_dir,
     dropbox_upload_file,
 )
-from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.base import RemoteBackendTab
 
 
-class DropboxTab(BaseTab):
+class DropboxTab(RemoteBackendTab):
     """Form-driven Dropbox operations."""
-
-    def __init__(self, log, pool) -> None:
-        super().__init__(log, pool)
-        root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
 
     def _init_group(self) -> QGroupBox:
         box = QGroupBox("Client")
@@ -53,18 +45,12 @@ class DropboxTab(BaseTab):
         form.addRow("Local path", self._local)
         form.addRow("Remote path", self._remote)
         form.addRow(self._recursive)
-        form.addRow(self._button("Upload file", self._on_upload_file))
-        form.addRow(self._button("Upload dir", self._on_upload_dir))
-        form.addRow(self._button("Download", self._on_download))
-        form.addRow(self._button("Delete path", self._on_delete))
-        form.addRow(self._button("List folder", self._on_list))
+        form.addRow(self.make_button("Upload file", self._on_upload_file))
+        form.addRow(self.make_button("Upload dir", self._on_upload_dir))
+        form.addRow(self.make_button("Download", self._on_download))
+        form.addRow(self.make_button("Delete path", self._on_delete))
+        form.addRow(self.make_button("List folder", self._on_list))
         return box
-
-    @staticmethod
-    def _button(label: str, handler) -> QPushButton:
-        button = QPushButton(label)
-        button.clicked.connect(handler)
-        return button
 
     def _on_init(self) -> None:
         token = self._token.text().strip()

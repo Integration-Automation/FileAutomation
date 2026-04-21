@@ -7,6 +7,7 @@ from pathlib import Path
 
 from automation_file.exceptions import DirNotExistsException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
+from automation_file.remote._upload_tree import walk_and_upload
 from automation_file.remote.sftp.client import sftp_instance
 
 
@@ -46,15 +47,12 @@ def sftp_upload_dir(dir_path: str, remote_prefix: str) -> list[str]:
     source = Path(dir_path)
     if not source.is_dir():
         raise DirNotExistsException(str(source))
-    uploaded: list[str] = []
     prefix = remote_prefix.rstrip("/")
-    for entry in source.rglob("*"):
-        if not entry.is_file():
-            continue
-        rel = entry.relative_to(source).as_posix()
-        remote = f"{prefix}/{rel}" if prefix else rel
-        if sftp_upload_file(str(entry), remote):
-            uploaded.append(remote)
+    uploaded = walk_and_upload(
+        source,
+        lambda rel: f"{prefix}/{rel}" if prefix else rel,
+        lambda local, remote: sftp_upload_file(str(local), remote),
+    )
     file_automation_logger.info(
         "sftp_upload_dir: %s -> %s (%d files)",
         source,

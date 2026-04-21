@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSpinBox,
-    QVBoxLayout,
 )
 
 from automation_file.remote.sftp.client import sftp_instance
@@ -16,18 +15,11 @@ from automation_file.remote.sftp.delete_ops import sftp_delete_path
 from automation_file.remote.sftp.download_ops import sftp_download_file
 from automation_file.remote.sftp.list_ops import sftp_list_dir
 from automation_file.remote.sftp.upload_ops import sftp_upload_dir, sftp_upload_file
-from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.base import RemoteBackendTab
 
 
-class SFTPTab(BaseTab):
+class SFTPTab(RemoteBackendTab):
     """Form-driven SFTP operations."""
-
-    def __init__(self, log, pool) -> None:
-        super().__init__(log, pool)
-        root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
 
     def _init_group(self) -> QGroupBox:
         box = QGroupBox("Connection (host keys validated against known_hosts)")
@@ -64,18 +56,12 @@ class SFTPTab(BaseTab):
         self._remote = QLineEdit()
         form.addRow("Local path", self._local)
         form.addRow("Remote path", self._remote)
-        form.addRow(self._button("Upload file", self._on_upload_file))
-        form.addRow(self._button("Upload dir", self._on_upload_dir))
-        form.addRow(self._button("Download", self._on_download))
-        form.addRow(self._button("Delete remote path", self._on_delete))
-        form.addRow(self._button("List remote dir", self._on_list))
+        form.addRow(self.make_button("Upload file", self._on_upload_file))
+        form.addRow(self.make_button("Upload dir", self._on_upload_dir))
+        form.addRow(self.make_button("Download", self._on_download))
+        form.addRow(self.make_button("Delete remote path", self._on_delete))
+        form.addRow(self.make_button("List remote dir", self._on_list))
         return box
-
-    @staticmethod
-    def _button(label: str, handler) -> QPushButton:
-        button = QPushButton(label)
-        button.clicked.connect(handler)
-        return button
 
     def _on_connect(self) -> None:
         self.run_action(

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from automation_file.exceptions import DirNotExistsException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
+from automation_file.remote._upload_tree import walk_and_upload
 from automation_file.remote.azure_blob.client import azure_blob_instance
 
 
@@ -45,15 +46,12 @@ def azure_blob_upload_dir(
     source = Path(dir_path)
     if not source.is_dir():
         raise DirNotExistsException(str(source))
-    uploaded: list[str] = []
     prefix = name_prefix.rstrip("/")
-    for entry in source.rglob("*"):
-        if not entry.is_file():
-            continue
-        rel = entry.relative_to(source).as_posix()
-        blob_name = f"{prefix}/{rel}" if prefix else rel
-        if azure_blob_upload_file(str(entry), container, blob_name):
-            uploaded.append(blob_name)
+    uploaded = walk_and_upload(
+        source,
+        lambda rel: f"{prefix}/{rel}" if prefix else rel,
+        lambda local, blob_name: azure_blob_upload_file(str(local), container, blob_name),
+    )
     file_automation_logger.info(
         "azure_blob_upload_dir: %s -> %s/%s (%d files)",
         source,

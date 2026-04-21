@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
 from automation_file.remote.s3.client import s3_instance
@@ -15,18 +14,11 @@ from automation_file.remote.s3.delete_ops import s3_delete_object
 from automation_file.remote.s3.download_ops import s3_download_file
 from automation_file.remote.s3.list_ops import s3_list_bucket
 from automation_file.remote.s3.upload_ops import s3_upload_dir, s3_upload_file
-from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.base import RemoteBackendTab
 
 
-class S3Tab(BaseTab):
+class S3Tab(RemoteBackendTab):
     """Form-driven S3 operations. Secrets default to the AWS credential chain."""
-
-    def __init__(self, log, pool) -> None:
-        super().__init__(log, pool)
-        root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
 
     def _init_group(self) -> QGroupBox:
         box = QGroupBox("Client (leave blank to use the default AWS chain)")
@@ -55,18 +47,12 @@ class S3Tab(BaseTab):
         form.addRow("Bucket", self._bucket)
         form.addRow("Key / prefix", self._key)
 
-        form.addRow(self._button("Upload file", self._on_upload_file))
-        form.addRow(self._button("Upload dir", self._on_upload_dir))
-        form.addRow(self._button("Download to local", self._on_download))
-        form.addRow(self._button("Delete object", self._on_delete))
-        form.addRow(self._button("List bucket", self._on_list))
+        form.addRow(self.make_button("Upload file", self._on_upload_file))
+        form.addRow(self.make_button("Upload dir", self._on_upload_dir))
+        form.addRow(self.make_button("Download to local", self._on_download))
+        form.addRow(self.make_button("Delete object", self._on_delete))
+        form.addRow(self.make_button("List bucket", self._on_list))
         return box
-
-    @staticmethod
-    def _button(label: str, handler) -> QPushButton:
-        button = QPushButton(label)
-        button.clicked.connect(handler)
-        return button
 
     def _on_init(self) -> None:
         self.run_action(

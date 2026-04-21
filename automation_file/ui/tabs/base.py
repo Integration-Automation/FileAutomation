@@ -12,9 +12,11 @@ from typing import Any
 from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import (
     QFileDialog,
+    QGroupBox,
     QHBoxLayout,
     QLineEdit,
     QPushButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -29,6 +31,13 @@ class BaseTab(QWidget):
         super().__init__()
         self._log = log
         self._pool = pool
+
+    @staticmethod
+    def make_button(label: str, handler: Callable[[], Any]) -> QPushButton:
+        """Build a ``QPushButton`` wired to ``handler`` — the cloud tab idiom."""
+        button = QPushButton(label)
+        button.clicked.connect(handler)
+        return button
 
     def run_action(
         self,
@@ -77,3 +86,26 @@ class BaseTab(QWidget):
     def pick_directory(parent: QWidget) -> str | None:
         path = QFileDialog.getExistingDirectory(parent, "Select directory")
         return path or None
+
+
+class RemoteBackendTab(BaseTab):
+    """Shared layout template for cloud/SFTP tabs.
+
+    Subclasses supply ``_init_group`` (credentials / session setup) and
+    ``_ops_group`` (file transfer actions). The base class stacks both
+    inside a ``QVBoxLayout`` with a trailing stretch so the groups pin
+    to the top of the tab.
+    """
+
+    def __init__(self, log: LogPanel, pool: QThreadPool) -> None:
+        super().__init__(log, pool)
+        root = QVBoxLayout(self)
+        root.addWidget(self._init_group())
+        root.addWidget(self._ops_group())
+        root.addStretch()
+
+    def _init_group(self) -> QGroupBox:
+        raise NotImplementedError
+
+    def _ops_group(self) -> QGroupBox:
+        raise NotImplementedError

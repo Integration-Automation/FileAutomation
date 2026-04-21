@@ -6,6 +6,7 @@ from pathlib import Path
 
 from automation_file.exceptions import DirNotExistsException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
+from automation_file.remote._upload_tree import walk_and_upload
 from automation_file.remote.s3.client import s3_instance
 
 
@@ -29,15 +30,12 @@ def s3_upload_dir(dir_path: str, bucket: str, key_prefix: str = "") -> list[str]
     source = Path(dir_path)
     if not source.is_dir():
         raise DirNotExistsException(str(source))
-    uploaded: list[str] = []
     prefix = key_prefix.rstrip("/")
-    for entry in source.rglob("*"):
-        if not entry.is_file():
-            continue
-        rel = entry.relative_to(source).as_posix()
-        key = f"{prefix}/{rel}" if prefix else rel
-        if s3_upload_file(str(entry), bucket, key):
-            uploaded.append(key)
+    uploaded = walk_and_upload(
+        source,
+        lambda rel: f"{prefix}/{rel}" if prefix else rel,
+        lambda local, key: s3_upload_file(str(local), bucket, key),
+    )
     file_automation_logger.info(
         "s3_upload_dir: %s -> s3://%s/%s (%d files)",
         source,

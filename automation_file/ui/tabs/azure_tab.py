@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
 from automation_file.remote.azure_blob.client import azure_blob_instance
@@ -18,18 +17,11 @@ from automation_file.remote.azure_blob.upload_ops import (
     azure_blob_upload_dir,
     azure_blob_upload_file,
 )
-from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.base import RemoteBackendTab
 
 
-class AzureBlobTab(BaseTab):
+class AzureBlobTab(RemoteBackendTab):
     """Form-driven Azure Blob operations."""
-
-    def __init__(self, log, pool) -> None:
-        super().__init__(log, pool)
-        root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
 
     def _init_group(self) -> QGroupBox:
         box = QGroupBox("Client")
@@ -53,18 +45,12 @@ class AzureBlobTab(BaseTab):
         form.addRow("Local path", self._local)
         form.addRow("Container", self._container)
         form.addRow("Blob name / prefix", self._blob)
-        form.addRow(self._button("Upload file", self._on_upload_file))
-        form.addRow(self._button("Upload dir", self._on_upload_dir))
-        form.addRow(self._button("Download to local", self._on_download))
-        form.addRow(self._button("Delete blob", self._on_delete))
-        form.addRow(self._button("List container", self._on_list))
+        form.addRow(self.make_button("Upload file", self._on_upload_file))
+        form.addRow(self.make_button("Upload dir", self._on_upload_dir))
+        form.addRow(self.make_button("Download to local", self._on_download))
+        form.addRow(self.make_button("Delete blob", self._on_delete))
+        form.addRow(self.make_button("List container", self._on_list))
         return box
-
-    @staticmethod
-    def _button(label: str, handler) -> QPushButton:
-        button = QPushButton(label)
-        button.clicked.connect(handler)
-        return button
 
     def _on_init(self) -> None:
         conn = self._conn_string.text().strip()
