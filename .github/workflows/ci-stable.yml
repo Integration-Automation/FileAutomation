@@ -104,13 +104,73 @@ jobs:
           print(f"stable.toml -> {stable_version}")
           print(f"dev.toml    -> {dev_version}")
           PY
-      - name: Commit bumped versions back to main
+      - name: Commit bumped versions back to main (signed via GitHub API)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add stable.toml dev.toml
-          git commit -m "Bump version to v${{ steps.version.outputs.version }} [skip ci]"
-          git push origin HEAD:main
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          head_oid = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          version = os.environ["VERSION"]
+
+          def b64(path: str) -> str:
+              with open(path, "rb") as fp:
+                  return base64.b64encode(fp.read()).decode("ascii")
+
+          mutation = """
+          mutation($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) {
+              commit { oid url }
+            }
+          }
+          """
+
+          payload = {
+              "query": mutation,
+              "variables": {
+                  "input": {
+                      "branch": {
+                          "repositoryNameWithOwner": repo,
+                          "branchName": "main",
+                      },
+                      "message": {
+                          "headline": f"Bump version to v{version} [skip ci]",
+                      },
+                      "expectedHeadOid": head_oid,
+                      "fileChanges": {
+                          "additions": [
+                              {"path": "stable.toml", "contents": b64("stable.toml")},
+                              {"path": "dev.toml", "contents": b64("dev.toml")},
+                          ]
+                      },
+                  }
+              },
+          }
+
+          request = urllib.request.Request(
+              "https://api.github.com/graphql",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(request) as resp:
+              body = json.loads(resp.read())
+          if body.get("errors"):
+              raise SystemExit(f"GraphQL error: {body['errors']}")
+          print(body["data"]["createCommitOnBranch"]["commit"])
+          PY
       - name: Use stable.toml as pyproject.toml
         run: cp stable.toml pyproject.toml
       - name: Build sdist and wheel
