@@ -20,6 +20,11 @@ facade.
 - **Cron scheduler** — recurring action lists on a stdlib-only 5-field parser (`FA_schedule_*`)
 - **Transfer progress + cancellation** — opt-in `progress_name` hook on HTTP and S3 transfers (`FA_progress_*`)
 - **Fast file search** — OS index fast path (`mdfind` / `locate` / `es.exe`) with a streaming `scandir` fallback (`FA_fast_find`)
+- **Checksums + integrity verification** — streaming `file_checksum` / `verify_checksum` with any `hashlib` algorithm; `download_file(expected_sha256=...)` verifies after transfer (`FA_file_checksum`, `FA_verify_checksum`)
+- **Resumable HTTP downloads** — `download_file(resume=True)` writes to `<target>.part` and sends `Range: bytes=<n>-` so interrupted transfers continue
+- **Duplicate-file finder** — three-stage size → partial-hash → full-hash pipeline; unique-size files are never hashed (`FA_find_duplicates`)
+- **DAG action executor** — topological scheduling with parallel fan-out and per-branch skip-on-failure (`FA_execute_action_dag`)
+- **Entry-point plugins** — third-party packages register their own `FA_*` actions via `[project.entry-points."automation_file.actions"]`; `build_default_registry()` picks them up automatically
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -342,6 +347,103 @@ for path in scandir_find("/data", "*.csv"):
 ```json
 [["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
 ```
+
+### Checksums + integrity verification
+Stream any `hashlib` algorithm; `verify_checksum` compares with
+`hmac.compare_digest` (constant-time):
+
+```python
+from automation_file import file_checksum, verify_checksum
+
+digest = file_checksum("bundle.tar.gz")                # sha256 by default
+verify_checksum("bundle.tar.gz", digest)               # -> True
+verify_checksum("bundle.tar.gz", "deadbeef...", algorithm="blake2b")
+```
+
+Also available as `FA_file_checksum` / `FA_verify_checksum` JSON actions.
+
+### Resumable HTTP downloads
+`download_file(resume=True)` writes to `<target>.part` and sends
+`Range: bytes=<n>-` on the next attempt. Pair with `expected_sha256=` for
+integrity verification once the transfer completes:
+
+```python
+from automation_file import download_file
+
+download_file(
+    "https://example.com/big.bin",
+    "big.bin",
+    resume=True,
+    expected_sha256="3b0c44298fc1...",
+)
+```
+
+### Duplicate-file finder
+Three-stage pipeline: size bucket → 64 KiB partial hash → full hash.
+Unique-size files are never hashed:
+
+```python
+from automation_file import find_duplicates
+
+groups = find_duplicates("/data", min_size=1024)
+# list[list[str]] — each inner list is a set of identical files, sorted
+# by size descending.
+```
+
+`FA_find_duplicates` runs the same search from JSON.
+
+### DAG action executor
+Run actions in dependency order; independent branches fan out across a
+thread pool. Each node is `{"id": ..., "action": [...], "depends_on":
+[...]}`:
+
+```python
+from automation_file import execute_action_dag
+
+execute_action_dag([
+    {"id": "fetch",  "action": ["FA_download_file",
+                                ["https://example.com/src.tar.gz", "src.tar.gz"]]},
+    {"id": "verify", "action": ["FA_verify_checksum",
+                                ["src.tar.gz", "3b0c44298fc1..."]],
+                     "depends_on": ["fetch"]},
+    {"id": "unpack", "action": ["FA_unzip_file", ["src.tar.gz", "src"]],
+                     "depends_on": ["verify"]},
+])
+```
+
+If `verify` raises, `unpack` is marked `skipped` by default. Pass
+`fail_fast=False` to run dependents regardless. JSON action:
+`FA_execute_action_dag`.
+
+### Entry-point plugins
+Third-party packages advertise actions via `pyproject.toml`:
+
+```toml
+[project.entry-points."automation_file.actions"]
+my_plugin = "my_plugin:register"
+```
+
+where `register` is a zero-argument callable returning a
+`dict[str, Callable]`. Once installed in the same environment, the
+commands show up in every freshly-built registry:
+
+```python
+# my_plugin/__init__.py
+def greet(name: str) -> str:
+    return f"hello {name}"
+
+def register() -> dict:
+    return {"FA_greet": greet}
+```
+
+```python
+# after `pip install my_plugin`
+from automation_file import execute_action
+execute_action([["FA_greet", {"name": "world"}]])
+```
+
+Plugin failures are logged and swallowed — one broken plugin cannot
+break the library.
 
 ### GUI
 ```bash

@@ -288,6 +288,125 @@ The same action is available to JSON action lists as ``FA_fast_find``:
 
    [["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
 
+Checksums and integrity verification
+------------------------------------
+
+Hash any file with a streaming reader (any :mod:`hashlib` algorithm) and
+verify it against an expected digest using constant-time comparison:
+
+.. code-block:: python
+
+   from automation_file import file_checksum, verify_checksum
+
+   digest = file_checksum("bundle.tar.gz")                 # sha256 by default
+   verify_checksum("bundle.tar.gz", digest)                # -> True
+   verify_checksum("bundle.tar.gz", "deadbeef...", algorithm="blake2b")
+
+The same functions are available to JSON action lists as
+``FA_file_checksum`` and ``FA_verify_checksum``.
+
+Resumable HTTP downloads
+------------------------
+
+:func:`~automation_file.download_file` accepts ``resume=True``. Bytes are
+written to ``<target>.part``; if the tempfile already exists the next call
+sends ``Range: bytes=<n>-`` so the transfer picks up where it left off.
+Combined with ``expected_sha256=`` the download is verified immediately
+after the last chunk is written:
+
+.. code-block:: python
+
+   from automation_file import download_file
+
+   download_file(
+       "https://example.com/big.bin",
+       "big.bin",
+       resume=True,
+       expected_sha256="3b0c44298fc1...",
+   )
+
+File deduplication
+------------------
+
+:func:`~automation_file.find_duplicates` walks a tree once with
+``os.scandir`` and runs a three-stage size → partial-hash → full-hash
+pipeline. Files with unique sizes are eliminated without being hashed at
+all, so a tree of millions of files is cheap to scan:
+
+.. code-block:: python
+
+   from automation_file import find_duplicates
+
+   groups = find_duplicates("/data", min_size=1024)
+   # groups: list[list[str]], each inner list is a set of identical files
+   # sorted by size descending.
+
+``FA_find_duplicates`` exposes the same call to JSON action lists.
+
+DAG action executor
+-------------------
+
+:func:`~automation_file.execute_action_dag` runs actions in dependency
+order. Each node is ``{"id": str, "action": [name, ...], "depends_on":
+[id, ...]}``. Independent branches fan out across a thread pool; when a
+node fails, its transitive dependents are marked ``skipped``
+(``fail_fast=True``, the default) or still run (``fail_fast=False``):
+
+.. code-block:: python
+
+   from automation_file import execute_action_dag
+
+   results = execute_action_dag([
+       {"id": "fetch",  "action": ["FA_download_file",
+                                   ["https://example.com/src.tar.gz", "src.tar.gz"]]},
+       {"id": "verify", "action": ["FA_verify_checksum",
+                                   ["src.tar.gz", "3b0c44298fc1..."]],
+                        "depends_on": ["fetch"]},
+       {"id": "unpack", "action": ["FA_unzip_file", ["src.tar.gz", "src"]],
+                        "depends_on": ["verify"]},
+       {"id": "report", "action": ["FA_fast_find", ["src", "*.py"]],
+                        "depends_on": ["unpack"]},
+   ])
+
+Cycles, unknown dependencies, self-dependencies, and duplicate ids raise
+:class:`~automation_file.exceptions.DagException` before any node runs.
+The JSON-action form is ``FA_execute_action_dag``.
+
+Entry-point plugins
+-------------------
+
+Third-party packages can register their own ``FA_*`` commands by
+declaring an ``automation_file.actions`` entry point in their
+``pyproject.toml``::
+
+   [project.entry-points."automation_file.actions"]
+   my_plugin = "my_plugin:register"
+
+where ``register`` is a zero-argument callable returning a
+``Mapping[str, Callable]``. Once the plugin is installed into the same
+virtual environment,
+:func:`~automation_file.core.action_registry.build_default_registry`
+picks it up automatically — no caller changes required:
+
+.. code-block:: python
+
+   # my_plugin/__init__.py
+   def greet(name: str) -> str:
+       return f"hello {name}"
+
+   def register() -> dict:
+       return {"FA_greet": greet}
+
+.. code-block:: python
+
+   # consumer code, after `pip install my_plugin`
+   from automation_file import execute_action
+   execute_action([["FA_greet", {"name": "world"}]])
+
+Plugin failures (import errors, factory exceptions, wrong return shape,
+registry rejection) are logged and swallowed so one broken plugin cannot
+break the library.
+
 GUI (PySide6)
 -------------
 

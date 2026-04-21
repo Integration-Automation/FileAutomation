@@ -48,11 +48,14 @@ Module layout
    ├── core/
    │   ├── action_registry.py
    │   ├── action_executor.py   # serial, parallel, dry-run, validate-first
+   │   ├── dag_executor.py      # topological scheduler with parallel fan-out
    │   ├── callback_executor.py
    │   ├── package_loader.py
+   │   ├── plugins.py           # entry-point plugin discovery
    │   ├── json_store.py
    │   ├── retry.py             # @retry_on_transient
    │   ├── quota.py             # Quota(max_bytes, max_seconds)
+   │   ├── checksum.py          # file_checksum, verify_checksum
    │   └── progress.py          # CancellationToken, ProgressReporter, progress_registry
    ├── local/
    │   ├── file_ops.py
@@ -88,12 +91,13 @@ Module layout
    │   └── tabs/                # one tab per backend + JSON runner + servers
    └── utils/
        ├── file_discovery.py
-       └── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback
+       ├── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback
+       └── deduplicate.py       # size → partial-hash → full-hash dedup pipeline
 
 Execution modes
 ---------------
 
-The shared executor supports four orthogonal modes:
+The shared executor supports five orthogonal modes:
 
 * ``execute_action(actions)`` — default serial execution; each failure is
   captured and reported without aborting the batch.
@@ -105,6 +109,12 @@ The shared executor supports four orthogonal modes:
 * ``execute_action_parallel(actions, max_workers=4)`` — dispatch actions
   concurrently through a thread pool. The caller is responsible for ensuring
   the chosen actions are independent.
+* ``execute_action_dag(nodes, max_workers=4, fail_fast=True)`` — Kahn-style
+  topological scheduling. Each node is ``{"id": str, "action": [...],
+  "depends_on": [id, ...]}``. Independent branches run in parallel, failed
+  branches mark their transitive dependents ``skipped`` (or still run them
+  under ``fail_fast=False``). Cycles / unknown deps / duplicate ids are
+  rejected before any node runs.
 
 Reliability utilities
 ---------------------
@@ -114,6 +124,18 @@ Reliability utilities
   exponential back-off. Used by :func:`automation_file.download_file`.
 * :class:`automation_file.core.quota.Quota` — dataclass bundling an optional
   ``max_bytes`` size cap and an optional ``max_seconds`` time budget.
+* :func:`automation_file.core.checksum.file_checksum` and
+  :func:`automation_file.core.checksum.verify_checksum` — streaming file
+  hashing (any :mod:`hashlib` algorithm) with constant-time digest comparison.
+  :func:`automation_file.download_file` accepts ``expected_sha256=`` to
+  verify the target immediately after the HTTP transfer completes.
+* Resumable downloads: :func:`automation_file.download_file` accepts
+  ``resume=True``, which writes to ``<target>.part`` and sends
+  ``Range: bytes=<n>-`` so interrupted transfers continue from the existing
+  byte count instead of restarting from zero.
+* :func:`automation_file.utils.deduplicate.find_duplicates` — three-stage
+  size → partial-hash → full-hash pipeline; most files never get hashed
+  because unique-size buckets are discarded before any digest is read.
 * :class:`automation_file.core.progress.CancellationToken` and
   :class:`automation_file.core.progress.ProgressReporter` — opt-in per-transfer
   instrumentation. HTTP download and S3 upload/download accept a
@@ -156,6 +178,31 @@ Security boundaries
   :class:`paramiko.RejectPolicy` and never auto-adds unknown host keys.
 * **Plugin loading**: :class:`automation_file.core.package_loader.PackageLoader`
   registers arbitrary module members; never expose it to untrusted input.
+  The entry-point discovery path
+  (:func:`automation_file.core.plugins.load_entry_point_plugins`) is safer —
+  only packages the user has explicitly installed can contribute commands —
+  but every plugin still runs with full library privileges, so review
+  third-party plugins before installing them.
+
+Entry-point plugins
+-------------------
+
+Third-party packages can ship extra actions without ``automation_file``
+having to import them. A plugin advertises itself in its
+``pyproject.toml``::
+
+   [project.entry-points."automation_file.actions"]
+   my_plugin = "my_plugin:register"
+
+where ``register`` is a zero-argument callable returning a
+``Mapping[str, Callable]`` — the same shape you would hand to
+:func:`automation_file.add_command_to_executor`.
+:func:`automation_file.core.action_registry.build_default_registry`
+invokes :func:`automation_file.core.plugins.load_entry_point_plugins` after
+the built-ins are wired in, so installed plugins populate every
+freshly-built registry automatically. Plugin failures (import errors,
+factory exceptions, bad return shape, registry rejection) are logged and
+swallowed so one broken plugin does not break the library.
 
 Shared singletons
 -----------------

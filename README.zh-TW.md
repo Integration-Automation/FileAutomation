@@ -18,6 +18,11 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **Cron 排程器** — 僅用標準函式庫的 5 欄位解析器執行週期性動作清單（`FA_schedule_*`）
 - **傳輸進度 + 取消** — HTTP 與 S3 傳輸可選的 `progress_name` 掛鉤（`FA_progress_*`）
 - **快速檔案搜尋** — OS 索引快速路徑（`mdfind` / `locate` / `es.exe`）搭配串流式 `scandir` 備援（`FA_fast_find`）
+- **檢查碼 + 完整性驗證** — 串流式 `file_checksum` / `verify_checksum`，支援任何 `hashlib` 演算法；`download_file(expected_sha256=...)` 於下載完成後立即驗證（`FA_file_checksum`、`FA_verify_checksum`）
+- **可續傳 HTTP 下載** — `download_file(resume=True)` 寫入 `<target>.part` 並傳送 `Range: bytes=<n>-`，讓中斷的傳輸繼續而非從頭開始
+- **重複檔案尋找器** — 三階段 size → 部分雜湊 → 完整雜湊管線；大小唯一的檔案完全不會被雜湊（`FA_find_duplicates`）
+- **DAG 動作執行器** — 依相依順序拓撲排程，獨立分支平行展開，失敗時其後代預設標記跳過（`FA_execute_action_dag`）
+- **Entry-point 外掛** — 第三方套件透過 `[project.entry-points."automation_file.actions"]` 註冊自訂 `FA_*` 動作；`build_default_registry()` 會自動載入
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -339,6 +344,98 @@ for path in scandir_find("/data", "*.csv"):
 ```json
 [["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
 ```
+
+### 檢查碼 + 完整性驗證
+串流式處理任何 `hashlib` 演算法；`verify_checksum` 以 `hmac.compare_digest`
+（常數時間）比對摘要：
+
+```python
+from automation_file import file_checksum, verify_checksum
+
+digest = file_checksum("bundle.tar.gz")                # 預設為 sha256
+verify_checksum("bundle.tar.gz", digest)               # -> True
+verify_checksum("bundle.tar.gz", "deadbeef...", algorithm="blake2b")
+```
+
+同時以 `FA_file_checksum` / `FA_verify_checksum` 提供 JSON 動作。
+
+### 可續傳 HTTP 下載
+`download_file(resume=True)` 會寫入 `<target>.part` 並於下次嘗試傳送
+`Range: bytes=<n>-`。搭配 `expected_sha256=` 可在下載完成後立刻驗證完整性：
+
+```python
+from automation_file import download_file
+
+download_file(
+    "https://example.com/big.bin",
+    "big.bin",
+    resume=True,
+    expected_sha256="3b0c44298fc1...",
+)
+```
+
+### 重複檔案尋找器
+三階段管線：依大小分桶 → 64 KiB 部分雜湊 → 完整雜湊。大小唯一的檔案完全不會
+被雜湊：
+
+```python
+from automation_file import find_duplicates
+
+groups = find_duplicates("/data", min_size=1024)
+# list[list[str]] — 每個內層 list 是一組相同內容的檔案，以大小遞減排序。
+```
+
+`FA_find_duplicates` 以相同呼叫提供給 JSON。
+
+### DAG 動作執行器
+依相依關係執行動作；獨立分支會透過執行緒池平行展開。每個節點形式為
+`{"id": ..., "action": [...], "depends_on": [...]}`：
+
+```python
+from automation_file import execute_action_dag
+
+execute_action_dag([
+    {"id": "fetch",  "action": ["FA_download_file",
+                                ["https://example.com/src.tar.gz", "src.tar.gz"]]},
+    {"id": "verify", "action": ["FA_verify_checksum",
+                                ["src.tar.gz", "3b0c44298fc1..."]],
+                     "depends_on": ["fetch"]},
+    {"id": "unpack", "action": ["FA_unzip_file", ["src.tar.gz", "src"]],
+                     "depends_on": ["verify"]},
+])
+```
+
+若 `verify` 拋出例外，預設情況下 `unpack` 會被標記為 `skipped`。傳入
+`fail_fast=False` 可讓後代節點仍然執行。JSON 動作：`FA_execute_action_dag`。
+
+### Entry-point 外掛
+第三方套件以 `pyproject.toml` 宣告動作：
+
+```toml
+[project.entry-points."automation_file.actions"]
+my_plugin = "my_plugin:register"
+```
+
+其中 `register` 是一個零參數的可呼叫物件，回傳 `dict[str, Callable]`。只要
+套件被安裝於同一個虛擬環境，這些指令就會出現在每次新建的 registry：
+
+```python
+# my_plugin/__init__.py
+def greet(name: str) -> str:
+    return f"hello {name}"
+
+def register() -> dict:
+    return {"FA_greet": greet}
+```
+
+```python
+# 執行 `pip install my_plugin` 之後
+from automation_file import execute_action
+execute_action([["FA_greet", {"name": "world"}]])
+```
+
+外掛失敗（匯入錯誤、factory 例外、回傳型別不正確、registry 拒絕）都會被記錄
+並吞掉 — 一個壞掉的外掛不會影響整個函式庫。
 
 ### GUI
 ```bash
