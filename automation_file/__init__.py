@@ -27,6 +27,7 @@ from automation_file.core.checksum import (
 )
 from automation_file.core.dag_executor import execute_action_dag
 from automation_file.core.json_store import read_action_json, write_action_json
+from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
 from automation_file.core.package_loader import PackageLoader
 from automation_file.core.progress import (
     CancellationToken,
@@ -248,6 +249,9 @@ __all__ = [
     "verify_checksum",
     "ChecksumMismatchException",
     "find_duplicates",
+    "ManifestException",
+    "write_manifest",
+    "verify_manifest",
     # Triggers
     "FileWatcher",
     "TriggerManager",

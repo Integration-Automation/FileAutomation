@@ -131,7 +131,7 @@ def _http_commands() -> dict[str, Command]:
 
 
 def _utils_commands() -> dict[str, Command]:
-    from automation_file.core import checksum
+    from automation_file.core import checksum, manifest
     from automation_file.utils import deduplicate, fast_find
 
     return {
@@ -140,6 +140,8 @@ def _utils_commands() -> dict[str, Command]:
         "FA_verify_checksum": checksum.verify_checksum,
         "FA_find_duplicates": deduplicate.find_duplicates,
         "FA_execute_action_dag": _lazy_execute_action_dag,
+        "FA_write_manifest": manifest.write_manifest,
+        "FA_verify_manifest": manifest.verify_manifest,
     }
 
 
