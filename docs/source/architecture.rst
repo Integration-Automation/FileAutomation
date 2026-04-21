@@ -48,15 +48,23 @@ Module layout
    ├── core/
    │   ├── action_registry.py
    │   ├── action_executor.py   # serial, parallel, dry-run, validate-first
+   │   ├── dag_executor.py      # topological scheduler with parallel fan-out
    │   ├── callback_executor.py
    │   ├── package_loader.py
+   │   ├── plugins.py           # entry-point plugin discovery
    │   ├── json_store.py
    │   ├── retry.py             # @retry_on_transient
-   │   └── quota.py             # Quota(max_bytes, max_seconds)
+   │   ├── quota.py             # Quota(max_bytes, max_seconds)
+   │   ├── checksum.py          # file_checksum, verify_checksum
+   │   ├── manifest.py          # write_manifest, verify_manifest
+   │   ├── config.py            # AutomationConfig (TOML loader + secret resolver)
+   │   ├── secrets.py           # Env/File/Chained secret providers
+   │   └── progress.py          # CancellationToken, ProgressReporter, progress_registry
    ├── local/
    │   ├── file_ops.py
    │   ├── dir_ops.py
    │   ├── zip_ops.py
+   │   ├── sync_ops.py          # rsync-style incremental sync
    │   └── safe_paths.py        # safe_join + is_within
    ├── remote/
    │   ├── url_validator.py     # SSRF guard
@@ -69,22 +77,34 @@ Module layout
    ├── server/
    │   ├── tcp_server.py        # loopback-only, optional shared-secret
    │   └── http_server.py       # POST /actions, Bearer auth
+   ├── trigger/
+   │   └── manager.py           # FileWatcher + TriggerManager (watchdog-backed)
+   ├── scheduler/
+   │   ├── cron.py              # 5-field cron expression parser
+   │   └── manager.py           # Scheduler background thread + ScheduledJob
+   ├── notify/
+   │   ├── sinks.py             # Webhook / Slack / Email sinks
+   │   └── manager.py           # NotificationManager (fanout + dedup + auto-notify hook)
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
    ├── ui/                      # PySide6 GUI
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # 9-tab MainWindow
+   │   ├── main_window.py       # tabbed MainWindow (Home, Local, Transfer,
+   │   │                        #   Progress, JSON actions, Triggers,
+   │   │                        #   Scheduler, Servers)
    │   ├── worker.py            # ActionWorker (QRunnable)
    │   ├── log_widget.py        # LogPanel
    │   └── tabs/                # one tab per backend + JSON runner + servers
    └── utils/
-       └── file_discovery.py
+       ├── file_discovery.py
+       ├── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback
+       └── deduplicate.py       # size → partial-hash → full-hash dedup pipeline
 
 Execution modes
 ---------------
 
-The shared executor supports four orthogonal modes:
+The shared executor supports five orthogonal modes:
 
 * ``execute_action(actions)`` — default serial execution; each failure is
   captured and reported without aborting the batch.
@@ -96,6 +116,12 @@ The shared executor supports four orthogonal modes:
 * ``execute_action_parallel(actions, max_workers=4)`` — dispatch actions
   concurrently through a thread pool. The caller is responsible for ensuring
   the chosen actions are independent.
+* ``execute_action_dag(nodes, max_workers=4, fail_fast=True)`` — Kahn-style
+  topological scheduling. Each node is ``{"id": str, "action": [...],
+  "depends_on": [id, ...]}``. Independent branches run in parallel, failed
+  branches mark their transitive dependents ``skipped`` (or still run them
+  under ``fail_fast=False``). Cycles / unknown deps / duplicate ids are
+  rejected before any node runs.
 
 Reliability utilities
 ---------------------
@@ -105,6 +131,87 @@ Reliability utilities
   exponential back-off. Used by :func:`automation_file.download_file`.
 * :class:`automation_file.core.quota.Quota` — dataclass bundling an optional
   ``max_bytes`` size cap and an optional ``max_seconds`` time budget.
+* :func:`automation_file.core.checksum.file_checksum` and
+  :func:`automation_file.core.checksum.verify_checksum` — streaming file
+  hashing (any :mod:`hashlib` algorithm) with constant-time digest comparison.
+  :func:`automation_file.download_file` accepts ``expected_sha256=`` to
+  verify the target immediately after the HTTP transfer completes.
+* Resumable downloads: :func:`automation_file.download_file` accepts
+  ``resume=True``, which writes to ``<target>.part`` and sends
+  ``Range: bytes=<n>-`` so interrupted transfers continue from the existing
+  byte count instead of restarting from zero.
+* :func:`automation_file.utils.deduplicate.find_duplicates` — three-stage
+  size → partial-hash → full-hash pipeline; most files never get hashed
+  because unique-size buckets are discarded before any digest is read.
+* :func:`automation_file.sync_dir` — incremental directory mirror with
+  ``(size, mtime)`` or checksum-based change detection, optional delete
+  of extras, and a dry-run mode.
+* :func:`automation_file.write_manifest` /
+  :func:`automation_file.verify_manifest` — JSON snapshot of every file
+  digest under a root, for release-artifact verification and tamper
+  detection.
+* :class:`automation_file.core.progress.CancellationToken` and
+  :class:`automation_file.core.progress.ProgressReporter` — opt-in per-transfer
+  instrumentation. HTTP download and S3 upload/download accept a
+  ``progress_name=`` kwarg that wires both primitives into the transfer loop;
+  JSON actions ``FA_progress_list`` / ``FA_progress_cancel`` /
+  ``FA_progress_clear`` address the central registry.
+
+Event-driven dispatch
+---------------------
+
+Two long-running subsystems reuse the shared executor instead of forking
+their own dispatch paths:
+
+* :mod:`automation_file.trigger` wraps ``watchdog`` observers. Each
+  :class:`~automation_file.trigger.FileWatcher` forwards matching filesystem
+  events to an action list dispatched through the shared registry.
+  :data:`~automation_file.trigger.trigger_manager` owns the name → watcher
+  map so the GUI and JSON actions share one lifecycle.
+* :mod:`automation_file.scheduler` runs one background thread that wakes on
+  minute boundaries, iterates registered
+  :class:`~automation_file.scheduler.ScheduledJob` instances, and dispatches
+  every matching job on a short-lived worker thread so a slow action can't
+  starve subsequent jobs.
+
+Both dispatchers call
+:func:`automation_file.notify.manager.notify_on_failure` when an action
+list raises :class:`~automation_file.exceptions.FileAutomationException`.
+The helper is a no-op when no sinks are registered, so auto-notification
+is an opt-in side effect of registering any
+:class:`~automation_file.NotificationSink`.
+
+Notifications
+-------------
+
+:mod:`automation_file.notify` ships three concrete sinks
+(:class:`~automation_file.WebhookSink`, :class:`~automation_file.SlackSink`,
+:class:`~automation_file.EmailSink`) behind one
+:class:`~automation_file.NotificationManager` fanout. The manager owns:
+
+* Per-sink error isolation — one broken sink never aborts the others.
+* Sliding-window dedup keyed on ``(subject, body, level)`` so a stuck
+  trigger can't flood a channel.
+* A shared module-level singleton
+  (:data:`~automation_file.notification_manager`) so CLI, GUI, and
+  long-running dispatchers all publish through one state.
+
+Every webhook/Slack URL passes through
+:func:`~automation_file.remote.url_validator.validate_http_url`, blocking
+SSRF targets. Email sinks never expose the password in ``repr()``.
+
+Configuration and secrets
+-------------------------
+
+:class:`automation_file.AutomationConfig` loads an
+``automation_file.toml`` document and exposes helpers to materialise
+sinks / defaults. Secret placeholders (``${env:NAME}`` /
+``${file:NAME}``) resolve at load time through a
+:class:`~automation_file.ChainedSecretProvider` built from
+:class:`~automation_file.EnvSecretProvider` and/or
+:class:`~automation_file.FileSecretProvider`. Unresolved references
+raise :class:`~automation_file.SecretNotFoundException` so a typo never
+silently becomes an empty string.
 
 Security boundaries
 -------------------
@@ -124,6 +231,31 @@ Security boundaries
   :class:`paramiko.RejectPolicy` and never auto-adds unknown host keys.
 * **Plugin loading**: :class:`automation_file.core.package_loader.PackageLoader`
   registers arbitrary module members; never expose it to untrusted input.
+  The entry-point discovery path
+  (:func:`automation_file.core.plugins.load_entry_point_plugins`) is safer —
+  only packages the user has explicitly installed can contribute commands —
+  but every plugin still runs with full library privileges, so review
+  third-party plugins before installing them.
+
+Entry-point plugins
+-------------------
+
+Third-party packages can ship extra actions without ``automation_file``
+having to import them. A plugin advertises itself in its
+``pyproject.toml``::
+
+   [project.entry-points."automation_file.actions"]
+   my_plugin = "my_plugin:register"
+
+where ``register`` is a zero-argument callable returning a
+``Mapping[str, Callable]`` — the same shape you would hand to
+:func:`automation_file.add_command_to_executor`.
+:func:`automation_file.core.action_registry.build_default_registry`
+invokes :func:`automation_file.core.plugins.load_entry_point_plugins` after
+the built-ins are wired in, so installed plugins populate every
+freshly-built registry automatically. Plugin failures (import errors,
+factory exceptions, bad return shape, registry rejection) are logged and
+swallowed so one broken plugin does not break the library.
 
 Shared singletons
 -----------------

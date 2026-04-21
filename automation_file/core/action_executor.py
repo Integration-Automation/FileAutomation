@@ -15,12 +15,15 @@ transient errors are common.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.json_store import read_action_json
+from automation_file.core.metrics import record_action
+from automation_file.core.substitution import substitute as substitute_payload
 from automation_file.exceptions import ExecuteActionException, ValidationException
 from automation_file.logging_config import file_automation_logger
 
@@ -95,14 +98,19 @@ class ActionExecutor:
         action_list: list | Mapping[str, Any],
         dry_run: bool = False,
         validate_first: bool = False,
+        substitute: bool = False,
     ) -> dict[str, Any]:
         """Execute every action; return ``{"execute: <action>": result|repr(error)}``.
 
         ``dry_run=True`` logs and records the resolved name without invoking the
         command. ``validate_first=True`` runs :meth:`validate` before touching
-        any action so a typo aborts the whole batch up-front.
+        any action so a typo aborts the whole batch up-front. ``substitute=True``
+        expands ``${env:...}`` / ``${date:...}`` / ``${uuid}`` / ``${cwd}``
+        placeholders inside every string in the payload.
         """
         actions = self._coerce(action_list)
+        if substitute:
+            actions = substitute_payload(actions)  # type: ignore[assignment]
         if validate_first:
             self.validate(actions)
         results: dict[str, Any] = {}
@@ -144,20 +152,15 @@ class ActionExecutor:
 
     # Internals ---------------------------------------------------------
     def _run_one(self, action: list, dry_run: bool) -> Any:
+        name = _safe_action_name(action)
+        if dry_run:
+            return self._run_dry(action)
+        started = time.monotonic()
+        ok = False
         try:
-            if dry_run:
-                name, kind, payload = self._parse_action(action)
-                if self.registry.resolve(name) is None:
-                    raise ExecuteActionException(f"unknown action: {name!r}")
-                file_automation_logger.info(
-                    "dry_run: %s kind=%s payload=%r",
-                    name,
-                    kind,
-                    payload,
-                )
-                return f"dry_run:{name}"
             value = self._execute_event(action)
             file_automation_logger.info("execute_action: %s", action)
+            ok = True
             return value
         except ExecuteActionException as error:
             file_automation_logger.error("execute_action malformed: %r", error)
@@ -165,6 +168,24 @@ class ActionExecutor:
         except Exception as error:  # pylint: disable=broad-except
             file_automation_logger.error("execute_action runtime error: %r", error)
             return repr(error)
+        finally:
+            record_action(name, time.monotonic() - started, ok)
+
+    def _run_dry(self, action: list) -> Any:
+        try:
+            name, kind, payload = self._parse_action(action)
+            if self.registry.resolve(name) is None:
+                raise ExecuteActionException(f"unknown action: {name!r}")
+        except ExecuteActionException as error:
+            file_automation_logger.error("execute_action malformed: %r", error)
+            return repr(error)
+        file_automation_logger.info(
+            "dry_run: %s kind=%s payload=%r",
+            name,
+            kind,
+            payload,
+        )
+        return f"dry_run:{name}"
 
     @staticmethod
     def _coerce(action_list: list | Mapping[str, Any]) -> list:
@@ -182,6 +203,12 @@ class ActionExecutor:
         return action_list
 
 
+def _safe_action_name(action: Any) -> str:
+    if isinstance(action, list) and action and isinstance(action[0], str):
+        return action[0]
+    return "unknown"
+
+
 # Default shared executor — built once, mutated in place by plugins.
 executor: ActionExecutor = ActionExecutor()
 
@@ -190,12 +217,14 @@ def execute_action(
     action_list: list | Mapping[str, Any],
     dry_run: bool = False,
     validate_first: bool = False,
+    substitute: bool = False,
 ) -> dict[str, Any]:
     """Module-level shim that delegates to the shared executor."""
     return executor.execute_action(
         action_list,
         dry_run=dry_run,
         validate_first=validate_first,
+        substitute=substitute,
     )
 
 

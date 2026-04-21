@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from automation_file.core.action_executor import execute_action
 from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.network_guards import ensure_loopback
 
 _DEFAULT_HOST = "127.0.0.1"
@@ -46,6 +47,15 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
         except ValueError as error:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
             return
+
+        acl: ActionACL | None = getattr(self.server, "action_acl", None)
+        if acl is not None:
+            try:
+                acl.enforce(payload)
+            except ActionNotPermittedException as error:
+                file_automation_logger.warning("http_server acl: %r", error)
+                self._send_json(HTTPStatus.FORBIDDEN, {"error": str(error)})
+                return
 
         try:
             results = execute_action(payload)
@@ -96,9 +106,11 @@ class HTTPActionServer(ThreadingHTTPServer):
         server_address: tuple[str, int],
         handler_class: type = _HTTPActionHandler,
         shared_secret: str | None = None,
+        action_acl: ActionACL | None = None,
     ) -> None:
         super().__init__(server_address, handler_class)
         self.shared_secret: str | None = shared_secret
+        self.action_acl: ActionACL | None = action_acl
 
 
 def start_http_action_server(
@@ -106,6 +118,7 @@ def start_http_action_server(
     port: int = _DEFAULT_PORT,
     allow_non_loopback: bool = False,
     shared_secret: str | None = None,
+    action_acl: ActionACL | None = None,
 ) -> HTTPActionServer:
     """Start the HTTP action server on a background thread."""
     if not allow_non_loopback:
@@ -114,7 +127,7 @@ def start_http_action_server(
         file_automation_logger.warning(
             "http_server: non-loopback bind without shared_secret is insecure",
         )
-    server = HTTPActionServer((host, port), shared_secret=shared_secret)
+    server = HTTPActionServer((host, port), shared_secret=shared_secret, action_acl=action_acl)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     file_automation_logger.info(

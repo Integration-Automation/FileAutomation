@@ -54,6 +54,9 @@ def test_main_window_constructs(qt_app) -> None:
         "JSONEditorTab",
         "ServerTab",
         "TransferTab",
+        "TriggerTab",
+        "SchedulerTab",
+        "ProgressTab",
         "HomeTab",
     ],
 )

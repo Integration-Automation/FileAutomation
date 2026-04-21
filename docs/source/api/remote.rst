@@ -115,3 +115,31 @@ Bundled with ``automation_file``; registered automatically by
 
 .. automodule:: automation_file.remote.sftp.list_ops
    :members:
+
+FTP / FTPS
+----------
+
+Bundled with ``automation_file``; registered automatically by
+:func:`automation_file.core.action_registry.build_default_registry`.
+Supports plain FTP and explicit FTPS (via ``FTP_TLS`` + ``auth()``).
+
+.. automodule:: automation_file.remote.ftp.client
+   :members:
+
+.. automodule:: automation_file.remote.ftp.upload_ops
+   :members:
+
+.. automodule:: automation_file.remote.ftp.download_ops
+   :members:
+
+.. automodule:: automation_file.remote.ftp.delete_ops
+   :members:
+
+.. automodule:: automation_file.remote.ftp.list_ops
+   :members:
+
+Cross-backend
+-------------
+
+.. automodule:: automation_file.remote.cross_backend
+   :members:

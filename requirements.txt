@@ -6,3 +6,5 @@ PySide6
 requests
 protobuf
 tqdm
+watchdog
+tomli; python_version<"3.11"

@@ -176,6 +176,359 @@ SFTP specifically uses :class:`paramiko.RejectPolicy` — unknown hosts are
 rejected rather than auto-added. Provide ``known_hosts`` explicitly or rely on
 ``~/.ssh/known_hosts``.
 
+File-watcher triggers
+---------------------
+
+Run an action list whenever a filesystem event fires on a watched path. The
+module-level :data:`~automation_file.trigger.trigger_manager` keeps a named
+registry of active watchers so the JSON facade and the GUI share one
+lifecycle.
+
+.. code-block:: python
+
+   from automation_file import watch_start, watch_stop
+
+   watch_start(
+       name="inbox-sweeper",
+       path="/data/inbox",
+       action_list=[["FA_copy_all_file_to_dir", {"source_dir": "/data/inbox",
+                                                 "target_dir": "/data/processed"}]],
+       events=["created", "modified"],
+       recursive=False,
+   )
+   # later:
+   watch_stop("inbox-sweeper")
+
+Or drive it from a JSON action list with ``FA_watch_start`` /
+``FA_watch_stop`` / ``FA_watch_stop_all`` / ``FA_watch_list``.
+
+Cron scheduler
+--------------
+
+Run an action list on a recurring schedule. The 5-field cron parser supports
+``*``, exact values, ``a-b`` ranges, comma-separated lists, and ``*/n`` step
+syntax with ``jan``..``dec`` / ``sun``..``sat`` aliases.
+
+.. code-block:: python
+
+   from automation_file import schedule_add
+
+   schedule_add(
+       name="nightly-snapshot",
+       cron_expression="0 2 * * *",           # every day at 02:00 local time
+       action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                                    "zip_name": "/backup/data_nightly"}]],
+   )
+
+A background thread wakes on minute boundaries, so expressions with
+sub-minute precision are not supported. Use ``FA_schedule_add`` /
+``FA_schedule_remove`` / ``FA_schedule_remove_all`` / ``FA_schedule_list``
+from JSON.
+
+Transfer progress + cancellation
+--------------------------------
+
+Pass ``progress_name="<label>"`` to :func:`download_file`,
+:func:`s3_upload_file`, or :func:`s3_download_file` to register the transfer
+with the shared progress registry. The GUI's **Progress** tab polls the
+registry every half second; ``FA_progress_list``, ``FA_progress_cancel``,
+and ``FA_progress_clear`` give JSON action lists the same view.
+
+.. code-block:: python
+
+   from automation_file import download_file, progress_cancel
+
+   # In one thread:
+   download_file("https://example.com/big.bin", "big.bin",
+                 progress_name="big-download")
+
+   # In another thread / from the GUI:
+   progress_cancel("big-download")
+
+Cancellation raises :class:`~automation_file.CancelledException` inside the
+transfer loop. The transfer function catches it, marks the reporter
+``status="cancelled"``, and returns ``False`` — callers don't need to handle
+the exception themselves.
+
+Fast file search
+----------------
+
+:func:`fast_find` picks the cheapest backend available on the host — OS
+index first, streaming scandir walk as a fallback — so large trees are
+searched with minimal energy:
+
+* macOS: ``mdfind`` (Spotlight)
+* Linux: ``plocate`` / ``locate`` database
+* Windows: Everything's ``es.exe`` CLI, if installed
+* Fallback: ``os.scandir`` generator with ``fnmatch`` matching and early
+  termination via ``limit=``
+
+.. code-block:: python
+
+   from automation_file import fast_find, scandir_find, has_os_index
+
+   # Query an indexer when available, fall back to scandir otherwise.
+   results = fast_find("/var/log", "*.log", limit=100)
+
+   # Force the portable path (skip the OS indexer).
+   results = fast_find("/data", "report_*.csv", use_index=False)
+
+   # Streaming generator — stop early without scanning the whole tree.
+   for path in scandir_find("/data", "*.csv"):
+       if "2026" in path:
+           break
+
+   # Which indexer will fast_find try?  Returns "mdfind" / "locate" /
+   # "plocate" / "es" / None.
+   has_os_index()
+
+The same action is available to JSON action lists as ``FA_fast_find``:
+
+.. code-block:: json
+
+   [["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
+
+Checksums and integrity verification
+------------------------------------
+
+Hash any file with a streaming reader (any :mod:`hashlib` algorithm) and
+verify it against an expected digest using constant-time comparison:
+
+.. code-block:: python
+
+   from automation_file import file_checksum, verify_checksum
+
+   digest = file_checksum("bundle.tar.gz")                 # sha256 by default
+   verify_checksum("bundle.tar.gz", digest)                # -> True
+   verify_checksum("bundle.tar.gz", "deadbeef...", algorithm="blake2b")
+
+The same functions are available to JSON action lists as
+``FA_file_checksum`` and ``FA_verify_checksum``.
+
+Resumable HTTP downloads
+------------------------
+
+:func:`~automation_file.download_file` accepts ``resume=True``. Bytes are
+written to ``<target>.part``; if the tempfile already exists the next call
+sends ``Range: bytes=<n>-`` so the transfer picks up where it left off.
+Combined with ``expected_sha256=`` the download is verified immediately
+after the last chunk is written:
+
+.. code-block:: python
+
+   from automation_file import download_file
+
+   download_file(
+       "https://example.com/big.bin",
+       "big.bin",
+       resume=True,
+       expected_sha256="3b0c44298fc1...",
+   )
+
+File deduplication
+------------------
+
+:func:`~automation_file.find_duplicates` walks a tree once with
+``os.scandir`` and runs a three-stage size → partial-hash → full-hash
+pipeline. Files with unique sizes are eliminated without being hashed at
+all, so a tree of millions of files is cheap to scan:
+
+.. code-block:: python
+
+   from automation_file import find_duplicates
+
+   groups = find_duplicates("/data", min_size=1024)
+   # groups: list[list[str]], each inner list is a set of identical files
+   # sorted by size descending.
+
+``FA_find_duplicates`` exposes the same call to JSON action lists.
+
+Incremental directory sync
+--------------------------
+
+:func:`~automation_file.sync_dir` mirrors ``src`` into ``dst`` by copying
+only files that are new or changed. Change detection is ``(size, mtime)``
+by default; pass ``compare="checksum"`` when mtime is unreliable. Extras
+under ``dst`` are left alone by default — pass ``delete=True`` to prune
+them (and ``dry_run=True`` to preview):
+
+.. code-block:: python
+
+   from automation_file import sync_dir
+
+   summary = sync_dir("/data/src", "/data/dst", delete=True)
+   # summary: {"copied": [...], "skipped": [...], "deleted": [...],
+   #           "errors": [...], "dry_run": False}
+
+The JSON-action form is ``FA_sync_dir``. Symlinks are re-created as
+symlinks rather than followed, so a link pointing outside the tree can't
+blow up the mirror.
+
+Directory manifests
+-------------------
+
+Write a JSON manifest of every file under a tree and verify the tree
+hasn't changed later. Useful for release-artifact verification, backup
+integrity checks, and pre-flight checks before moves:
+
+.. code-block:: python
+
+   from automation_file import write_manifest, verify_manifest
+
+   write_manifest("/release/payload", "/release/MANIFEST.json")
+
+   # Later…
+   result = verify_manifest("/release/payload", "/release/MANIFEST.json")
+   if not result["ok"]:
+       raise SystemExit(f"manifest mismatch: {result}")
+
+``result`` reports ``matched``, ``missing``, ``modified``, and ``extra``
+lists separately. Extras do not fail verification (mirror ``sync_dir``'s
+non-deleting default); ``missing`` or ``modified`` do. Both operations
+are exposed to JSON action lists as ``FA_write_manifest`` and
+``FA_verify_manifest``.
+
+Notifications
+-------------
+
+Push one-off messages or auto-notify on trigger/scheduler failures via
+webhook, Slack, or SMTP:
+
+.. code-block:: python
+
+   from automation_file import (
+       SlackSink, WebhookSink, EmailSink,
+       notification_manager, notify_send,
+   )
+
+   notification_manager.register(SlackSink("https://hooks.slack.com/services/T/B/X"))
+   notify_send("deploy complete", body="rev abc123", level="info")
+
+Every sink implements the same ``send(subject, body, level)`` contract;
+the fanout :class:`~automation_file.NotificationManager` handles:
+
+- Per-sink error isolation — one broken sink doesn't starve the others.
+- Sliding-window dedup — identical ``(subject, body, level)`` messages
+  within ``dedup_seconds`` are dropped so a stuck trigger can't flood a
+  channel.
+- SSRF validation on every webhook/Slack URL.
+
+Scheduler and trigger dispatchers auto-notify on failure at
+``level="error"`` — registering a sink is all that's needed to get
+production alerts. The JSON-action forms are ``FA_notify_send`` and
+``FA_notify_list``.
+
+Config file and secret providers
+--------------------------------
+
+Declare notification sinks and defaults once in a TOML file. Secret
+references resolve at load time from environment variables or a file
+root (Docker / K8s style):
+
+.. code-block:: toml
+
+   # automation_file.toml
+
+   [secrets]
+   file_root = "/run/secrets"
+
+   [defaults]
+   dedup_seconds = 120
+
+   [[notify.sinks]]
+   type = "slack"
+   name = "team-alerts"
+   webhook_url = "${env:SLACK_WEBHOOK}"
+
+   [[notify.sinks]]
+   type = "email"
+   name = "ops-email"
+   host = "smtp.example.com"
+   port = 587
+   sender = "alerts@example.com"
+   recipients = ["ops@example.com"]
+   username = "${env:SMTP_USER}"
+   password = "${file:smtp_password}"
+
+.. code-block:: python
+
+   from automation_file import AutomationConfig, notification_manager
+
+   config = AutomationConfig.load("automation_file.toml")
+   config.apply_to(notification_manager)
+
+Unresolved ``${…}`` references raise
+:class:`~automation_file.SecretNotFoundException` rather than silently
+becoming empty strings. Custom provider chains can be built via
+:class:`~automation_file.ChainedSecretProvider` /
+:class:`~automation_file.EnvSecretProvider` /
+:class:`~automation_file.FileSecretProvider` and passed to
+``AutomationConfig.load(path, provider=…)``.
+
+DAG action executor
+-------------------
+
+:func:`~automation_file.execute_action_dag` runs actions in dependency
+order. Each node is ``{"id": str, "action": [name, ...], "depends_on":
+[id, ...]}``. Independent branches fan out across a thread pool; when a
+node fails, its transitive dependents are marked ``skipped``
+(``fail_fast=True``, the default) or still run (``fail_fast=False``):
+
+.. code-block:: python
+
+   from automation_file import execute_action_dag
+
+   results = execute_action_dag([
+       {"id": "fetch",  "action": ["FA_download_file",
+                                   ["https://example.com/src.tar.gz", "src.tar.gz"]]},
+       {"id": "verify", "action": ["FA_verify_checksum",
+                                   ["src.tar.gz", "3b0c44298fc1..."]],
+                        "depends_on": ["fetch"]},
+       {"id": "unpack", "action": ["FA_unzip_file", ["src.tar.gz", "src"]],
+                        "depends_on": ["verify"]},
+       {"id": "report", "action": ["FA_fast_find", ["src", "*.py"]],
+                        "depends_on": ["unpack"]},
+   ])
+
+Cycles, unknown dependencies, self-dependencies, and duplicate ids raise
+:class:`~automation_file.exceptions.DagException` before any node runs.
+The JSON-action form is ``FA_execute_action_dag``.
+
+Entry-point plugins
+-------------------
+
+Third-party packages can register their own ``FA_*`` commands by
+declaring an ``automation_file.actions`` entry point in their
+``pyproject.toml``::
+
+   [project.entry-points."automation_file.actions"]
+   my_plugin = "my_plugin:register"
+
+where ``register`` is a zero-argument callable returning a
+``Mapping[str, Callable]``. Once the plugin is installed into the same
+virtual environment,
+:func:`~automation_file.core.action_registry.build_default_registry`
+picks it up automatically — no caller changes required:
+
+.. code-block:: python
+
+   # my_plugin/__init__.py
+   def greet(name: str) -> str:
+       return f"hello {name}"
+
+   def register() -> dict:
+       return {"FA_greet": greet}
+
+.. code-block:: python
+
+   # consumer code, after `pip install my_plugin`
+   from automation_file import execute_action
+   execute_action([["FA_greet", {"name": "world"}]])
+
+Plugin failures (import errors, factory exceptions, wrong return shape,
+registry rejection) are logged and swallowed so one broken plugin cannot
+break the library.
+
 GUI (PySide6)
 -------------
 
@@ -193,7 +546,7 @@ A tabbed control surface wraps every feature:
 
    launch_ui()
 
-Tabs: Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions,
+Tabs: Home, Local, Transfer, Progress, JSON actions, Triggers, Scheduler,
 Servers. A persistent log panel below the tabs streams every call's result or
 error. Background work runs on ``QThreadPool`` via ``ActionWorker`` so the UI
 stays responsive.

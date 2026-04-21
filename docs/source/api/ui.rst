@@ -70,3 +70,12 @@ Tabs
 
 .. automodule:: automation_file.ui.tabs.server_tab
    :members:
+
+.. automodule:: automation_file.ui.tabs.trigger_tab
+   :members:
+
+.. automodule:: automation_file.ui.tabs.scheduler_tab
+   :members:
+
+.. automodule:: automation_file.ui.tabs.progress_tab
+   :members:

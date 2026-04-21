@@ -23,7 +23,11 @@ dependencies = [
     "azure-storage-blob>=12.19.0",
     "dropbox>=11.36.2",
     "paramiko>=3.4.0",
-    "PySide6>=6.6.0"
+    "PySide6>=6.6.0",
+    "watchdog>=4.0.0",
+    "cryptography>=42.0.0",
+    "prometheus_client>=0.20.0",
+    "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [
     "Programming Language :: Python :: 3.10",

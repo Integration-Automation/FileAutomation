@@ -66,7 +66,16 @@ class ActionRegistry:
 
 
 def _local_commands() -> dict[str, Command]:
-    from automation_file.local import dir_ops, file_ops, zip_ops
+    from automation_file.local import (
+        conditional,
+        dir_ops,
+        file_ops,
+        json_edit,
+        shell_ops,
+        sync_ops,
+        tar_ops,
+        zip_ops,
+    )
 
     return {
         # Files
@@ -81,6 +90,16 @@ def _local_commands() -> dict[str, Command]:
         "FA_create_dir": dir_ops.create_dir,
         "FA_remove_dir_tree": dir_ops.remove_dir_tree,
         "FA_rename_dir": dir_ops.rename_dir,
+        "FA_sync_dir": sync_ops.sync_dir,
+        # Shell
+        "FA_run_shell": shell_ops.run_shell,
+        # JSON edit
+        "FA_json_get": json_edit.json_get,
+        "FA_json_set": json_edit.json_set,
+        "FA_json_delete": json_edit.json_delete,
+        # Tar
+        "FA_create_tar": tar_ops.create_tar,
+        "FA_extract_tar": tar_ops.extract_tar,
         # Zip
         "FA_zip_dir": zip_ops.zip_dir,
         "FA_zip_file": zip_ops.zip_file,
@@ -90,6 +109,10 @@ def _local_commands() -> dict[str, Command]:
         "FA_unzip_file": zip_ops.unzip_file,
         "FA_read_zip_file": zip_ops.read_zip_file,
         "FA_unzip_all": zip_ops.unzip_all,
+        # Conditional dispatch
+        "FA_if_exists": conditional.if_exists,
+        "FA_if_newer": conditional.if_newer,
+        "FA_if_size_gt": conditional.if_size_gt,
     }
 
 
@@ -129,9 +152,42 @@ def _http_commands() -> dict[str, Command]:
     return {"FA_download_file": http_download.download_file}
 
 
+def _utils_commands() -> dict[str, Command]:
+    from automation_file.core import checksum, crypto, manifest
+    from automation_file.remote import cross_backend
+    from automation_file.utils import deduplicate, fast_find, grep, rotate
+
+    return {
+        "FA_fast_find": fast_find.fast_find,
+        "FA_file_checksum": checksum.file_checksum,
+        "FA_verify_checksum": checksum.verify_checksum,
+        "FA_find_duplicates": deduplicate.find_duplicates,
+        "FA_execute_action_dag": _lazy_execute_action_dag,
+        "FA_write_manifest": manifest.write_manifest,
+        "FA_verify_manifest": manifest.verify_manifest,
+        "FA_grep": grep.grep_files,
+        "FA_rotate_backups": rotate.rotate_backups,
+        "FA_copy_between": cross_backend.copy_between,
+        "FA_encrypt_file": crypto.encrypt_file,
+        "FA_decrypt_file": crypto.decrypt_file,
+    }
+
+
+def _lazy_execute_action_dag(
+    nodes: list,
+    max_workers: int = 4,
+    fail_fast: bool = True,
+) -> dict[str, Any]:
+    """Deferred import shim so the registry module doesn't depend on the DAG executor."""
+    from automation_file.core.dag_executor import execute_action_dag
+
+    return execute_action_dag(nodes, max_workers=max_workers, fail_fast=fail_fast)
+
+
 def _register_cloud_backends(registry: ActionRegistry) -> None:
     from automation_file.remote.azure_blob import register_azure_blob_ops
     from automation_file.remote.dropbox_api import register_dropbox_ops
+    from automation_file.remote.ftp import register_ftp_ops
     from automation_file.remote.s3 import register_s3_ops
     from automation_file.remote.sftp import register_sftp_ops
 
@@ -139,16 +195,58 @@ def _register_cloud_backends(registry: ActionRegistry) -> None:
     register_azure_blob_ops(registry)
     register_dropbox_ops(registry)
     register_sftp_ops(registry)
+    register_ftp_ops(registry)
+
+
+def _register_trigger_ops(registry: ActionRegistry) -> None:
+    from automation_file.trigger import register_trigger_ops
+
+    register_trigger_ops(registry)
+
+
+def _register_scheduler_ops(registry: ActionRegistry) -> None:
+    from automation_file.scheduler import register_scheduler_ops
+
+    register_scheduler_ops(registry)
+
+
+def _register_progress_ops(registry: ActionRegistry) -> None:
+    from automation_file.core.progress import register_progress_ops
+
+    register_progress_ops(registry)
+
+
+def _register_notify_ops(registry: ActionRegistry) -> None:
+    from automation_file.notify import register_notify_ops
+
+    register_notify_ops(registry)
 
 
 def build_default_registry() -> ActionRegistry:
-    """Return a registry pre-populated with every built-in ``FA_*`` action."""
+    """Return a registry pre-populated with every built-in ``FA_*`` action.
+
+    After the built-ins are registered, any third-party package advertising
+    an ``automation_file.actions`` entry point is loaded so its commands
+    land in the same registry. Plugins may override built-in names.
+    """
     registry = ActionRegistry()
     registry.register_many(_local_commands())
     registry.register_many(_http_commands())
+    registry.register_many(_utils_commands())
     registry.register_many(_drive_commands())
     _register_cloud_backends(registry)
+    _register_trigger_ops(registry)
+    _register_scheduler_ops(registry)
+    _register_progress_ops(registry)
+    _register_notify_ops(registry)
+    _load_plugins(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)
     )
     return registry
+
+
+def _load_plugins(registry: ActionRegistry) -> None:
+    from automation_file.core.plugins import load_entry_point_plugins
+
+    load_entry_point_plugins(registry.register_many)
