@@ -25,6 +25,7 @@ from automation_file.core.checksum import (
     file_checksum,
     verify_checksum,
 )
+from automation_file.core.config import AutomationConfig, ConfigException
 from automation_file.core.dag_executor import execute_action_dag
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
@@ -42,6 +43,16 @@ from automation_file.core.progress import (
 )
 from automation_file.core.quota import Quota
 from automation_file.core.retry import retry_on_transient
+from automation_file.core.secrets import (
+    ChainedSecretProvider,
+    EnvSecretProvider,
+    FileSecretProvider,
+    SecretException,
+    SecretNotFoundException,
+    SecretProvider,
+    default_provider,
+    resolve_secret_refs,
+)
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
 from automation_file.local.file_ops import (
     copy_all_file_to_dir,
@@ -291,6 +302,17 @@ __all__ = [
     "notification_manager",
     "notify_send",
     "register_notify_ops",
+    # Config / secrets
+    "AutomationConfig",
+    "ConfigException",
+    "ChainedSecretProvider",
+    "EnvSecretProvider",
+    "FileSecretProvider",
+    "SecretException",
+    "SecretNotFoundException",
+    "SecretProvider",
+    "default_provider",
+    "resolve_secret_refs",
     # UI (lazy-loaded)
     "launch_ui",
 ]
