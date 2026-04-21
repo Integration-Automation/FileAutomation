@@ -26,6 +26,7 @@ from automation_file.core.checksum import (
     verify_checksum,
 )
 from automation_file.core.config import AutomationConfig, ConfigException
+from automation_file.core.config_watcher import ConfigWatcher
 from automation_file.core.dag_executor import execute_action_dag
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
@@ -347,6 +348,7 @@ __all__ = [
     # Config / secrets
     "AutomationConfig",
     "ConfigException",
+    "ConfigWatcher",
     "ChainedSecretProvider",
     "EnvSecretProvider",
     "FileSecretProvider",
