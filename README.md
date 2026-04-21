@@ -1,86 +1,145 @@
 # FileAutomation
 
-This project provides a modular framework for file automation and Google Drive integration. 
-It supports local file and directory operations, ZIP archive handling, 
-Google Drive CRUD (create, search, upload, download, delete, share), 
-and remote execution through a TCP Socket Server.
+A modular framework for local file automation, remote Google Drive operations,
+and JSON-driven action execution over an embedded TCP server. All public
+functionality is re-exported from the top-level `automation_file` facade.
 
-# Features
-## Local File and Directory Operations
-- Create, delete, copy, and rename files
-- Create, delete, and copy directories
-- Recursively search for files by extension
+- Local file / directory / ZIP operations
+- Validated HTTP downloads with SSRF protections
+- Google Drive CRUD (upload, download, search, delete, share, folders)
+- JSON action lists executed by a shared `ActionExecutor`
+- Loopback-first TCP server that accepts JSON command batches
+- Project scaffolding (`ProjectBuilder`) for executor-based automations
 
-## ZIP Archive Handling
-- Create ZIP archives
-- Extract single files or entire archives
-- Set ZIP archive passwords
-- Read archive information
+## Architecture
 
-## Google Drive Integration
-- Upload: single files, entire directories, to root or specific folders
-- Download: single files or entire folders
-- Search: by name, MIME type, or custom fields
-- Delete: remove files from Drive
-- Share: with specific users, domains, or via public link
-- Folder Management: create new folders in Drive
+```mermaid
+flowchart LR
+    User[User / CLI / JSON batch]
 
-## Automation Executors
-- Executor: central manager for all executable functions, supports action lists
-- CallbackExecutor: supports callback functions for flexible workflows
-- PackageManager: dynamically loads packages and registers functions into executors
+    subgraph Facade["automation_file (facade)"]
+        Public["Public API<br/>execute_action, execute_files,<br/>driver_instance, TCPActionServer, ..."]
+    end
 
-# JSON Configuration
-- Read and write JSON-based action lists
-- Define automation workflows in JSON format
+    subgraph Core["core"]
+        Registry[(ActionRegistry<br/>FA_* commands)]
+        Executor[ActionExecutor]
+        Callback[CallbackExecutor]
+        Loader[PackageLoader]
+        Json[json_store<br/>read/write action JSON]
+    end
 
-# TCP Socket Server
-- Start a TCP server to receive JSON commands and execute corresponding actions
-- Supports remote control and returns execution results
+    subgraph Local["local"]
+        FileOps[file_ops]
+        DirOps[dir_ops]
+        ZipOps[zip_ops]
+    end
 
-## Installation and Requirements
+    subgraph Remote["remote"]
+        UrlVal[url_validator]
+        Http[http_download]
+        Drive["google_drive<br/>client + *_ops"]
+    end
 
-- Requirements
-  - Python 3.9+
-  - Google API Client
-  - Google Drive API enabled and credentials.json downloaded
+    subgraph Server["server"]
+        TCP[TCPActionServer]
+    end
 
+    subgraph Project["project / utils"]
+        Builder[ProjectBuilder]
+        Templates[templates]
+        Discovery[file_discovery]
+    end
+
+    User --> Public
+    Public --> Executor
+    Public --> Callback
+    Public --> Loader
+    Public --> TCP
+
+    Executor --> Registry
+    Callback --> Registry
+    Loader --> Registry
+    TCP --> Executor
+    Executor --> Json
+
+    Registry --> FileOps
+    Registry --> DirOps
+    Registry --> ZipOps
+    Registry --> Http
+    Registry --> Drive
+    Registry --> Builder
+
+    Http --> UrlVal
+    Builder --> Templates
+    Builder --> Discovery
+```
+
+The `ActionRegistry` built by `build_default_registry()` is the single source
+of truth for every `FA_*` command. `ActionExecutor`, `CallbackExecutor`,
+`PackageLoader`, and `TCPActionServer` all resolve commands through the same
+shared registry instance exposed as `executor.registry`.
 
 ## Installation
-> pip install automation_file
 
-# Usage
-
-1. Initialize Google Drive
-```python
-from automation_file.remote.google_drive.driver_instance import driver_instance
-
-driver_instance.later_init("token.json", "credentials.json") 
+```bash
+pip install automation_file
 ```
 
-2. Upload a File
-```python
-from automation_file.remote.google_drive.upload.upload_to_driver import drive_upload_to_drive
+Requirements:
+- Python 3.10+
+- `google-api-python-client`, `google-auth-oauthlib` (for Drive)
+- `requests`, `tqdm` (for HTTP download with progress)
 
-drive_upload_to_drive("example.txt") 
+## Usage
+
+### Execute a JSON action list
+```python
+from automation_file import execute_action
+
+execute_action([
+    ["FA_create_file", {"file_path": "test.txt"}],
+    ["FA_copy_file", {"source": "test.txt", "target": "copy.txt"}],
+])
 ```
 
-3. Search Files
+### Initialize Google Drive and upload
 ```python
-from automation_file.remote.google_drive.search.search_drive import drive_search_all_file
+from automation_file import driver_instance, drive_upload_to_drive
 
-files = drive_search_all_file()
-print(files)
+driver_instance.later_init("token.json", "credentials.json")
+drive_upload_to_drive("example.txt")
 ```
 
-4. Start TCP Server
+### Validated HTTP download
 ```python
-from automation_file.utils.socket_server.file_automation_socket_server import start_autocontrol_socket_server
+from automation_file import download_file
 
-server = start_autocontrol_socket_server("localhost", 9943)
+download_file("https://example.com/file.zip", "file.zip")
 ```
 
-# Example JSON Action
+### Start the loopback TCP server
+```python
+from automation_file import start_autocontrol_socket_server
+
+server = start_autocontrol_socket_server("127.0.0.1", 9943)
+```
+
+Send a newline-terminated JSON payload and read until the `Return_Data_Over_JE\n`
+marker. Non-loopback binds require `allow_non_loopback=True` and are opt-in.
+
+### Scaffold an executor-based project
+```python
+from automation_file import create_project_dir
+
+create_project_dir("my_workflow")
+```
+
+## JSON action format
+
+Each entry is either a bare command name, a `[name, kwargs]` pair, or a
+`[name, args]` list:
+
 ```json
 [
   ["FA_create_file", {"file_path": "test.txt"}],
@@ -88,3 +147,15 @@ server = start_autocontrol_socket_server("localhost", 9943)
   ["FA_drive_search_all_file"]
 ]
 ```
+
+## Documentation
+
+Full API documentation lives under `docs/` and can be built with Sphinx:
+
+```bash
+pip install -r docs/requirements.txt
+sphinx-build -b html docs/source docs/_build/html
+```
+
+See [`CLAUDE.md`](CLAUDE.md) for architecture notes, conventions, and security
+considerations.

@@ -1,68 +1,67 @@
-# argparse
+"""CLI entry point (``python -m automation_file``)."""
+from __future__ import annotations
+
 import argparse
 import json
 import sys
+from typing import Any, Callable
 
-from automation_file.utils.exception.exception_tags import \
-    argparse_get_wrong_data
-from automation_file.utils.exception.exceptions import \
-    ArgparseException
-from automation_file.utils.executor.action_executor import execute_action
-from automation_file.utils.executor.action_executor import execute_files
-from automation_file.utils.file_process.get_dir_file_list import \
-    get_dir_files_as_list
-from automation_file.utils.json.json_file import read_action_json
-from automation_file.utils.project.create_project_structure import create_project_dir
+from automation_file.core.action_executor import execute_action, execute_files
+from automation_file.core.json_store import read_action_json
+from automation_file.exceptions import ArgparseException
+from automation_file.project.project_builder import create_project_dir
+from automation_file.utils.file_discovery import get_dir_files_as_list
+
+
+def _execute_file(path: str) -> Any:
+    return execute_action(read_action_json(path))
+
+
+def _execute_dir(path: str) -> Any:
+    return execute_files(get_dir_files_as_list(path))
+
+
+def _execute_str(raw: str) -> Any:
+    return execute_action(json.loads(raw))
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="automation_file")
+    parser.add_argument("-e", "--execute_file", help="path to an action JSON file")
+    parser.add_argument("-d", "--execute_dir", help="directory containing action JSON files")
+    parser.add_argument("-c", "--create_project", help="scaffold a project at this path")
+    parser.add_argument("--execute_str", help="JSON action list as a string")
+    return parser
+
+
+_DISPATCH: dict[str, Callable[[str], Any]] = {
+    "execute_file": _execute_file,
+    "execute_dir": _execute_dir,
+    "execute_str": _execute_str,
+    "create_project": create_project_dir,
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = vars(parser.parse_args(argv))
+    ran = False
+    for key, value in args.items():
+        if value is None:
+            continue
+        _DISPATCH[key](value)
+        ran = True
+    if not ran:
+        raise ArgparseException("no argument supplied; try --help")
+    return 0
+
 
 if __name__ == "__main__":
     try:
-        def preprocess_execute_action(file_path: str):
-            execute_action(read_action_json(file_path))
-
-
-        def preprocess_execute_files(file_path: str):
-            execute_files(get_dir_files_as_list(file_path))
-
-
-        def preprocess_read_str_execute_action(execute_str: str):
-            if sys.platform in ["win32", "cygwin", "msys"]:
-                json_data = json.loads(execute_str)
-                execute_str = json.loads(json_data)
-            else:
-                execute_str = json.loads(execute_str)
-            execute_action(execute_str)
-
-
-        argparse_event_dict = {
-            "execute_file": preprocess_execute_action,
-            "execute_dir": preprocess_execute_files,
-            "execute_str": preprocess_read_str_execute_action,
-            "create_project": create_project_dir
-        }
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "-e", "--execute_file",
-            type=str, help="choose action file to execute"
-        )
-        parser.add_argument(
-            "-d", "--execute_dir",
-            type=str, help="choose dir include action file to execute"
-        )
-        parser.add_argument(
-            "-c", "--create_project",
-            type=str, help="create project with template"
-        )
-        parser.add_argument(
-            "--execute_str",
-            type=str, help="execute json str"
-        )
-        args = parser.parse_args()
-        args = vars(args)
-        for key, value in args.items():
-            if value is not None:
-                argparse_event_dict.get(key)(value)
-        if all(value is None for value in args.values()):
-            raise ArgparseException(argparse_get_wrong_data)
-    except Exception as error:
+        sys.exit(main())
+    except ArgparseException as error:
+        print(repr(error), file=sys.stderr)
+        sys.exit(1)
+    except Exception as error:  # pylint: disable=broad-except
         print(repr(error), file=sys.stderr)
         sys.exit(1)
