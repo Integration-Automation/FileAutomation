@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automation_file.exceptions import DirNotExistsException, FileNotExistsException
+from automation_file.exceptions import FileNotExistsException
 from automation_file.logging_config import file_automation_logger
 from automation_file.remote._upload_tree import walk_and_upload
 from automation_file.remote.dropbox_api.client import dropbox_instance
@@ -46,19 +46,16 @@ def dropbox_upload_file(file_path: str, remote_path: str) -> bool:
 
 def dropbox_upload_dir(dir_path: str, remote_prefix: str = "/") -> list[str]:
     """Upload every file under ``dir_path`` to Dropbox under ``remote_prefix``."""
-    source = Path(dir_path)
-    if not source.is_dir():
-        raise DirNotExistsException(str(source))
-    prefix = remote_prefix.rstrip("/")
-    uploaded = walk_and_upload(
-        source,
-        lambda rel: f"{prefix}/{rel}" if prefix else f"/{rel}",
+    result = walk_and_upload(
+        dir_path,
+        remote_prefix,
+        lambda prefix, rel: f"{prefix}/{rel}" if prefix else f"/{rel}",
         lambda local, remote: dropbox_upload_file(str(local), remote),
     )
     file_automation_logger.info(
         "dropbox_upload_dir: %s -> %s (%d files)",
-        source,
-        prefix,
-        len(uploaded),
+        result.source,
+        result.prefix,
+        len(result.uploaded),
     )
-    return uploaded
+    return result.uploaded

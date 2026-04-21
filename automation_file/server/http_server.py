@@ -29,7 +29,9 @@ _MAX_CONTENT_BYTES = 1 * 1024 * 1024
 class _HTTPActionHandler(BaseHTTPRequestHandler):
     """POST /actions -> JSON results."""
 
-    def log_message(self, format_str: str, *args: object) -> None:
+    def log_message(  # pylint: disable=arguments-differ
+        self, format_str: str, *args: object
+    ) -> None:
         file_automation_logger.info("http_server: " + format_str, *args)
 
     def do_POST(self) -> None:

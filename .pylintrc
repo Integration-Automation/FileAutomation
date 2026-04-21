@@ -1,0 +1,39 @@
+[MAIN]
+# PySide6 is a C-extension binding — pylint's static inference cannot see the
+# generated classes, so treat it as a trusted extension package.
+extension-pkg-allow-list=PySide6,PySide6.QtCore,PySide6.QtGui,PySide6.QtWidgets
+
+[MESSAGES CONTROL]
+# Disabled rules, with rationale:
+#   C0114/C0115/C0116 — docstring requirements are enforced by review, not lint.
+#   C0415              — ``import-outside-toplevel`` is used deliberately for
+#                        lazy imports of heavy / optional modules (see CLAUDE.md).
+#   R0903              — too-few-public-methods; dataclasses and frozen option
+#                        objects are allowed to have no methods.
+#   W0511              — TODO/FIXME markers; tracked via issues, not lint.
+disable=
+    C0114,
+    C0115,
+    C0116,
+    C0415,
+    R0903,
+    W0511
+
+[TYPECHECK]
+# googleapiclient's ``Resource`` object exposes ``files()``, ``permissions()``,
+# etc. dynamically — pylint can't see them, so whitelist the names rather than
+# littering the Drive ops modules with ``# pylint: disable=no-member``.
+generated-members=files,permissions
+
+[DESIGN]
+# Align with CLAUDE.md's code-quality checklist.
+max-args=7
+max-locals=15
+max-returns=8
+max-branches=15
+max-statements=50
+max-attributes=17
+max-public-methods=25
+
+[FORMAT]
+max-line-length=100

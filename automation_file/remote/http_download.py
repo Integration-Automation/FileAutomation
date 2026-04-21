@@ -78,7 +78,7 @@ def download_file(
 
     written = 0
     try:
-        with open(file_name, "wb") as output, _progress(total_size, file_name) as bar:
+        with open(file_name, "wb") as output, _progress(total_size, file_name) as progress:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if not chunk:
                     continue
@@ -90,7 +90,7 @@ def download_file(
                     )
                     return False
                 output.write(chunk)
-                bar.update(len(chunk))
+                progress.update(len(chunk))
     except OSError as error:
         file_automation_logger.error("download_file write error: %r", error)
         return False

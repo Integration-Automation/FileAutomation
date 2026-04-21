@@ -90,7 +90,9 @@ from automation_file.server.tcp_server import (
 from automation_file.utils.file_discovery import get_dir_files_as_list
 
 if TYPE_CHECKING:
-    from automation_file.ui.launcher import launch_ui as launch_ui
+    from automation_file.ui.launcher import (
+        launch_ui as launch_ui,  # pylint: disable=useless-import-alias
+    )
 
 # Shared callback executor + package loader wired to the shared registry.
 callback_executor: CallbackExecutor = CallbackExecutor(executor.registry)

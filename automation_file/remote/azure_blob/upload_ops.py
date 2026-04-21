@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automation_file.exceptions import DirNotExistsException, FileNotExistsException
+from automation_file.exceptions import FileNotExistsException
 from automation_file.logging_config import file_automation_logger
 from automation_file.remote._upload_tree import walk_and_upload
 from automation_file.remote.azure_blob.client import azure_blob_instance
@@ -43,20 +43,17 @@ def azure_blob_upload_dir(
     name_prefix: str = "",
 ) -> list[str]:
     """Upload every file under ``dir_path`` to ``container`` under ``name_prefix``."""
-    source = Path(dir_path)
-    if not source.is_dir():
-        raise DirNotExistsException(str(source))
-    prefix = name_prefix.rstrip("/")
-    uploaded = walk_and_upload(
-        source,
-        lambda rel: f"{prefix}/{rel}" if prefix else rel,
+    result = walk_and_upload(
+        dir_path,
+        name_prefix,
+        lambda prefix, rel: f"{prefix}/{rel}" if prefix else rel,
         lambda local, blob_name: azure_blob_upload_file(str(local), container, blob_name),
     )
     file_automation_logger.info(
         "azure_blob_upload_dir: %s -> %s/%s (%d files)",
-        source,
+        result.source,
         container,
-        prefix,
-        len(uploaded),
+        result.prefix,
+        len(result.uploaded),
     )
-    return uploaded
+    return result.uploaded
