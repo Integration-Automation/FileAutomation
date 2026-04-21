@@ -14,7 +14,11 @@ class HTTPDownloadTab(BaseTab):
     def __init__(self, log, pool) -> None:
         super().__init__(log, pool)
         root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
         form = QFormLayout()
+        form.setVerticalSpacing(10)
+        form.setHorizontalSpacing(12)
         self._url = QLineEdit()
         self._url.setPlaceholderText("https://example.com/file.bin")
         self._dest = QLineEdit()

@@ -49,8 +49,11 @@ class HomeTab(BaseTab):
         self._status_labels: dict[str, QLabel] = {}
 
         root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
         root.addWidget(self._overview_group())
         row = QHBoxLayout()
+        row.setSpacing(12)
         row.addWidget(self._status_group(), 1)
         row.addWidget(self._actions_group(), 1)
         root.addLayout(row)

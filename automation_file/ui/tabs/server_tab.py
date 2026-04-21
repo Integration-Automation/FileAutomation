@@ -25,6 +25,8 @@ class ServerTab(BaseTab):
         self._tcp_server: TCPActionServer | None = None
         self._http_server: HTTPActionServer | None = None
         root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
         root.addWidget(self._tcp_group())
         root.addWidget(self._http_group())
         root.addStretch()

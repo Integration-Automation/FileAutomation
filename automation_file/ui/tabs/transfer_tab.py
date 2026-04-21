@@ -59,7 +59,8 @@ class TransferTab(BaseTab):
         self._sidebar.setCurrentRow(0)
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(8)
         root.addWidget(self._sidebar)
         root.addWidget(self._stack, 1)
 

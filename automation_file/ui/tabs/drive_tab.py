@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
 from automation_file.remote.google_drive.client import driver_instance
@@ -15,18 +14,11 @@ from automation_file.remote.google_drive.delete_ops import drive_delete_file
 from automation_file.remote.google_drive.download_ops import drive_download_file
 from automation_file.remote.google_drive.search_ops import drive_search_all_file
 from automation_file.remote.google_drive.upload_ops import drive_upload_to_drive
-from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.base import RemoteBackendTab
 
 
-class GoogleDriveTab(BaseTab):
+class GoogleDriveTab(RemoteBackendTab):
     """Initialise Drive credentials and dispatch a subset of FA_drive_* ops."""
-
-    def __init__(self, log, pool) -> None:
-        super().__init__(log, pool)
-        root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
 
     def _init_group(self) -> QGroupBox:
         box = QGroupBox("Credentials")
