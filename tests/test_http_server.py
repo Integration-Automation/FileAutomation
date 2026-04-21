@@ -33,7 +33,8 @@ def test_http_server_executes_action() -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _post(f"http://{host}:{port}/actions", [["test_http_echo", {"value": "hi"}]])
+        url = f"http://{host}:{port}/actions"  # NOSONAR: loopback test server, not exposed
+        status, body = _post(url, [["test_http_echo", {"value": "hi"}]])
         assert status == 200
         assert json.loads(body) == {"execute: ['test_http_echo', {'value': 'hi'}]": "hi"}
     finally:
@@ -49,7 +50,8 @@ def test_http_server_rejects_missing_auth() -> None:
     )
     host, port = server.server_address
     try:
-        status, _ = _post(f"http://{host}:{port}/actions", [["test_http_echo", {"value": 1}]])
+        url = f"http://{host}:{port}/actions"  # NOSONAR: loopback test server, not exposed
+        status, _ = _post(url, [["test_http_echo", {"value": 1}]])
         assert status == 401
     finally:
         server.shutdown()
@@ -64,8 +66,9 @@ def test_http_server_accepts_valid_auth() -> None:
     )
     host, port = server.server_address
     try:
+        url = f"http://{host}:{port}/actions"  # NOSONAR: loopback test server, not exposed
         status, body = _post(
-            f"http://{host}:{port}/actions",
+            url,
             [["test_http_echo", {"value": 1}]],
             headers={"Authorization": "Bearer s3cr3t"},
         )
@@ -76,5 +79,6 @@ def test_http_server_accepts_valid_auth() -> None:
 
 
 def test_http_server_rejects_non_loopback() -> None:
+    non_loopback = "8.8.8.8"  # NOSONAR: literal non-loopback IP required to verify rejection
     with pytest.raises(ValueError):
-        start_http_action_server(host="8.8.8.8", port=0)
+        start_http_action_server(host=non_loopback, port=0)

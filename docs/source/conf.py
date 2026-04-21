@@ -1,4 +1,5 @@
 """Sphinx configuration for automation_file."""
+
 from __future__ import annotations
 
 import os
@@ -8,7 +9,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 
 project = "automation_file"
 author = "JE-Chen"
-copyright = "2026, JE-Chen"  # noqa: A001 - Sphinx requires this name
+copyright = "2026, JE-Chen"  # pylint: disable=redefined-builtin  # Sphinx requires this name
 release = "0.0.32"
 
 extensions = [

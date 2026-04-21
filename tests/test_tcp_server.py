@@ -66,8 +66,9 @@ def test_server_reports_bad_json(server) -> None:
 
 
 def test_start_server_rejects_non_loopback() -> None:
+    non_loopback = "8.8.8.8"  # NOSONAR: literal non-loopback IP required to verify rejection
     with pytest.raises(ValueError):
-        start_autocontrol_socket_server(host="8.8.8.8", port=_free_port())
+        start_autocontrol_socket_server(host=non_loopback, port=_free_port())
 
 
 def test_start_server_allows_non_loopback_when_opted_in() -> None:
