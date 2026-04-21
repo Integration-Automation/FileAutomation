@@ -153,6 +153,7 @@ from automation_file.trigger import (
 from automation_file.utils.deduplicate import find_duplicates
 from automation_file.utils.fast_find import fast_find, has_os_index, scandir_find
 from automation_file.utils.file_discovery import get_dir_files_as_list
+from automation_file.utils.grep import GrepException, grep_files, iter_grep
 
 if TYPE_CHECKING:
     from automation_file.ui.launcher import (
@@ -263,6 +264,9 @@ __all__ = [
     "verify_checksum",
     "ChecksumMismatchException",
     "find_duplicates",
+    "grep_files",
+    "iter_grep",
+    "GrepException",
     "ManifestException",
     "write_manifest",
     "verify_manifest",
