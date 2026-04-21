@@ -131,12 +131,13 @@ def _http_commands() -> dict[str, Command]:
 
 def _utils_commands() -> dict[str, Command]:
     from automation_file.core import checksum
-    from automation_file.utils import fast_find
+    from automation_file.utils import deduplicate, fast_find
 
     return {
         "FA_fast_find": fast_find.fast_find,
         "FA_file_checksum": checksum.file_checksum,
         "FA_verify_checksum": checksum.verify_checksum,
+        "FA_find_duplicates": deduplicate.find_duplicates,
     }
 
 

@@ -124,6 +124,7 @@ from automation_file.trigger import (
     watch_stop,
     watch_stop_all,
 )
+from automation_file.utils.deduplicate import find_duplicates
 from automation_file.utils.fast_find import fast_find, has_os_index, scandir_find
 from automation_file.utils.file_discovery import get_dir_files_as_list
 
@@ -230,6 +231,7 @@ __all__ = [
     "file_checksum",
     "verify_checksum",
     "ChecksumMismatchException",
+    "find_duplicates",
     # Triggers
     "FileWatcher",
     "TriggerManager",
