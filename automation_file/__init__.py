@@ -104,6 +104,13 @@ from automation_file.remote.dropbox_api import (
     dropbox_instance,
     register_dropbox_ops,
 )
+from automation_file.remote.ftp import (
+    FTPClient,
+    FTPConnectOptions,
+    FTPException,
+    ftp_instance,
+    register_ftp_ops,
+)
 from automation_file.remote.google_drive.client import GoogleDriveClient, driver_instance
 from automation_file.remote.google_drive.delete_ops import drive_delete_file
 from automation_file.remote.google_drive.download_ops import (
@@ -264,6 +271,11 @@ __all__ = [
     "SFTPClient",
     "sftp_instance",
     "register_sftp_ops",
+    "FTPClient",
+    "FTPConnectOptions",
+    "FTPException",
+    "ftp_instance",
+    "register_ftp_ops",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",
