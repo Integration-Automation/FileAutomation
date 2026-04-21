@@ -1,19 +1,44 @@
-FileAutomation
-----
+automation_file
+===============
+
+Automation-first Python library for local file / directory / zip operations,
+HTTP downloads, and remote storage (Google Drive, S3, Azure Blob, Dropbox,
+SFTP). Ships with a PySide6 GUI that surfaces every feature through tabs.
+Actions are defined as JSON and dispatched through a central
+:class:`~automation_file.core.action_registry.ActionRegistry`.
+
+Getting started
+---------------
+
+Install from PyPI and run a JSON action list:
+
+.. code-block:: bash
+
+   pip install automation_file
+   python -m automation_file --execute_file my_actions.json
+
+Or drive the library directly from Python:
+
+.. code-block:: python
+
+   from automation_file import execute_action
+
+   execute_action([
+       ["FA_create_dir", {"dir_path": "build"}],
+       ["FA_create_file", {"file_path": "build/hello.txt", "content": "hi"}],
+   ])
 
 .. toctree::
-    :maxdepth: 4
+   :maxdepth: 2
+   :caption: Contents
 
-    API/api_index.rst
+   architecture
+   usage
+   api/index
 
+Indices
+-------
 
-----
-
-RoadMap
-
-----
-
-* Project Kanban
-* https://github.com/orgs/Integration-Automation/projects/2/views/1
-
-----
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

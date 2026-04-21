@@ -1,0 +1,39 @@
+# Ruff configuration matching the rules documented in CLAUDE.md.
+line-length = 100
+target-version = "py310"
+extend-exclude = ["docs/_build", "build", "dist", ".venv"]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "PL",   # pylint subset
+    "RUF",
+]
+ignore = [
+    "E501",      # line length enforced by formatter
+    "PLR0913",   # argparse builders legitimately take > 7 args
+    "PLR2004",   # magic numbers are allowed in tests / CLI
+    "PLR0912",   # branch count is bounded by CLAUDE.md (15) not ruff's default
+    "PLR0915",   # statement count same
+    "N818",      # exceptions intentionally don't carry the Error suffix
+    "PLC0415",   # lazy imports are used deliberately (Qt, optional SDKs, circular-safe)
+    "RUF022",    # __all__ is grouped thematically, not alphabetically
+    "PLW0108",   # tests occasionally use single-line lambdas for clarity
+    "PLR0911",   # download_file legitimately has >6 return points (SSRF guards)
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["PLR2004", "S101", "N802"]
+"automation_file/__init__.py" = ["F401"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

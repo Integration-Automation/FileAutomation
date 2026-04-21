@@ -1,0 +1,29 @@
+"""S3 strategy module.
+
+S3 actions (``FA_s3_*``) are registered on the shared default registry
+automatically. :func:`register_s3_ops` is kept public for callers that build
+their own :class:`ActionRegistry` instances.
+"""
+
+from __future__ import annotations
+
+from automation_file.core.action_registry import ActionRegistry
+from automation_file.remote.s3 import delete_ops, download_ops, list_ops, upload_ops
+from automation_file.remote.s3.client import S3Client, s3_instance
+
+
+def register_s3_ops(registry: ActionRegistry) -> None:
+    """Register every ``FA_s3_*`` command into ``registry``."""
+    registry.register_many(
+        {
+            "FA_s3_later_init": s3_instance.later_init,
+            "FA_s3_upload_file": upload_ops.s3_upload_file,
+            "FA_s3_upload_dir": upload_ops.s3_upload_dir,
+            "FA_s3_download_file": download_ops.s3_download_file,
+            "FA_s3_delete_object": delete_ops.s3_delete_object,
+            "FA_s3_list_bucket": list_ops.s3_list_bucket,
+        }
+    )
+
+
+__all__ = ["S3Client", "register_s3_ops", "s3_instance"]
