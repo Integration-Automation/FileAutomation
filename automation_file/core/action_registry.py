@@ -141,6 +141,12 @@ def _register_cloud_backends(registry: ActionRegistry) -> None:
     register_sftp_ops(registry)
 
 
+def _register_trigger_ops(registry: ActionRegistry) -> None:
+    from automation_file.trigger import register_trigger_ops
+
+    register_trigger_ops(registry)
+
+
 def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action."""
     registry = ActionRegistry()
@@ -148,6 +154,7 @@ def build_default_registry() -> ActionRegistry:
     registry.register_many(_http_commands())
     registry.register_many(_drive_commands())
     _register_cloud_backends(registry)
+    _register_trigger_ops(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)
     )

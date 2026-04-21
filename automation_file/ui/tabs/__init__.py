@@ -13,6 +13,7 @@ from automation_file.ui.tabs.s3_tab import S3Tab
 from automation_file.ui.tabs.server_tab import ServerTab
 from automation_file.ui.tabs.sftp_tab import SFTPTab
 from automation_file.ui.tabs.transfer_tab import TransferTab
+from automation_file.ui.tabs.trigger_tab import TriggerTab
 
 __all__ = [
     "AzureBlobTab",
@@ -26,4 +27,5 @@ __all__ = [
     "SFTPTab",
     "ServerTab",
     "TransferTab",
+    "TriggerTab",
 ]

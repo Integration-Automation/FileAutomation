@@ -87,6 +87,16 @@ from automation_file.server.tcp_server import (
     TCPActionServer,
     start_autocontrol_socket_server,
 )
+from automation_file.trigger import (
+    FileWatcher,
+    TriggerManager,
+    register_trigger_ops,
+    trigger_manager,
+    watch_list,
+    watch_start,
+    watch_stop,
+    watch_stop_all,
+)
 from automation_file.utils.file_discovery import get_dir_files_as_list
 
 if TYPE_CHECKING:
@@ -186,6 +196,15 @@ __all__ = [
     "ProjectBuilder",
     "create_project_dir",
     "get_dir_files_as_list",
+    # Triggers
+    "FileWatcher",
+    "TriggerManager",
+    "register_trigger_ops",
+    "trigger_manager",
+    "watch_start",
+    "watch_stop",
+    "watch_stop_all",
+    "watch_list",
     # UI (lazy-loaded)
     "launch_ui",
 ]
