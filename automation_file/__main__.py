@@ -98,7 +98,7 @@ def _cmd_http_server(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_ui(args: argparse.Namespace) -> int:
+def _cmd_ui(_args: argparse.Namespace) -> int:
     from automation_file.ui.launcher import launch_ui
 
     return launch_ui()

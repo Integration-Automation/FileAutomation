@@ -13,9 +13,7 @@ anything resembling production.
 from __future__ import annotations
 
 import hmac
-import ipaddress
 import json
-import socket
 import socketserver
 import sys
 import threading
@@ -24,6 +22,7 @@ from typing import Any
 from automation_file.core.action_executor import execute_action
 from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server.network_guards import ensure_loopback
 
 _DEFAULT_HOST = "localhost"
 _DEFAULT_PORT = 9943
@@ -116,20 +115,6 @@ class TCPActionServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         self.shared_secret: str | None = shared_secret
 
 
-def _ensure_loopback(host: str) -> None:
-    try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror as error:
-        raise ValueError(f"cannot resolve host: {host}") from error
-    for info in infos:
-        ip_obj = ipaddress.ip_address(info[4][0])
-        if not ip_obj.is_loopback:
-            raise ValueError(
-                f"host {host} resolves to non-loopback {ip_obj}; pass allow_non_loopback=True "
-                "if exposure is intentional"
-            )
-
-
 def start_autocontrol_socket_server(
     host: str = _DEFAULT_HOST,
     port: int = _DEFAULT_PORT,
@@ -143,7 +128,7 @@ def start_autocontrol_socket_server(
     address without a shared secret is strongly discouraged.
     """
     if not allow_non_loopback:
-        _ensure_loopback(host)
+        ensure_loopback(host)
     if allow_non_loopback and not shared_secret:
         file_automation_logger.warning(
             "tcp_server: non-loopback bind without shared_secret is insecure",

@@ -11,9 +11,7 @@ reverse proxy.
 from __future__ import annotations
 
 import hmac
-import ipaddress
 import json
-import socket
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from automation_file.core.action_executor import execute_action
 from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server.network_guards import ensure_loopback
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 9944
@@ -30,8 +29,8 @@ _MAX_CONTENT_BYTES = 1 * 1024 * 1024
 class _HTTPActionHandler(BaseHTTPRequestHandler):
     """POST /actions -> JSON results."""
 
-    def log_message(self, format: str, *args: object) -> None:
-        file_automation_logger.info("http_server: " + format, *args)
+    def log_message(self, format_str: str, *args: object) -> None:
+        file_automation_logger.info("http_server: " + format_str, *args)
 
     def do_POST(self) -> None:
         if self.path != "/actions":
@@ -100,20 +99,6 @@ class HTTPActionServer(ThreadingHTTPServer):
         self.shared_secret: str | None = shared_secret
 
 
-def _ensure_loopback(host: str) -> None:
-    try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror as error:
-        raise ValueError(f"cannot resolve host: {host}") from error
-    for info in infos:
-        ip_obj = ipaddress.ip_address(info[4][0])
-        if not ip_obj.is_loopback:
-            raise ValueError(
-                f"host {host} resolves to non-loopback {ip_obj}; pass allow_non_loopback=True "
-                "if exposure is intentional"
-            )
-
-
 def start_http_action_server(
     host: str = _DEFAULT_HOST,
     port: int = _DEFAULT_PORT,
@@ -122,7 +107,7 @@ def start_http_action_server(
 ) -> HTTPActionServer:
     """Start the HTTP action server on a background thread."""
     if not allow_non_loopback:
-        _ensure_loopback(host)
+        ensure_loopback(host)
     if allow_non_loopback and not shared_secret:
         file_automation_logger.warning(
             "http_server: non-loopback bind without shared_secret is insecure",
