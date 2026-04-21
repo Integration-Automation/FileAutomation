@@ -5,6 +5,7 @@ from __future__ import annotations
 from automation_file.ui.tabs.azure_tab import AzureBlobTab
 from automation_file.ui.tabs.drive_tab import GoogleDriveTab
 from automation_file.ui.tabs.dropbox_tab import DropboxTab
+from automation_file.ui.tabs.home_tab import HomeTab
 from automation_file.ui.tabs.http_tab import HTTPDownloadTab
 from automation_file.ui.tabs.json_editor_tab import JSONEditorTab
 from automation_file.ui.tabs.local_tab import LocalOpsTab
@@ -18,6 +19,7 @@ __all__ = [
     "DropboxTab",
     "GoogleDriveTab",
     "HTTPDownloadTab",
+    "HomeTab",
     "JSONEditorTab",
     "LocalOpsTab",
     "S3Tab",

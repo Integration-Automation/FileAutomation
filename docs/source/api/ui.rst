@@ -38,6 +38,9 @@ Tabs
 .. automodule:: automation_file.ui.tabs.base
    :members:
 
+.. automodule:: automation_file.ui.tabs.home_tab
+   :members:
+
 .. automodule:: automation_file.ui.tabs.local_tab
    :members:
 

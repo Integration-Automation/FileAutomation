@@ -54,6 +54,7 @@ def test_main_window_constructs(qt_app) -> None:
         "JSONEditorTab",
         "ServerTab",
         "TransferTab",
+        "HomeTab",
     ],
 )
 def test_each_tab_constructs(qt_app, tab_name: str) -> None:

@@ -11,9 +11,11 @@ from __future__ import annotations
 import inspect
 import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -45,6 +47,9 @@ from automation_file.ui.tabs.base import BaseTab
 
 _PATH_HINT_SUBSTRINGS = ("path", "_dir", "_file", "directory", "filename", "target")
 _SECRET_HINT_SUBSTRINGS = ("password", "secret", "token", "credential")
+_SETTINGS_ORG = "automation_file"
+_SETTINGS_APP = "ui"
+_LAST_JSON_DIR_KEY = "json_editor/last_dir"
 
 
 def _is_path_like(name: str) -> bool:
@@ -237,6 +242,8 @@ class JSONEditorTab(BaseTab):
         self._current_form: _ActionForm | None = None
         self._current_form_row: int = -1
         self._suppress_sync = False
+        self._settings = QSettings(_SETTINGS_ORG, _SETTINGS_APP)
+        self.setAcceptDrops(True)
 
         self._action_list = QListWidget()
         self._action_list.currentRowChanged.connect(self._on_row_changed)
@@ -260,6 +267,8 @@ class JSONEditorTab(BaseTab):
         root.addWidget(self._build_toolbar())
         root.addWidget(splitter)
         root.addWidget(self._build_run_bar())
+
+        self._register_shortcuts()
 
     def _build_toolbar(self) -> QWidget:
         toolbar = QWidget()
@@ -431,9 +440,15 @@ class JSONEditorTab(BaseTab):
         return name, {}
 
     def _on_load(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Load action JSON", filter="JSON (*.json)")
+        start_dir = str(self._settings.value(_LAST_JSON_DIR_KEY, ""))
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load action JSON", start_dir, filter="JSON (*.json)"
+        )
         if not path:
             return
+        self._load_path(path)
+
+    def _load_path(self, path: str) -> None:
         try:
             with open(path, encoding="utf-8") as fp:
                 data = json.load(fp)
@@ -444,12 +459,18 @@ class JSONEditorTab(BaseTab):
             self._log.append_line("load error: top-level JSON must be an array")
             return
         self._actions = data
+        self._settings.setValue(_LAST_JSON_DIR_KEY, str(Path(path).parent))
+        self._clear_current_form()
         self._refresh_list(select=0 if data else None)
         self._sync_raw_from_model()
+        self._log.append_line(f"loaded {len(data)} actions from {path}")
 
     def _on_save(self) -> None:
         self._commit_current_form()
-        path, _ = QFileDialog.getSaveFileName(self, "Save action JSON", filter="JSON (*.json)")
+        start_dir = str(self._settings.value(_LAST_JSON_DIR_KEY, ""))
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save action JSON", start_dir, filter="JSON (*.json)"
+        )
         if not path:
             return
         try:
@@ -458,6 +479,7 @@ class JSONEditorTab(BaseTab):
         except OSError as error:
             self._log.append_line(f"save error: {error}")
             return
+        self._settings.setValue(_LAST_JSON_DIR_KEY, str(Path(path).parent))
         self._log.append_line(f"saved {len(self._actions)} actions to {path}")
 
     def _on_clear(self) -> None:
@@ -536,3 +558,38 @@ class JSONEditorTab(BaseTab):
             f"validate_action({len(actions)})",
             kwargs={"action_list": actions},
         )
+
+    def _register_shortcuts(self) -> None:
+        for keys, handler in (
+            ("Ctrl+O", self._on_load),
+            ("Ctrl+S", self._on_save),
+            ("Ctrl+R", self._on_run),
+        ):
+            shortcut = QShortcut(QKeySequence(keys), self)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(handler)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802 — Qt override
+        if self._is_json_drop(event):
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802 — Qt override
+        if not self._is_json_drop(event):
+            event.ignore()
+            return
+        url = event.mimeData().urls()[0]
+        self._load_path(url.toLocalFile())
+        event.acceptProposedAction()
+
+    @staticmethod
+    def _is_json_drop(event: QDragEnterEvent | QDropEvent) -> bool:
+        mime = event.mimeData()
+        if not mime.hasUrls():
+            return False
+        urls = mime.urls()
+        if not urls:
+            return False
+        local = urls[0].toLocalFile()
+        return bool(local) and local.lower().endswith(".json")
