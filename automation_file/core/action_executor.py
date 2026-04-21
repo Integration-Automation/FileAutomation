@@ -21,6 +21,7 @@ from typing import Any
 
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.json_store import read_action_json
+from automation_file.core.substitution import substitute as substitute_payload
 from automation_file.exceptions import ExecuteActionException, ValidationException
 from automation_file.logging_config import file_automation_logger
 
@@ -95,14 +96,19 @@ class ActionExecutor:
         action_list: list | Mapping[str, Any],
         dry_run: bool = False,
         validate_first: bool = False,
+        substitute: bool = False,
     ) -> dict[str, Any]:
         """Execute every action; return ``{"execute: <action>": result|repr(error)}``.
 
         ``dry_run=True`` logs and records the resolved name without invoking the
         command. ``validate_first=True`` runs :meth:`validate` before touching
-        any action so a typo aborts the whole batch up-front.
+        any action so a typo aborts the whole batch up-front. ``substitute=True``
+        expands ``${env:...}`` / ``${date:...}`` / ``${uuid}`` / ``${cwd}``
+        placeholders inside every string in the payload.
         """
         actions = self._coerce(action_list)
+        if substitute:
+            actions = substitute_payload(actions)  # type: ignore[assignment]
         if validate_first:
             self.validate(actions)
         results: dict[str, Any] = {}
@@ -190,12 +196,14 @@ def execute_action(
     action_list: list | Mapping[str, Any],
     dry_run: bool = False,
     validate_first: bool = False,
+    substitute: bool = False,
 ) -> dict[str, Any]:
     """Module-level shim that delegates to the shared executor."""
     return executor.execute_action(
         action_list,
         dry_run=dry_run,
         validate_first=validate_first,
+        substitute=substitute,
     )
 
 

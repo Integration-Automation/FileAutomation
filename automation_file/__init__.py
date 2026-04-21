@@ -54,6 +54,7 @@ from automation_file.core.secrets import (
     default_provider,
     resolve_secret_refs,
 )
+from automation_file.core.substitution import SubstitutionException, substitute
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
 from automation_file.local.file_ops import (
     copy_all_file_to_dir,
@@ -205,6 +206,8 @@ __all__ = [
     "execute_files",
     "validate_action",
     "retry_on_transient",
+    "substitute",
+    "SubstitutionException",
     "add_command_to_executor",
     "read_action_json",
     "write_action_json",
