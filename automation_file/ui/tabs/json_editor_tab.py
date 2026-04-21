@@ -264,6 +264,8 @@ class JSONEditorTab(BaseTab):
         splitter.setStretchFactor(1, 2)
 
         root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
         root.addWidget(self._build_toolbar())
         root.addWidget(splitter)
         root.addWidget(self._build_run_bar())

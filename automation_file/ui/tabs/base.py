@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -92,20 +93,35 @@ class RemoteBackendTab(BaseTab):
     """Shared layout template for cloud/SFTP tabs.
 
     Subclasses supply ``_init_group`` (credentials / session setup) and
-    ``_ops_group`` (file transfer actions). The base class stacks both
-    inside a ``QVBoxLayout`` with a trailing stretch so the groups pin
-    to the top of the tab.
+    ``_ops_group`` (file transfer actions). The base class places each
+    group on its own inner sub-tab ("Credentials" / "Operations") so
+    the two concerns aren't crammed together on a single vertical page.
     """
 
     def __init__(self, log: LogPanel, pool: QThreadPool) -> None:
         super().__init__(log, pool)
         root = QVBoxLayout(self)
-        root.addWidget(self._init_group())
-        root.addWidget(self._ops_group())
-        root.addStretch()
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
+
+        inner = QTabWidget()
+        inner.addTab(self._page(self._init_group()), "Credentials")
+        inner.addTab(self._page(self._ops_group()), "Operations")
+        root.addWidget(inner)
 
     def _init_group(self) -> QGroupBox:
         raise NotImplementedError
 
     def _ops_group(self) -> QGroupBox:
         raise NotImplementedError
+
+    @staticmethod
+    def _page(group: QGroupBox) -> QWidget:
+        """Wrap a group box in a padded page so the sub-tab has breathing room."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+        layout.addWidget(group)
+        layout.addStretch()
+        return page
