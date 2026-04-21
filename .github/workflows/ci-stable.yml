@@ -67,6 +67,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -76,13 +78,41 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install build twine
-      - name: Use stable.toml as pyproject.toml
-        run: cp stable.toml pyproject.toml
-      - name: Extract version
+      - name: Bump patch version in stable.toml and dev.toml
         id: version
         run: |
-          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          def bump(path: pathlib.Path) -> str:
+              text = path.read_text(encoding="utf-8")
+              match = re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"', text, re.MULTILINE)
+              if match is None:
+                  raise SystemExit(f"no version line found in {path}")
+              major, minor, patch = (int(g) for g in match.groups())
+              new = f"{major}.{minor}.{patch + 1}"
+              path.write_text(text.replace(match.group(0), f'version = "{new}"', 1), encoding="utf-8")
+              return new
+
+          stable_version = bump(pathlib.Path("stable.toml"))
+          dev_version = bump(pathlib.Path("dev.toml"))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fp:
+              fp.write(f"version={stable_version}\n")
+              fp.write(f"dev_version={dev_version}\n")
+          print(f"stable.toml -> {stable_version}")
+          print(f"dev.toml    -> {dev_version}")
+          PY
+      - name: Commit bumped versions back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stable.toml dev.toml
+          git commit -m "Bump version to v${{ steps.version.outputs.version }} [skip ci]"
+          git push origin HEAD:main
+      - name: Use stable.toml as pyproject.toml
+        run: cp stable.toml pyproject.toml
       - name: Build sdist and wheel
         run: python -m build
       - name: Twine check
