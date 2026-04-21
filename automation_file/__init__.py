@@ -71,6 +71,7 @@ from automation_file.local.json_edit import (
 from automation_file.local.safe_paths import is_within, safe_join
 from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
+from automation_file.local.tar_ops import TarException, create_tar, extract_tar
 from automation_file.local.zip_ops import (
     read_zip_file,
     set_zip_password,
@@ -212,6 +213,9 @@ __all__ = [
     "rename_dir",
     "sync_dir",
     "SyncException",
+    "create_tar",
+    "extract_tar",
+    "TarException",
     "run_shell",
     "ShellException",
     "json_get",
