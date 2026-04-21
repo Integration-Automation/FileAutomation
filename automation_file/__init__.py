@@ -62,6 +62,12 @@ from automation_file.local.file_ops import (
     remove_file,
     rename_file,
 )
+from automation_file.local.json_edit import (
+    JsonEditException,
+    json_delete,
+    json_get,
+    json_set,
+)
 from automation_file.local.safe_paths import is_within, safe_join
 from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
@@ -208,6 +214,10 @@ __all__ = [
     "SyncException",
     "run_shell",
     "ShellException",
+    "json_get",
+    "json_set",
+    "json_delete",
+    "JsonEditException",
     "zip_dir",
     "zip_file",
     "zip_info",

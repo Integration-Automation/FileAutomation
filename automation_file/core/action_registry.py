@@ -66,7 +66,7 @@ class ActionRegistry:
 
 
 def _local_commands() -> dict[str, Command]:
-    from automation_file.local import dir_ops, file_ops, shell_ops, sync_ops, zip_ops
+    from automation_file.local import dir_ops, file_ops, json_edit, shell_ops, sync_ops, zip_ops
 
     return {
         # Files
@@ -84,6 +84,10 @@ def _local_commands() -> dict[str, Command]:
         "FA_sync_dir": sync_ops.sync_dir,
         # Shell
         "FA_run_shell": shell_ops.run_shell,
+        # JSON edit
+        "FA_json_get": json_edit.json_get,
+        "FA_json_set": json_edit.json_set,
+        "FA_json_delete": json_edit.json_delete,
         # Zip
         "FA_zip_dir": zip_ops.zip_dir,
         "FA_zip_file": zip_ops.zip_file,
