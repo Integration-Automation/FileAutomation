@@ -17,18 +17,26 @@ from automation_file.notify.manager import (
     register_notify_ops,
 )
 from automation_file.notify.sinks import (
+    DiscordSink,
     EmailSink,
     NotificationSink,
+    PagerDutySink,
     SlackSink,
+    TeamsSink,
+    TelegramSink,
     WebhookSink,
 )
 
 __all__ = [
+    "DiscordSink",
     "EmailSink",
     "NotificationException",
     "NotificationManager",
     "NotificationSink",
+    "PagerDutySink",
     "SlackSink",
+    "TeamsSink",
+    "TelegramSink",
     "WebhookSink",
     "notification_manager",
     "notify_send",
