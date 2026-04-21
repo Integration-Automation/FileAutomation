@@ -56,11 +56,15 @@ Module layout
    │   ├── retry.py             # @retry_on_transient
    │   ├── quota.py             # Quota(max_bytes, max_seconds)
    │   ├── checksum.py          # file_checksum, verify_checksum
+   │   ├── manifest.py          # write_manifest, verify_manifest
+   │   ├── config.py            # AutomationConfig (TOML loader + secret resolver)
+   │   ├── secrets.py           # Env/File/Chained secret providers
    │   └── progress.py          # CancellationToken, ProgressReporter, progress_registry
    ├── local/
    │   ├── file_ops.py
    │   ├── dir_ops.py
    │   ├── zip_ops.py
+   │   ├── sync_ops.py          # rsync-style incremental sync
    │   └── safe_paths.py        # safe_join + is_within
    ├── remote/
    │   ├── url_validator.py     # SSRF guard
@@ -78,6 +82,9 @@ Module layout
    ├── scheduler/
    │   ├── cron.py              # 5-field cron expression parser
    │   └── manager.py           # Scheduler background thread + ScheduledJob
+   ├── notify/
+   │   ├── sinks.py             # Webhook / Slack / Email sinks
+   │   └── manager.py           # NotificationManager (fanout + dedup + auto-notify hook)
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
@@ -136,6 +143,13 @@ Reliability utilities
 * :func:`automation_file.utils.deduplicate.find_duplicates` — three-stage
   size → partial-hash → full-hash pipeline; most files never get hashed
   because unique-size buckets are discarded before any digest is read.
+* :func:`automation_file.sync_dir` — incremental directory mirror with
+  ``(size, mtime)`` or checksum-based change detection, optional delete
+  of extras, and a dry-run mode.
+* :func:`automation_file.write_manifest` /
+  :func:`automation_file.verify_manifest` — JSON snapshot of every file
+  digest under a root, for release-artifact verification and tamper
+  detection.
 * :class:`automation_file.core.progress.CancellationToken` and
   :class:`automation_file.core.progress.ProgressReporter` — opt-in per-transfer
   instrumentation. HTTP download and S3 upload/download accept a
@@ -159,6 +173,45 @@ their own dispatch paths:
   :class:`~automation_file.scheduler.ScheduledJob` instances, and dispatches
   every matching job on a short-lived worker thread so a slow action can't
   starve subsequent jobs.
+
+Both dispatchers call
+:func:`automation_file.notify.manager.notify_on_failure` when an action
+list raises :class:`~automation_file.exceptions.FileAutomationException`.
+The helper is a no-op when no sinks are registered, so auto-notification
+is an opt-in side effect of registering any
+:class:`~automation_file.NotificationSink`.
+
+Notifications
+-------------
+
+:mod:`automation_file.notify` ships three concrete sinks
+(:class:`~automation_file.WebhookSink`, :class:`~automation_file.SlackSink`,
+:class:`~automation_file.EmailSink`) behind one
+:class:`~automation_file.NotificationManager` fanout. The manager owns:
+
+* Per-sink error isolation — one broken sink never aborts the others.
+* Sliding-window dedup keyed on ``(subject, body, level)`` so a stuck
+  trigger can't flood a channel.
+* A shared module-level singleton
+  (:data:`~automation_file.notification_manager`) so CLI, GUI, and
+  long-running dispatchers all publish through one state.
+
+Every webhook/Slack URL passes through
+:func:`~automation_file.remote.url_validator.validate_http_url`, blocking
+SSRF targets. Email sinks never expose the password in ``repr()``.
+
+Configuration and secrets
+-------------------------
+
+:class:`automation_file.AutomationConfig` loads an
+``automation_file.toml`` document and exposes helpers to materialise
+sinks / defaults. Secret placeholders (``${env:NAME}`` /
+``${file:NAME}``) resolve at load time through a
+:class:`~automation_file.ChainedSecretProvider` built from
+:class:`~automation_file.EnvSecretProvider` and/or
+:class:`~automation_file.FileSecretProvider`. Unresolved references
+raise :class:`~automation_file.SecretNotFoundException` so a typo never
+silently becomes an empty string.
 
 Security boundaries
 -------------------

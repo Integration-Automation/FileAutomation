@@ -28,7 +28,16 @@ Core
 .. automodule:: automation_file.core.checksum
    :members:
 
+.. automodule:: automation_file.core.manifest
+   :members:
+
 .. automodule:: automation_file.core.plugins
+   :members:
+
+.. automodule:: automation_file.core.config
+   :members:
+
+.. automodule:: automation_file.core.secrets
    :members:
 
 .. automodule:: automation_file.exceptions

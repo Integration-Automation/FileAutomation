@@ -23,6 +23,10 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **重复文件查找器** — 三阶段 size → 部分哈希 → 完整哈希管线；大小唯一的文件完全不会被哈希（`FA_find_duplicates`）
 - **DAG 动作执行器** — 按依赖顺序拓扑调度，独立分支并行展开，失败时其后代默认标记为跳过（`FA_execute_action_dag`）
 - **Entry-point 插件** — 第三方包通过 `[project.entry-points."automation_file.actions"]` 注册自定义 `FA_*` 动作；`build_default_registry()` 会自动加载
+- **增量目录同步** — rsync 风格镜像，支持 size+mtime 或 checksum 变更检测，可选删除多余文件，支持干跑（`FA_sync_dir`）
+- **目录 manifest** — 以 JSON 快照记录树下每个文件的校验和，验证时分开报告 missing / modified / extra（`FA_write_manifest`、`FA_verify_manifest`）
+- **通知 sink** — webhook / Slack / SMTP，fanout 管理器做单 sink 错误隔离与滑动窗口去重；trigger + scheduler 失败时自动通知（`FA_notify_send`、`FA_notify_list`）
+- **配置文件 + 密钥提供者** — 在 `automation_file.toml` 声明通知 sink / 默认值；`${env:…}` 与 `${file:…}` 引用通过 Env / File / Chained 提供者抽象解析，让密钥不留在配置文件中
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -386,6 +390,104 @@ groups = find_duplicates("/data", min_size=1024)
 ```
 
 `FA_find_duplicates` 以相同调用提供给 JSON。
+
+### 增量目录同步
+`sync_dir` 以只复制新增或变更文件的方式将 `src` 镜像到 `dst`。变更检测默认
+为 `(size, mtime)`；当 mtime 不可靠时可传入 `compare="checksum"`。`dst`
+下多余的文件默认保留 — 传入 `delete=True` 才会清理（`dry_run=True` 可先
+预览）：
+
+```python
+from automation_file import sync_dir
+
+summary = sync_dir("/data/src", "/data/dst", delete=True)
+# summary: {"copied": [...], "skipped": [...], "deleted": [...],
+#           "errors": [...], "dry_run": False}
+```
+
+Symlink 会以 symlink 形式重建而非被跟随，因此指向树外的链接不会拖垮镜像。
+JSON 动作：`FA_sync_dir`。
+
+### 目录 manifest
+将树下每个文件的校验和写入 JSON manifest，之后再验证树是否变动：
+
+```python
+from automation_file import write_manifest, verify_manifest
+
+write_manifest("/release/payload", "/release/MANIFEST.json")
+
+# 稍后…
+result = verify_manifest("/release/payload", "/release/MANIFEST.json")
+if not result["ok"]:
+    raise SystemExit(f"manifest mismatch: {result}")
+```
+
+`result` 以 `matched`、`missing`、`modified`、`extra` 分别报告列表。
+多余文件（`extra`）不会让验证失败（对齐 `sync_dir` 默认不删除的行为），
+`missing` 与 `modified` 则会。JSON 动作：`FA_write_manifest`、
+`FA_verify_manifest`。
+
+### 通知
+通过 webhook、Slack 或 SMTP 推送一次性消息，或在 trigger / scheduler
+失败时自动通知：
+
+```python
+from automation_file import (
+    SlackSink, WebhookSink, EmailSink,
+    notification_manager, notify_send,
+)
+
+notification_manager.register(SlackSink("https://hooks.slack.com/services/T/B/X"))
+notify_send("deploy complete", body="rev abc123", level="info")
+```
+
+每个 sink 都遵循相同的 `send(subject, body, level)` 合约。Fanout 的
+`NotificationManager` 会做单 sink 错误隔离（一个坏掉的 sink 不会影响
+其他 sink）、滑动窗口去重（避免卡住的 trigger 刷屏），并对每个
+webhook / Slack URL 进行 SSRF 验证。Scheduler 与 trigger 派发器在失败时
+会以 `level="error"` 自动通知 — 只要注册 sink 就能拿到生产环境告警。
+JSON 动作：`FA_notify_send`、`FA_notify_list`。
+
+### 配置文件与密钥提供者
+在 `automation_file.toml` 一次声明 sink 与默认值。密钥引用在加载时由
+环境变量或文件根目录（Docker / K8s 风格）解析：
+
+```toml
+# automation_file.toml
+
+[secrets]
+file_root = "/run/secrets"
+
+[defaults]
+dedup_seconds = 120
+
+[[notify.sinks]]
+type = "slack"
+name = "team-alerts"
+webhook_url = "${env:SLACK_WEBHOOK}"
+
+[[notify.sinks]]
+type = "email"
+name = "ops-email"
+host = "smtp.example.com"
+port = 587
+sender = "alerts@example.com"
+recipients = ["ops@example.com"]
+username = "${env:SMTP_USER}"
+password = "${file:smtp_password}"
+```
+
+```python
+from automation_file import AutomationConfig, notification_manager
+
+config = AutomationConfig.load("automation_file.toml")
+config.apply_to(notification_manager)
+```
+
+未解析的 `${…}` 引用会抛出 `SecretNotFoundException`，而不是默默变成空
+字符串。可组合 `ChainedSecretProvider` / `EnvSecretProvider` /
+`FileSecretProvider` 构建自定义提供者链，并以
+`AutomationConfig.load(path, provider=…)` 传入。
 
 ### DAG 动作执行器
 按依赖顺序执行动作；独立分支通过线程池并行展开。每个节点的形式为

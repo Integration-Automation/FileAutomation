@@ -10,6 +10,7 @@ API reference
    server
    trigger
    scheduler
+   notify
    progress
    project
    ui

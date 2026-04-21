@@ -25,6 +25,10 @@ facade.
 - **Duplicate-file finder** — three-stage size → partial-hash → full-hash pipeline; unique-size files are never hashed (`FA_find_duplicates`)
 - **DAG action executor** — topological scheduling with parallel fan-out and per-branch skip-on-failure (`FA_execute_action_dag`)
 - **Entry-point plugins** — third-party packages register their own `FA_*` actions via `[project.entry-points."automation_file.actions"]`; `build_default_registry()` picks them up automatically
+- **Incremental directory sync** — rsync-style mirror with size+mtime or checksum change detection, optional delete of extras, dry-run (`FA_sync_dir`)
+- **Directory manifests** — JSON snapshot of every file's checksum under a root, with separate missing/modified/extra reporting on verify (`FA_write_manifest`, `FA_verify_manifest`)
+- **Notification sinks** — webhook / Slack / SMTP with a fanout manager that does per-sink error isolation and sliding-window dedup; auto-notify on trigger + scheduler failures (`FA_notify_send`, `FA_notify_list`)
+- **Config file + secret providers** — declare notification sinks / defaults in `automation_file.toml`; `${env:…}` and `${file:…}` references resolve through an Env/File/Chained provider abstraction so secrets stay out of the file itself
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -391,6 +395,109 @@ groups = find_duplicates("/data", min_size=1024)
 ```
 
 `FA_find_duplicates` runs the same search from JSON.
+
+### Incremental directory sync
+`sync_dir` mirrors `src` into `dst` by copying only files that are new or
+changed. Change detection is `(size, mtime)` by default; pass
+`compare="checksum"` when mtime is unreliable. Extras under `dst` are left
+alone by default — pass `delete=True` to prune them (and `dry_run=True` to
+preview):
+
+```python
+from automation_file import sync_dir
+
+summary = sync_dir("/data/src", "/data/dst", delete=True)
+# summary: {"copied": [...], "skipped": [...], "deleted": [...],
+#           "errors": [...], "dry_run": False}
+```
+
+Symlinks are re-created as symlinks rather than followed, so a link
+pointing outside the tree can't blow up the mirror. JSON action:
+`FA_sync_dir`.
+
+### Directory manifests
+Write a JSON manifest of every file's checksum under a tree and verify the
+tree hasn't changed later:
+
+```python
+from automation_file import write_manifest, verify_manifest
+
+write_manifest("/release/payload", "/release/MANIFEST.json")
+
+# Later…
+result = verify_manifest("/release/payload", "/release/MANIFEST.json")
+if not result["ok"]:
+    raise SystemExit(f"manifest mismatch: {result}")
+```
+
+`result` reports `matched`, `missing`, `modified`, and `extra` lists
+separately. Extras don't fail verification (mirrors `sync_dir`'s
+non-deleting default); `missing` or `modified` do. JSON actions:
+`FA_write_manifest`, `FA_verify_manifest`.
+
+### Notifications
+Push one-off messages or auto-notify on trigger/scheduler failures via
+webhook, Slack, or SMTP:
+
+```python
+from automation_file import (
+    SlackSink, WebhookSink, EmailSink,
+    notification_manager, notify_send,
+)
+
+notification_manager.register(SlackSink("https://hooks.slack.com/services/T/B/X"))
+notify_send("deploy complete", body="rev abc123", level="info")
+```
+
+Every sink implements the same `send(subject, body, level)` contract. The
+fanout `NotificationManager` does per-sink error isolation (one broken
+sink doesn't starve the others), sliding-window dedup so a stuck trigger
+can't flood a channel, and SSRF validation on every webhook/Slack URL.
+Scheduler and trigger dispatchers auto-notify on failure at
+`level="error"` — registering a sink is all that's needed. JSON actions:
+`FA_notify_send`, `FA_notify_list`.
+
+### Config file and secret providers
+Declare sinks and defaults once in `automation_file.toml`. Secret
+references resolve at load time from environment variables or a file root
+(Docker / K8s style):
+
+```toml
+# automation_file.toml
+
+[secrets]
+file_root = "/run/secrets"
+
+[defaults]
+dedup_seconds = 120
+
+[[notify.sinks]]
+type = "slack"
+name = "team-alerts"
+webhook_url = "${env:SLACK_WEBHOOK}"
+
+[[notify.sinks]]
+type = "email"
+name = "ops-email"
+host = "smtp.example.com"
+port = 587
+sender = "alerts@example.com"
+recipients = ["ops@example.com"]
+username = "${env:SMTP_USER}"
+password = "${file:smtp_password}"
+```
+
+```python
+from automation_file import AutomationConfig, notification_manager
+
+config = AutomationConfig.load("automation_file.toml")
+config.apply_to(notification_manager)
+```
+
+Unresolved `${…}` references raise `SecretNotFoundException` rather than
+silently becoming empty strings. Custom provider chains can be built from
+`ChainedSecretProvider` / `EnvSecretProvider` / `FileSecretProvider` and
+passed as `AutomationConfig.load(path, provider=…)`.
 
 ### DAG action executor
 Run actions in dependency order; independent branches fan out across a

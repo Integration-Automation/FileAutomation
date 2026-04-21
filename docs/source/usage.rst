@@ -343,6 +343,128 @@ all, so a tree of millions of files is cheap to scan:
 
 ``FA_find_duplicates`` exposes the same call to JSON action lists.
 
+Incremental directory sync
+--------------------------
+
+:func:`~automation_file.sync_dir` mirrors ``src`` into ``dst`` by copying
+only files that are new or changed. Change detection is ``(size, mtime)``
+by default; pass ``compare="checksum"`` when mtime is unreliable. Extras
+under ``dst`` are left alone by default — pass ``delete=True`` to prune
+them (and ``dry_run=True`` to preview):
+
+.. code-block:: python
+
+   from automation_file import sync_dir
+
+   summary = sync_dir("/data/src", "/data/dst", delete=True)
+   # summary: {"copied": [...], "skipped": [...], "deleted": [...],
+   #           "errors": [...], "dry_run": False}
+
+The JSON-action form is ``FA_sync_dir``. Symlinks are re-created as
+symlinks rather than followed, so a link pointing outside the tree can't
+blow up the mirror.
+
+Directory manifests
+-------------------
+
+Write a JSON manifest of every file under a tree and verify the tree
+hasn't changed later. Useful for release-artifact verification, backup
+integrity checks, and pre-flight checks before moves:
+
+.. code-block:: python
+
+   from automation_file import write_manifest, verify_manifest
+
+   write_manifest("/release/payload", "/release/MANIFEST.json")
+
+   # Later…
+   result = verify_manifest("/release/payload", "/release/MANIFEST.json")
+   if not result["ok"]:
+       raise SystemExit(f"manifest mismatch: {result}")
+
+``result`` reports ``matched``, ``missing``, ``modified``, and ``extra``
+lists separately. Extras do not fail verification (mirror ``sync_dir``'s
+non-deleting default); ``missing`` or ``modified`` do. Both operations
+are exposed to JSON action lists as ``FA_write_manifest`` and
+``FA_verify_manifest``.
+
+Notifications
+-------------
+
+Push one-off messages or auto-notify on trigger/scheduler failures via
+webhook, Slack, or SMTP:
+
+.. code-block:: python
+
+   from automation_file import (
+       SlackSink, WebhookSink, EmailSink,
+       notification_manager, notify_send,
+   )
+
+   notification_manager.register(SlackSink("https://hooks.slack.com/services/T/B/X"))
+   notify_send("deploy complete", body="rev abc123", level="info")
+
+Every sink implements the same ``send(subject, body, level)`` contract;
+the fanout :class:`~automation_file.NotificationManager` handles:
+
+- Per-sink error isolation — one broken sink doesn't starve the others.
+- Sliding-window dedup — identical ``(subject, body, level)`` messages
+  within ``dedup_seconds`` are dropped so a stuck trigger can't flood a
+  channel.
+- SSRF validation on every webhook/Slack URL.
+
+Scheduler and trigger dispatchers auto-notify on failure at
+``level="error"`` — registering a sink is all that's needed to get
+production alerts. The JSON-action forms are ``FA_notify_send`` and
+``FA_notify_list``.
+
+Config file and secret providers
+--------------------------------
+
+Declare notification sinks and defaults once in a TOML file. Secret
+references resolve at load time from environment variables or a file
+root (Docker / K8s style):
+
+.. code-block:: toml
+
+   # automation_file.toml
+
+   [secrets]
+   file_root = "/run/secrets"
+
+   [defaults]
+   dedup_seconds = 120
+
+   [[notify.sinks]]
+   type = "slack"
+   name = "team-alerts"
+   webhook_url = "${env:SLACK_WEBHOOK}"
+
+   [[notify.sinks]]
+   type = "email"
+   name = "ops-email"
+   host = "smtp.example.com"
+   port = 587
+   sender = "alerts@example.com"
+   recipients = ["ops@example.com"]
+   username = "${env:SMTP_USER}"
+   password = "${file:smtp_password}"
+
+.. code-block:: python
+
+   from automation_file import AutomationConfig, notification_manager
+
+   config = AutomationConfig.load("automation_file.toml")
+   config.apply_to(notification_manager)
+
+Unresolved ``${…}`` references raise
+:class:`~automation_file.SecretNotFoundException` rather than silently
+becoming empty strings. Custom provider chains can be built via
+:class:`~automation_file.ChainedSecretProvider` /
+:class:`~automation_file.EnvSecretProvider` /
+:class:`~automation_file.FileSecretProvider` and passed to
+``AutomationConfig.load(path, provider=…)``.
+
 DAG action executor
 -------------------
 

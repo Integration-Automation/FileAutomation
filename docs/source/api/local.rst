@@ -10,5 +10,8 @@ Local operations
 .. automodule:: automation_file.local.zip_ops
    :members:
 
+.. automodule:: automation_file.local.sync_ops
+   :members:
+
 .. automodule:: automation_file.local.safe_paths
    :members:
