@@ -18,7 +18,7 @@ def _ensure_echo_registered() -> None:
 
 def _base_url(server) -> str:
     host, port = server.server_address
-    return f"http://{host}:{port}"
+    return f"http://{host}:{port}"  # NOSONAR python:S5332 — loopback test server; TLS not in scope.
 
 
 def test_client_executes_action_round_trip() -> None:

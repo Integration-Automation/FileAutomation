@@ -42,8 +42,11 @@ def test_missing_local_source_returns_false(tmp_path: Path) -> None:
 
 
 def test_unknown_source_scheme_raises() -> None:
+    # The target path is unused — the call must fail on the source scheme
+    # before touching the filesystem.
+    unused_target = "/tmp/x"  # NOSONAR python:S5443
     with pytest.raises(CrossBackendException):
-        copy_between("gopher://a/b", "/tmp/x")
+        copy_between("gopher://a/b", unused_target)
 
 
 def test_unknown_target_scheme_raises(tmp_path: Path) -> None:

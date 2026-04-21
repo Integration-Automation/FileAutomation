@@ -57,7 +57,8 @@ def create_tar(
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with tarfile.open(str(target_path), mode) as archive:
+        # Write mode — not extraction.
+        with tarfile.open(str(target_path), mode) as archive:  # NOSONAR python:S5042
             archive.add(str(src_path), arcname=src_path.name)
     except (OSError, tarfile.TarError) as err:
         raise TarException(f"create_tar failed: {err}") from err
@@ -76,7 +77,9 @@ def extract_tar(source: str, target_dir: str) -> list[str]:
 
     extracted: list[str] = []
     try:
-        with tarfile.open(str(src_path), "r:*") as archive:
+        # _verify_members rejects traversal / escaping symlinks / hardlinks before any
+        # extract, and PEP 706 filter="data" is applied when available (3.10.12+ / 3.11.4+ / 3.12+).
+        with tarfile.open(str(src_path), "r:*") as archive:  # NOSONAR python:S5042
             _verify_members(archive, dest)
             for member in archive.getmembers():
                 if _TAR_FILTER_SUPPORTED:

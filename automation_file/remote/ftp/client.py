@@ -42,7 +42,11 @@ class FTPClient:
     def later_init(self, options: FTPConnectOptions | None = None, **kwargs: Any) -> FTP:
         """Open an FTP control connection. TLS is negotiated when ``tls=True``."""
         opts = options if options is not None else FTPConnectOptions(**kwargs)
-        ftp: FTP = FTP_TLS(timeout=opts.timeout) if opts.tls else FTP(timeout=opts.timeout)
+        # Plaintext FTP is opt-in via tls=False; FTPS is the default when tls=True.
+        if opts.tls:
+            ftp: FTP = FTP_TLS(timeout=opts.timeout)
+        else:
+            ftp = FTP(timeout=opts.timeout)  # NOSONAR python:S5332
         try:
             ftp.connect(opts.host, opts.port, timeout=opts.timeout)
             if opts.tls and isinstance(ftp, FTP_TLS):
