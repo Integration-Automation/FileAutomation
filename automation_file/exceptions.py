@@ -3,6 +3,7 @@
 All custom exceptions inherit from ``FileAutomationException`` so callers can
 filter with a single ``except`` and still distinguish specific failures.
 """
+
 from __future__ import annotations
 
 

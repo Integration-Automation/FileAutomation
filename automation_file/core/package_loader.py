@@ -3,6 +3,7 @@
 ``PackageLoader`` imports an external package by name and registers every
 top-level function / class / builtin under the key ``"<package>_<member>"``.
 """
+
 from __future__ import annotations
 
 from importlib import import_module
@@ -51,7 +52,5 @@ class PackageLoader:
             for member_name, member in getmembers(module, predicate):
                 self.registry.register(f"{package}_{member_name}", member)
                 count += 1
-        file_automation_logger.info(
-            "PackageLoader: registered %d members from %s", count, package
-        )
+        file_automation_logger.info("PackageLoader: registered %d members from %s", count, package)
         return count

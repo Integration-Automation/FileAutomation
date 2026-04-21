@@ -1,4 +1,5 @@
 """Tests for Quota enforcement."""
+
 from __future__ import annotations
 
 import time
@@ -28,9 +29,8 @@ def test_time_budget_passes_fast_block() -> None:
 
 
 def test_time_budget_fails_slow_block() -> None:
-    with pytest.raises(QuotaExceededException):
-        with Quota(max_seconds=0.05).time_budget("slow"):
-            time.sleep(0.1)
+    with pytest.raises(QuotaExceededException), Quota(max_seconds=0.05).time_budget("slow"):
+        time.sleep(0.1)
 
 
 def test_time_budget_zero_disables_cap() -> None:

@@ -1,4 +1,5 @@
 """Delete-side Google Drive operations."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,5 @@
 """Tests for automation_file.core.action_executor."""
+
 from __future__ import annotations
 
 from pathlib import Path

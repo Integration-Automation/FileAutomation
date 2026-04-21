@@ -1,4 +1,9 @@
-"""SFTP strategy module (optional; requires ``paramiko``)."""
+"""SFTP strategy module.
+
+Actions (``FA_sftp_*``) are registered on the shared default registry
+automatically.
+"""
+
 from __future__ import annotations
 
 from automation_file.core.action_registry import ActionRegistry
@@ -21,4 +26,4 @@ def register_sftp_ops(registry: ActionRegistry) -> None:
     )
 
 
-__all__ = ["SFTPClient", "sftp_instance", "register_sftp_ops"]
+__all__ = ["SFTPClient", "register_sftp_ops", "sftp_instance"]

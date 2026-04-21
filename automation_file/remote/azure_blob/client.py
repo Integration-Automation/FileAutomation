@@ -1,4 +1,5 @@
 """Azure Blob Storage client (Singleton Facade)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,10 +9,11 @@ from automation_file.logging_config import file_automation_logger
 
 def _import_blob_service_client() -> Any:
     try:
-        from azure.storage.blob import BlobServiceClient  # type: ignore[import-not-found]
+        from azure.storage.blob import BlobServiceClient
     except ImportError as error:
         raise RuntimeError(
-            "azure-storage-blob is required; install `automation_file[azure]`"
+            "azure-storage-blob import failed — reinstall `automation_file` to restore"
+            " the Azure Blob backend"
         ) from error
     return BlobServiceClient
 

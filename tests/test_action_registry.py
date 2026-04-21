@@ -1,4 +1,5 @@
 """Tests for automation_file.core.action_registry."""
+
 from __future__ import annotations
 
 import pytest

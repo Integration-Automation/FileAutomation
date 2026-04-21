@@ -1,4 +1,5 @@
 """Folder (mkdir-equivalent) operations on Google Drive."""
+
 from __future__ import annotations
 
 from googleapiclient.errors import HttpError
@@ -14,10 +15,7 @@ def drive_add_folder(folder_name: str) -> str | None:
     metadata = {"name": folder_name, "mimeType": _FOLDER_MIME}
     try:
         response = (
-            driver_instance.require_service()
-            .files()
-            .create(body=metadata, fields="id")
-            .execute()
+            driver_instance.require_service().files().create(body=metadata, fields="id").execute()
         )
         file_automation_logger.info("drive_add_folder: %s", folder_name)
         return response.get("id")

@@ -1,9 +1,9 @@
 """Tests for automation_file.server.tcp_server."""
+
 from __future__ import annotations
 
 import json
 import socket
-import time
 
 import pytest
 
@@ -53,6 +53,7 @@ def test_server_executes_action(server) -> None:
 
     # cleanup
     import shutil
+
     shutil.rmtree("server_smoke_dir", ignore_errors=True)
 
 
@@ -73,9 +74,7 @@ def test_start_server_allows_non_loopback_when_opted_in() -> None:
     # Bind to a port that's guaranteed local but simulate the opt-in path.
     # We re-bind to 127.0.0.1 under allow_non_loopback=True to exercise the code
     # path without actually opening the machine to the network.
-    srv = start_autocontrol_socket_server(
-        host=_HOST, port=_free_port(), allow_non_loopback=True
-    )
+    srv = start_autocontrol_socket_server(host=_HOST, port=_free_port(), allow_non_loopback=True)
     try:
         assert srv.server_address[0] == _HOST
     finally:

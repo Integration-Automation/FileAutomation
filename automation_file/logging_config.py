@@ -5,6 +5,7 @@ A single :data:`file_automation_logger` is exposed. It writes to
 custom handler. The handler list is rebuilt only once, even if the module is
 reloaded, so tests can import this safely.
 """
+
 from __future__ import annotations
 
 import logging

@@ -5,6 +5,7 @@ supply a ``known_hosts`` path (defaults to the OpenSSH user file) so that
 host identity is pinned. We never fall back to ``AutoAddPolicy`` — silently
 trusting new hosts defeats the point of SSH host verification.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,10 +16,10 @@ from automation_file.logging_config import file_automation_logger
 
 def _import_paramiko() -> Any:
     try:
-        import paramiko  # type: ignore[import-not-found]
+        import paramiko
     except ImportError as error:
         raise RuntimeError(
-            "paramiko is required; install `automation_file[sftp]`"
+            "paramiko import failed — reinstall `automation_file` to restore the SFTP backend"
         ) from error
     return paramiko
 

@@ -4,12 +4,13 @@
 ``Quota.check_size(bytes)`` before an I/O-heavy action and wrap the action in
 ``with quota.time_budget(label):`` to bound wall-clock time.
 """
+
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterator
 
 from automation_file.exceptions import QuotaExceededException
 from automation_file.logging_config import file_automation_logger
@@ -30,9 +31,7 @@ class Quota:
     def check_size(self, nbytes: int, label: str = "action") -> None:
         """Raise :class:`QuotaExceededException` if ``nbytes`` exceeds the cap."""
         if self.max_bytes > 0 and nbytes > self.max_bytes:
-            raise QuotaExceededException(
-                f"{label} size {nbytes} exceeds quota {self.max_bytes}"
-            )
+            raise QuotaExceededException(f"{label} size {nbytes} exceeds quota {self.max_bytes}")
 
     @contextmanager
     def time_budget(self, label: str = "action") -> Iterator[None]:
@@ -44,7 +43,10 @@ class Quota:
             elapsed = time.monotonic() - start
             if self.max_seconds > 0 and elapsed > self.max_seconds:
                 file_automation_logger.warning(
-                    "quota: %s took %.2fs > %.2fs", label, elapsed, self.max_seconds,
+                    "quota: %s took %.2fs > %.2fs",
+                    label,
+                    elapsed,
+                    self.max_seconds,
                 )
                 raise QuotaExceededException(
                     f"{label} took {elapsed:.2f}s exceeding quota {self.max_seconds:.2f}s"
@@ -56,6 +58,7 @@ class Quota:
         If ``size_fn`` is provided it is called with the function's return
         value to derive a byte count for :meth:`check_size`.
         """
+
         def decorator(func):
             def wrapper(*args, **kwargs):
                 with self.time_budget(label):
@@ -63,5 +66,7 @@ class Quota:
                 if size_fn is not None:
                     self.check_size(int(size_fn(result)), label=label)
                 return result
+
             return wrapper
+
         return decorator

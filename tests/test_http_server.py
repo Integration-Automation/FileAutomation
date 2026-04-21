@@ -1,12 +1,11 @@
 """Tests for the HTTP action server."""
+
 from __future__ import annotations
 
 import json
 import urllib.request
 
 import pytest
-
-from automation_file.core.action_registry import ActionRegistry
 
 # The server imports the module-level `execute_action`, which uses the shared
 # registry. We add a named command to that registry before starting.
@@ -36,7 +35,7 @@ def test_http_server_executes_action() -> None:
     try:
         status, body = _post(f"http://{host}:{port}/actions", [["test_http_echo", {"value": "hi"}]])
         assert status == 200
-        assert json.loads(body) == {'execute: [\'test_http_echo\', {\'value\': \'hi\'}]': "hi"}
+        assert json.loads(body) == {"execute: ['test_http_echo', {'value': 'hi'}]": "hi"}
     finally:
         server.shutdown()
 
@@ -44,7 +43,9 @@ def test_http_server_executes_action() -> None:
 def test_http_server_rejects_missing_auth() -> None:
     _ensure_echo_registered()
     server = start_http_action_server(
-        host="127.0.0.1", port=0, shared_secret="s3cr3t",
+        host="127.0.0.1",
+        port=0,
+        shared_secret="s3cr3t",
     )
     host, port = server.server_address
     try:
@@ -57,7 +58,9 @@ def test_http_server_rejects_missing_auth() -> None:
 def test_http_server_accepts_valid_auth() -> None:
     _ensure_echo_registered()
     server = start_http_action_server(
-        host="127.0.0.1", port=0, shared_secret="s3cr3t",
+        host="127.0.0.1",
+        port=0,
+        shared_secret="s3cr3t",
     )
     host, port = server.server_address
     try:

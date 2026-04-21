@@ -23,12 +23,11 @@ patterns:
 
 **Strategy**
    Each ``local/*_ops.py``, ``remote/*_ops.py``, and cloud subpackage is a
-   collection of independent strategy functions. Core backends (local, HTTP,
-   Google Drive) register via
-   :func:`automation_file.core.action_registry.build_default_registry`.
-   Optional backends (S3, Azure Blob, Dropbox, SFTP) expose a
-   ``register_*_ops(registry)`` helper so users opt in without pulling the
-   SDKs on every install.
+   collection of independent strategy functions. Every backend — local, HTTP,
+   Google Drive, S3, Azure Blob, Dropbox, SFTP — is auto-registered by
+   :func:`automation_file.core.action_registry.build_default_registry`. The
+   ``register_<backend>_ops(registry)`` helpers stay exported for callers that
+   assemble custom registries.
 
 **Singleton (module-level)**
    ``executor``, ``callback_executor``, ``package_manager``, ``driver_instance``,
@@ -63,16 +62,22 @@ Module layout
    │   ├── url_validator.py     # SSRF guard
    │   ├── http_download.py     # retried HTTP download
    │   ├── google_drive/
-   │   ├── s3/                  # optional: pip install .[s3]
-   │   ├── azure_blob/          # optional: pip install .[azure]
-   │   ├── dropbox_api/         # optional: pip install .[dropbox]
-   │   └── sftp/                # optional: pip install .[sftp]
+   │   ├── s3/                  # auto-registered in build_default_registry()
+   │   ├── azure_blob/          # auto-registered in build_default_registry()
+   │   ├── dropbox_api/         # auto-registered in build_default_registry()
+   │   └── sftp/                # auto-registered in build_default_registry()
    ├── server/
    │   ├── tcp_server.py        # loopback-only, optional shared-secret
    │   └── http_server.py       # POST /actions, Bearer auth
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
+   ├── ui/                      # PySide6 GUI
+   │   ├── launcher.py          # launch_ui(argv)
+   │   ├── main_window.py       # 9-tab MainWindow
+   │   ├── worker.py            # ActionWorker (QRunnable)
+   │   ├── log_widget.py        # LogPanel
+   │   └── tabs/                # one tab per backend + JSON runner + servers
    └── utils/
        └── file_discovery.py
 

@@ -24,6 +24,10 @@ ignore = [
     "PLR0912",   # branch count is bounded by CLAUDE.md (15) not ruff's default
     "PLR0915",   # statement count same
     "N818",      # exceptions intentionally don't carry the Error suffix
+    "PLC0415",   # lazy imports are used deliberately (Qt, optional SDKs, circular-safe)
+    "RUF022",    # __all__ is grouped thematically, not alphabetically
+    "PLW0108",   # tests occasionally use single-line lambdas for clarity
+    "PLR0911",   # download_file legitimately has >6 return points (SSRF guards)
 ]
 
 [lint.per-file-ignores]

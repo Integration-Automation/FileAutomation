@@ -1,4 +1,5 @@
 """SFTP listing operations."""
+
 from __future__ import annotations
 
 from automation_file.logging_config import file_automation_logger
@@ -14,6 +15,8 @@ def sftp_list_dir(remote_path: str = ".") -> list[str]:
         file_automation_logger.error("sftp_list_dir failed: %r", error)
         return []
     file_automation_logger.info(
-        "sftp_list_dir: %s (%d entries)", remote_path, len(names),
+        "sftp_list_dir: %s (%d entries)",
+        remote_path,
+        len(names),
     )
     return list(names)

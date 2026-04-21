@@ -1,4 +1,5 @@
 """Azure Blob download operations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,7 +17,10 @@ def azure_blob_download_file(container: str, blob_name: str, target_path: str) -
         with open(target_path, "wb") as fp:
             fp.write(blob.download_blob().readall())
         file_automation_logger.info(
-            "azure_blob_download_file: %s/%s -> %s", container, blob_name, target_path,
+            "azure_blob_download_file: %s/%s -> %s",
+            container,
+            blob_name,
+            target_path,
         )
         return True
     except Exception as error:  # pylint: disable=broad-except

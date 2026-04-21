@@ -1,4 +1,5 @@
 """Tests for automation_file.remote.url_validator."""
+
 from __future__ import annotations
 
 import pytest

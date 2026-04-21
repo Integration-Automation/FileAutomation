@@ -9,6 +9,7 @@ begin with ``AUTH <secret>\\n`` before the JSON payload. This is the minimum
 bar for exposing the server beyond loopback; use a TLS-terminating proxy for
 anything resembling production.
 """
+
 from __future__ import annotations
 
 import hmac
@@ -81,7 +82,7 @@ class _TCPServerHandler(socketserver.StreamRequestHandler):
         head, _, rest = command_string.partition("\n")
         if not head.startswith(_AUTH_PREFIX):
             raise TCPAuthException("missing AUTH header")
-        supplied = head[len(_AUTH_PREFIX):].strip()
+        supplied = head[len(_AUTH_PREFIX) :].strip()
         if not hmac.compare_digest(supplied, secret):
             raise TCPAuthException("bad shared secret")
         if not rest:
@@ -152,7 +153,9 @@ def start_autocontrol_socket_server(
     thread.start()
     file_automation_logger.info(
         "tcp_server: listening on %s:%d (auth=%s)",
-        host, port, "on" if shared_secret else "off",
+        host,
+        port,
+        "on" if shared_secret else "off",
     )
     return server
 

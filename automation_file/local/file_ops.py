@@ -1,4 +1,5 @@
 """File-level operations (Strategy module for the executor)."""
+
 from __future__ import annotations
 
 import shutil
@@ -44,7 +45,10 @@ def copy_specify_extension_file(
             copied += 1
     file_automation_logger.info(
         "copy_specify_extension_file: copied %d *.%s from %s to %s",
-        copied, extension, source_dir, target_path,
+        copied,
+        extension,
+        source_dir,
+        target_path,
     )
     return True
 
@@ -92,7 +96,10 @@ def rename_file(
     except OSError as error:
         file_automation_logger.error(
             "rename_file failed: source=%s target=%s ext=%s error=%r",
-            source_dir, target_name, file_extension, error,
+            source_dir,
+            target_name,
+            file_extension,
+            error,
         )
         return False
 

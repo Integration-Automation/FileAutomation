@@ -2,8 +2,10 @@ automation_file
 ===============
 
 Automation-first Python library for local file / directory / zip operations,
-HTTP downloads, and Google Drive integration. Actions are defined as JSON and
-dispatched through a central :class:`~automation_file.core.action_registry.ActionRegistry`.
+HTTP downloads, and remote storage (Google Drive, S3, Azure Blob, Dropbox,
+SFTP). Ships with a PySide6 GUI that surfaces every feature through tabs.
+Actions are defined as JSON and dispatched through a central
+:class:`~automation_file.core.action_registry.ActionRegistry`.
 
 Getting started
 ---------------

@@ -1,4 +1,5 @@
 """S3 download operations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,10 @@ def s3_download_file(bucket: str, key: str, target_path: str) -> bool:
     try:
         client.download_file(bucket, key, target_path)
         file_automation_logger.info(
-            "s3_download_file: s3://%s/%s -> %s", bucket, key, target_path,
+            "s3_download_file: s3://%s/%s -> %s",
+            bucket,
+            key,
+            target_path,
         )
         return True
     except Exception as error:  # pylint: disable=broad-except

@@ -1,4 +1,5 @@
 """Tests for automation_file.core.package_loader."""
+
 from __future__ import annotations
 
 from automation_file.core.action_registry import ActionRegistry

@@ -61,6 +61,7 @@ Legacy flags for running JSON action lists::
 
 Subcommands for one-shot operations::
 
+   python -m automation_file ui
    python -m automation_file zip ./src out.zip --dir
    python -m automation_file unzip out.zip ./restored
    python -m automation_file download https://example.com/file.bin file.bin
@@ -149,32 +150,53 @@ Path safety
    target = safe_join("/data/jobs", user_supplied_path)
    # -> raises PathTraversalException if the resolved path escapes /data/jobs.
 
-Optional cloud backends
------------------------
+Cloud / SFTP backends
+---------------------
 
-.. code-block:: bash
-
-   pip install "automation_file[s3]"
-   pip install "automation_file[azure]"
-   pip install "automation_file[dropbox]"
-   pip install "automation_file[sftp]"
-
-After installing, register the actions on the shared executor:
+Every backend (S3, Azure Blob, Dropbox, SFTP) is bundled with ``automation_file``
+and auto-registered by :func:`~automation_file.core.action_registry.build_default_registry`.
+There is no extra install step — call ``later_init`` on the singleton and go:
 
 .. code-block:: python
 
-   from automation_file import executor
-   from automation_file.remote.s3 import register_s3_ops, s3_instance
+   from automation_file import execute_action, s3_instance
 
-   register_s3_ops(executor.registry)
    s3_instance.later_init(region_name="us-east-1")
+
+   execute_action([
+       ["FA_s3_upload_file", {"local_path": "report.csv", "bucket": "reports", "key": "report.csv"}],
+   ])
 
 All backends expose the same five operations:
 ``upload_file``, ``upload_dir``, ``download_file``, ``delete_*``, ``list_*``.
+``register_<backend>_ops(registry)`` is still public for callers that build
+custom registries.
 
 SFTP specifically uses :class:`paramiko.RejectPolicy` — unknown hosts are
 rejected rather than auto-added. Provide ``known_hosts`` explicitly or rely on
 ``~/.ssh/known_hosts``.
+
+GUI (PySide6)
+-------------
+
+A tabbed control surface wraps every feature:
+
+.. code-block:: bash
+
+   python -m automation_file ui
+   # or from the repo root during development:
+   python main_ui.py
+
+.. code-block:: python
+
+   from automation_file import launch_ui
+
+   launch_ui()
+
+Tabs: Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions,
+Servers. A persistent log panel below the tabs streams every call's result or
+error. Background work runs on ``QThreadPool`` via ``ActionWorker`` so the UI
+stays responsive.
 
 Adding your own commands
 ------------------------

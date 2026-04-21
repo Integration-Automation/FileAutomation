@@ -1,4 +1,5 @@
 """SSRF-guarded HTTP downloader."""
+
 from __future__ import annotations
 
 import requests
@@ -22,10 +23,14 @@ _RETRIABLE_EXCEPTIONS = (
 
 @retry_on_transient(max_attempts=3, backoff_base=0.5, retriable=_RETRIABLE_EXCEPTIONS)
 def _open_stream(
-    file_url: str, timeout: int,
+    file_url: str,
+    timeout: int,
 ) -> requests.Response:
     response = requests.get(
-        file_url, stream=True, timeout=timeout, allow_redirects=False,
+        file_url,
+        stream=True,
+        timeout=timeout,
+        allow_redirects=False,
     )
     response.raise_for_status()
     return response
@@ -65,7 +70,9 @@ def download_file(
     total_size = int(response.headers.get("content-length", 0))
     if total_size > max_bytes:
         file_automation_logger.error(
-            "download_file rejected: content-length %d > %d", total_size, max_bytes,
+            "download_file rejected: content-length %d > %d",
+            total_size,
+            max_bytes,
         )
         return False
 
@@ -78,7 +85,8 @@ def download_file(
                 written += len(chunk)
                 if written > max_bytes:
                     file_automation_logger.error(
-                        "download_file aborted: stream exceeded %d bytes", max_bytes,
+                        "download_file aborted: stream exceeded %d bytes",
+                        max_bytes,
                     )
                     return False
                 output.write(chunk)
@@ -93,8 +101,11 @@ def download_file(
 
 class _NullBar:
     def update(self, _n: int) -> None: ...
-    def __enter__(self): return self
-    def __exit__(self, exc_type, exc, tb): return False
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
 
 
 def _progress(total: int, label: str):

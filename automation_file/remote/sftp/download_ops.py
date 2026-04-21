@@ -1,4 +1,5 @@
 """SFTP download operations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,9 @@ def sftp_download_file(remote_path: str, target_path: str) -> bool:
     try:
         sftp.get(remote_path, target_path)
         file_automation_logger.info(
-            "sftp_download_file: %s -> %s", remote_path, target_path,
+            "sftp_download_file: %s -> %s",
+            remote_path,
+            target_path,
         )
         return True
     except OSError as error:

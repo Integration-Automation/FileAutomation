@@ -1,4 +1,5 @@
 """Tests for validation, dry-run, and parallel execution."""
+
 from __future__ import annotations
 
 import threading
@@ -42,7 +43,8 @@ def test_validate_first_aborts_before_execution() -> None:
     executor.registry.register("count", lambda: calls.append(1) or len(calls))
     with pytest.raises(ValidationException):
         executor.execute_action(
-            [["count"], ["count"], ["does_not_exist"]], validate_first=True,
+            [["count"], ["count"], ["does_not_exist"]],
+            validate_first=True,
         )
     assert calls == []  # nothing ran because validation failed first
 
@@ -74,7 +76,8 @@ def test_parallel_execution_runs_concurrently() -> None:
     executor.registry.register("wait", wait)
     start = time.monotonic()
     results = executor.execute_action_parallel(
-        [["wait"], ["wait"], ["wait"]], max_workers=3,
+        [["wait"], ["wait"], ["wait"]],
+        max_workers=3,
     )
     elapsed = time.monotonic() - start
     assert list(results.values()) == ["ok", "ok", "ok"]

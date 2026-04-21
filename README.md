@@ -3,16 +3,18 @@
 A modular automation framework for local file / directory / ZIP operations,
 SSRF-validated HTTP downloads, remote storage (Google Drive, S3, Azure Blob,
 Dropbox, SFTP), and JSON-driven action execution over embedded TCP / HTTP
-servers. All public functionality is re-exported from the top-level
-`automation_file` facade.
+servers. Ships with a PySide6 GUI that exposes every feature through tabs.
+All public functionality is re-exported from the top-level `automation_file`
+facade.
 
 - Local file / directory / ZIP operations with path traversal guard (`safe_join`)
 - Validated HTTP downloads with SSRF protections, retry, and size / time caps
 - Google Drive CRUD (upload, download, search, delete, share, folders)
-- Optional S3, Azure Blob, Dropbox, and SFTP backends behind extras
+- First-class S3, Azure Blob, Dropbox, and SFTP backends — installed by default
 - JSON action lists executed by a shared `ActionExecutor` — validate, dry-run, parallel
 - Loopback-first TCP **and** HTTP servers that accept JSON command batches with optional shared-secret auth
 - Reliability primitives: `retry_on_transient` decorator, `Quota` size / time budgets
+- PySide6 GUI (`python -m automation_file ui`) with a tab per backend plus a JSON-action runner
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
 
@@ -47,15 +49,20 @@ flowchart LR
         UrlVal[url_validator]
         Http[http_download]
         Drive["google_drive<br/>client + *_ops"]
-        S3["s3<br/>(optional)"]
-        Azure["azure_blob<br/>(optional)"]
-        Dropbox["dropbox_api<br/>(optional)"]
-        SFTP["sftp<br/>(optional)"]
+        S3["s3"]
+        Azure["azure_blob"]
+        Dropbox["dropbox_api"]
+        SFTP["sftp"]
     end
 
     subgraph Server["server"]
         TCP[TCPActionServer]
         HTTP[HTTPActionServer]
+    end
+
+    subgraph UI["ui (PySide6)"]
+        Launcher[launch_ui]
+        MainWindow["MainWindow<br/>9-tab control surface"]
     end
 
     subgraph Project["project / utils"]
@@ -65,6 +72,9 @@ flowchart LR
     end
 
     User --> Public
+    User --> Launcher
+    Launcher --> MainWindow
+    MainWindow --> Public
     Public --> Executor
     Public --> Callback
     Public --> Loader
@@ -109,20 +119,18 @@ through the same shared registry instance exposed as `executor.registry`.
 pip install automation_file
 ```
 
-Optional cloud backends (lazy-imported — install only what you need):
+A single install pulls in every backend (Google Drive, S3, Azure Blob, Dropbox,
+SFTP) and the PySide6 GUI — no extras required for day-to-day use.
 
 ```bash
-pip install "automation_file[s3]"        # boto3
-pip install "automation_file[azure]"     # azure-storage-blob
-pip install "automation_file[dropbox]"   # dropbox
-pip install "automation_file[sftp]"      # paramiko
-pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov
+pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
 ```
 
 Requirements:
 - Python 3.10+
-- `google-api-python-client`, `google-auth-oauthlib` (for Drive)
-- `requests`, `tqdm` (for HTTP download with progress)
+- Bundled dependencies: `google-api-python-client`, `google-auth-oauthlib`,
+  `requests`, `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`, `paramiko`,
+  `PySide6`
 
 ## Usage
 
@@ -213,12 +221,14 @@ target = safe_join("/data/jobs", user_supplied_path)
 # raises PathTraversalException if the resolved path escapes /data/jobs.
 ```
 
-### Optional cloud backends
-```python
-from automation_file import executor
-from automation_file.remote.s3 import register_s3_ops, s3_instance
+### Cloud / SFTP backends
+Every backend is auto-registered by `build_default_registry()`, so `FA_s3_*`,
+`FA_azure_blob_*`, `FA_dropbox_*`, and `FA_sftp_*` actions are available out
+of the box — no separate `register_*_ops` call needed.
 
-register_s3_ops(executor.registry)
+```python
+from automation_file import execute_action, s3_instance
+
 s3_instance.later_init(region_name="us-east-1")
 
 execute_action([
@@ -229,6 +239,19 @@ execute_action([
 All backends (`s3`, `azure_blob`, `dropbox_api`, `sftp`) expose the same five
 operations: `upload_file`, `upload_dir`, `download_file`, `delete_*`, `list_*`.
 SFTP uses `paramiko.RejectPolicy` — unknown hosts are rejected, not auto-added.
+
+### GUI
+```bash
+python -m automation_file ui        # or: python main_ui.py
+```
+
+```python
+from automation_file import launch_ui
+launch_ui()
+```
+
+Tabs: Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions,
+Servers. A persistent log panel at the bottom streams every result and error.
 
 ### Scaffold an executor-based project
 ```python
@@ -241,6 +264,7 @@ create_project_dir("my_workflow")
 
 ```bash
 # Subcommands (one-shot operations)
+python -m automation_file ui
 python -m automation_file zip ./src out.zip --dir
 python -m automation_file unzip out.zip ./restored
 python -m automation_file download https://example.com/file.bin file.bin

@@ -1,4 +1,5 @@
 """Permission / share operations on Google Drive."""
+
 from __future__ import annotations
 
 from googleapiclient.errors import HttpError
@@ -22,9 +23,7 @@ def _create_permission(file_id: str, body: dict, description: str) -> dict | Non
         return None
 
 
-def drive_share_file_to_user(
-    file_id: str, user: str, user_role: str = "writer"
-) -> dict | None:
+def drive_share_file_to_user(file_id: str, user: str, user_role: str = "writer") -> dict | None:
     body = {"type": "user", "role": user_role, "emailAddress": user}
     return _create_permission(file_id, body, f"user={user},role={user_role}")
 

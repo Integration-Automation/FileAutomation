@@ -1,4 +1,5 @@
 """Search-side Google Drive operations."""
+
 from __future__ import annotations
 
 from googleapiclient.errors import HttpError
@@ -52,12 +53,7 @@ def drive_search_file_mimetype(mime_type: str) -> dict[str, str] | None:
 def drive_search_field(field_pattern: str) -> dict[str, str] | None:
     """Return ``{name: id}`` for a list call with a custom ``fields=`` pattern."""
     try:
-        response = (
-            driver_instance.require_service()
-            .files()
-            .list(fields=field_pattern)
-            .execute()
-        )
+        response = driver_instance.require_service().files().list(fields=field_pattern).execute()
     except HttpError as error:
         file_automation_logger.error("drive_search_field failed: %r", error)
         return None

@@ -1,4 +1,5 @@
 """Tests for automation_file.local.zip_ops."""
+
 from __future__ import annotations
 
 import zipfile

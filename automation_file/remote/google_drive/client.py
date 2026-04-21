@@ -3,6 +3,7 @@
 Wraps OAuth2 credential loading and exposes a lazily-built ``service`` attribute
 that every operation module calls through.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,7 +46,8 @@ class GoogleDriveClient:
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    str(credentials_file), list(self.scopes),
+                    str(credentials_file),
+                    list(self.scopes),
                 )
                 creds = flow.run_local_server(port=0)
             with open(token_file, "w", encoding="utf-8") as token_fp:

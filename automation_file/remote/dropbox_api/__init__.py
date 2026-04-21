@@ -1,8 +1,10 @@
-"""Dropbox strategy module (optional; requires ``dropbox``).
+"""Dropbox strategy module.
 
 Named ``dropbox_api`` to avoid shadowing the ``dropbox`` PyPI package inside
-``automation_file.remote``.
+``automation_file.remote``. Actions (``FA_dropbox_*``) are registered on the
+shared default registry automatically.
 """
+
 from __future__ import annotations
 
 from automation_file.core.action_registry import ActionRegistry

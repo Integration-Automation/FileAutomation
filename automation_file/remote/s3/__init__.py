@@ -1,12 +1,10 @@
-"""S3 strategy module (optional; requires ``boto3``).
+"""S3 strategy module.
 
-Users who need S3 should ``pip install automation_file[s3]`` and call
-:func:`register_s3_ops` on the shared registry::
-
-    from automation_file import executor
-    from automation_file.remote.s3 import register_s3_ops
-    register_s3_ops(executor.registry)
+S3 actions (``FA_s3_*``) are registered on the shared default registry
+automatically. :func:`register_s3_ops` is kept public for callers that build
+their own :class:`ActionRegistry` instances.
 """
+
 from __future__ import annotations
 
 from automation_file.core.action_registry import ActionRegistry
@@ -28,4 +26,4 @@ def register_s3_ops(registry: ActionRegistry) -> None:
     )
 
 
-__all__ = ["S3Client", "s3_instance", "register_s3_ops"]
+__all__ = ["S3Client", "register_s3_ops", "s3_instance"]

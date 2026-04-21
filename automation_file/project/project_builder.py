@@ -1,4 +1,5 @@
 """Project skeleton builder (Builder pattern)."""
+
 from __future__ import annotations
 
 from os import getcwd
@@ -20,7 +21,9 @@ _EXECUTOR_DIR = "executor"
 class ProjectBuilder:
     """Create a ``keyword/`` + ``executor/`` skeleton under ``project_root``."""
 
-    def __init__(self, project_root: str | None = None, parent_name: str = "FileAutomation") -> None:
+    def __init__(
+        self, project_root: str | None = None, parent_name: str = "FileAutomation"
+    ) -> None:
         self.project_root: Path = Path(project_root or getcwd())
         self.parent: Path = self.project_root / parent_name
         self.keyword_dir: Path = self.parent / _KEYWORD_DIR
@@ -35,10 +38,12 @@ class ProjectBuilder:
 
     def _write_keyword_files(self) -> None:
         write_action_json(
-            str(self.keyword_dir / "keyword_create.json"), KEYWORD_CREATE_TEMPLATE,
+            str(self.keyword_dir / "keyword_create.json"),
+            KEYWORD_CREATE_TEMPLATE,
         )
         write_action_json(
-            str(self.keyword_dir / "keyword_teardown.json"), KEYWORD_TEARDOWN_TEMPLATE,
+            str(self.keyword_dir / "keyword_teardown.json"),
+            KEYWORD_TEARDOWN_TEMPLATE,
         )
 
     def _write_executor_files(self) -> None:

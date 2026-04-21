@@ -1,4 +1,5 @@
 """Dropbox listing operations."""
+
 from __future__ import annotations
 
 from automation_file.logging_config import file_automation_logger
@@ -19,6 +20,8 @@ def dropbox_list_folder(remote_path: str = "", recursive: bool = False) -> list[
         file_automation_logger.error("dropbox_list_folder failed: %r", error)
         return []
     file_automation_logger.info(
-        "dropbox_list_folder: %s (%d entries)", remote_path, len(names),
+        "dropbox_list_folder: %s (%d entries)",
+        remote_path,
+        len(names),
     )
     return names

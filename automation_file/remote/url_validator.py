@@ -4,6 +4,7 @@
 rejects private / loopback / link-local / reserved IP ranges. Every remote
 function that accepts a user-supplied URL must pass it through here first.
 """
+
 from __future__ import annotations
 
 import ipaddress

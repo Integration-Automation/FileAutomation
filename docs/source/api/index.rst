@@ -9,4 +9,5 @@ API reference
    remote
    server
    project
+   ui
    utils

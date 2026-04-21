@@ -1,4 +1,5 @@
 """Dropbox download operations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,9 @@ def dropbox_download_file(remote_path: str, target_path: str) -> bool:
     try:
         client.files_download_to_file(target_path, remote_path)
         file_automation_logger.info(
-            "dropbox_download_file: %s -> %s", remote_path, target_path,
+            "dropbox_download_file: %s -> %s",
+            remote_path,
+            target_path,
         )
         return True
     except Exception as error:  # pylint: disable=broad-except

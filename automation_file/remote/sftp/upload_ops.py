@@ -1,4 +1,5 @@
 """SFTP upload operations."""
+
 from __future__ import annotations
 
 import posixpath
@@ -55,6 +56,9 @@ def sftp_upload_dir(dir_path: str, remote_prefix: str) -> list[str]:
         if sftp_upload_file(str(entry), remote):
             uploaded.append(remote)
     file_automation_logger.info(
-        "sftp_upload_dir: %s -> %s (%d files)", source, prefix, len(uploaded),
+        "sftp_upload_dir: %s -> %s (%d files)",
+        source,
+        prefix,
+        len(uploaded),
     )
     return uploaded

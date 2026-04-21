@@ -12,10 +12,12 @@ dict mapping each action's string form to either its return value or the
 the batch, which is important when running against Google Drive where
 transient errors are common.
 """
+
 from __future__ import annotations
 
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Mapping
+from typing import Any
 
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.json_store import read_action_json
@@ -137,9 +139,7 @@ class ActionExecutor:
 
     def add_command_to_executor(self, command_dict: Mapping[str, Any]) -> None:
         """Register every ``name -> callable`` pair (Registry facade)."""
-        file_automation_logger.info(
-            "add_command_to_executor: %s", list(command_dict.keys())
-        )
+        file_automation_logger.info("add_command_to_executor: %s", list(command_dict.keys()))
         self.registry.register_many(command_dict)
 
     # Internals ---------------------------------------------------------
@@ -150,7 +150,10 @@ class ActionExecutor:
                 if self.registry.resolve(name) is None:
                     raise ExecuteActionException(f"unknown action: {name!r}")
                 file_automation_logger.info(
-                    "dry_run: %s kind=%s payload=%r", name, kind, payload,
+                    "dry_run: %s kind=%s payload=%r",
+                    name,
+                    kind,
+                    payload,
                 )
                 return f"dry_run:{name}"
             value = self._execute_event(action)
@@ -190,7 +193,9 @@ def execute_action(
 ) -> dict[str, Any]:
     """Module-level shim that delegates to the shared executor."""
     return executor.execute_action(
-        action_list, dry_run=dry_run, validate_first=validate_first,
+        action_list,
+        dry_run=dry_run,
+        validate_first=validate_first,
     )
 
 

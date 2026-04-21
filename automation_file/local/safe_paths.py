@@ -6,6 +6,7 @@ lies under ``root`` once symlinks are followed; otherwise it raises
 any configuration module so callers can wrap individual operations instead of
 opting in globally.
 """
+
 from __future__ import annotations
 
 import os

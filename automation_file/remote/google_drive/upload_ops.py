@@ -1,4 +1,5 @@
 """Upload-side Google Drive operations."""
+
 from __future__ import annotations
 
 import mimetypes
@@ -78,10 +79,11 @@ def drive_upload_dir_to_folder(folder_id: str, dir_path: str) -> list[dict | Non
     results: list[dict | None] = []
     for entry in source.iterdir():
         if entry.is_file():
-            results.append(
-                drive_upload_to_folder(folder_id, str(entry.absolute()), entry.name)
-            )
+            results.append(drive_upload_to_folder(folder_id, str(entry.absolute()), entry.name))
     file_automation_logger.info(
-        "drive_upload_dir_to_folder: %s -> %s (%d files)", source, folder_id, len(results),
+        "drive_upload_dir_to_folder: %s -> %s (%d files)",
+        source,
+        folder_id,
+        len(results),
     )
     return results

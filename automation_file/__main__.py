@@ -5,17 +5,19 @@ Supports three invocation styles:
 * Legacy flags (``-e``, ``-d``, ``-c``, ``--execute_str``) — run JSON action
   lists without writing Python.
 * Subcommands (``zip``, ``unzip``, ``download``, ``server``, ``http-server``,
-  ``drive-upload``) — wrap the most common facade calls so users do not need
-  to hand-author JSON for one-shot operations.
+  ``drive-upload``, ``ui``) — wrap the most common facade calls so users do
+  not need to hand-author JSON for one-shot operations.
 * No arguments — prints help and exits non-zero.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import sys
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from automation_file.core.action_executor import execute_action, execute_files
 from automation_file.core.json_store import read_action_json
@@ -96,6 +98,12 @@ def _cmd_http_server(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    from automation_file.ui.launcher import launch_ui
+
+    return launch_ui()
+
+
 def _cmd_drive_upload(args: argparse.Namespace) -> int:
     from automation_file.remote.google_drive.client import driver_instance
     from automation_file.remote.google_drive.upload_ops import (
@@ -129,7 +137,9 @@ def _build_parser() -> argparse.ArgumentParser:
     zip_parser.add_argument("source")
     zip_parser.add_argument("target")
     zip_parser.add_argument(
-        "--dir", dest="source_is_dir", action="store_true",
+        "--dir",
+        dest="source_is_dir",
+        action="store_true",
         help="treat source as a directory (zips the tree instead of one file)",
     )
     zip_parser.set_defaults(handler=_cmd_zip)
@@ -163,6 +173,9 @@ def _build_parser() -> argparse.ArgumentParser:
     http_parser.add_argument("--allow-non-loopback", action="store_true")
     http_parser.add_argument("--shared-secret", default=None)
     http_parser.set_defaults(handler=_cmd_http_server)
+
+    ui_parser = subparsers.add_parser("ui", help="launch the PySide6 GUI")
+    ui_parser.set_defaults(handler=_cmd_ui)
 
     drive_parser = subparsers.add_parser("drive-upload", help="upload a file to Google Drive")
     drive_parser.add_argument("file")

@@ -1,4 +1,5 @@
 """Dropbox delete operations."""
+
 from __future__ import annotations
 
 from automation_file.logging_config import file_automation_logger

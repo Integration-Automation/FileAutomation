@@ -1,4 +1,5 @@
 """Tests for automation_file.local.file_ops."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -5,9 +5,11 @@ from "how to run it" (a Python callable). Executors delegate name resolution
 to an :class:`ActionRegistry`, which keeps look-up O(1) and lets plugins add
 commands at runtime without touching the executor class.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from typing import Any
 
 from automation_file.exceptions import AddCommandException
 from automation_file.logging_config import file_automation_logger
@@ -67,6 +69,8 @@ def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action."""
     from automation_file.local import dir_ops, file_ops, zip_ops
     from automation_file.remote import http_download
+    from automation_file.remote.azure_blob import register_azure_blob_ops
+    from automation_file.remote.dropbox_api import register_dropbox_ops
     from automation_file.remote.google_drive import (
         client,
         delete_ops,
@@ -76,6 +80,8 @@ def build_default_registry() -> ActionRegistry:
         share_ops,
         upload_ops,
     )
+    from automation_file.remote.s3 import register_s3_ops
+    from automation_file.remote.sftp import register_sftp_ops
 
     registry = ActionRegistry()
     registry.register_many(
@@ -121,6 +127,11 @@ def build_default_registry() -> ActionRegistry:
             "FA_drive_download_file_from_folder": download_ops.drive_download_file_from_folder,
         }
     )
+    # Cloud / SFTP backends are first-class; register them on every default registry.
+    register_s3_ops(registry)
+    register_azure_blob_ops(registry)
+    register_dropbox_ops(registry)
+    register_sftp_ops(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)
     )

@@ -31,10 +31,11 @@ Google Drive
 .. automodule:: automation_file.remote.google_drive.download_ops
    :members:
 
-S3 (optional)
--------------
+S3
+---
 
-Install with ``pip install automation_file[s3]``.
+Bundled with ``automation_file``; registered automatically by
+:func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.s3.client
    :members:
@@ -51,10 +52,11 @@ Install with ``pip install automation_file[s3]``.
 .. automodule:: automation_file.remote.s3.list_ops
    :members:
 
-Azure Blob (optional)
----------------------
+Azure Blob
+----------
 
-Install with ``pip install automation_file[azure]``.
+Bundled with ``automation_file``; registered automatically by
+:func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.azure_blob.client
    :members:
@@ -71,10 +73,11 @@ Install with ``pip install automation_file[azure]``.
 .. automodule:: automation_file.remote.azure_blob.list_ops
    :members:
 
-Dropbox (optional)
-------------------
+Dropbox
+-------
 
-Install with ``pip install automation_file[dropbox]``.
+Bundled with ``automation_file``; registered automatically by
+:func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.dropbox_api.client
    :members:
@@ -91,10 +94,12 @@ Install with ``pip install automation_file[dropbox]``.
 .. automodule:: automation_file.remote.dropbox_api.list_ops
    :members:
 
-SFTP (optional)
----------------
+SFTP
+----
 
-Install with ``pip install automation_file[sftp]``.
+Bundled with ``automation_file``; registered automatically by
+:func:`automation_file.core.action_registry.build_default_registry`. Uses
+:class:`paramiko.RejectPolicy` — unknown hosts are never auto-added.
 
 .. automodule:: automation_file.remote.sftp.client
    :members:

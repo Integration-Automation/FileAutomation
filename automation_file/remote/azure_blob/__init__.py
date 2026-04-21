@@ -1,4 +1,9 @@
-"""Azure Blob Storage strategy module (optional; requires ``azure-storage-blob``)."""
+"""Azure Blob Storage strategy module.
+
+Actions (``FA_azure_blob_*``) are registered on the shared default registry
+automatically.
+"""
+
 from __future__ import annotations
 
 from automation_file.core.action_registry import ActionRegistry

@@ -1,4 +1,5 @@
 """Tests for the retry_on_transient decorator."""
+
 from __future__ import annotations
 
 import pytest

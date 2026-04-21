@@ -4,9 +4,11 @@ Implements the "do X then do Y" flow many automation JSON files want. The
 registry is shared with :class:`ActionExecutor`, so adding a command to one
 adds it to the other.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from automation_file.core.action_registry import ActionRegistry
 from automation_file.exceptions import CallbackExecutorException
@@ -31,17 +33,13 @@ class CallbackExecutor:
     ) -> Any:
         trigger = self.registry.resolve(trigger_function_name)
         if trigger is None:
-            raise CallbackExecutorException(
-                f"unknown trigger: {trigger_function_name!r}"
-            )
+            raise CallbackExecutorException(f"unknown trigger: {trigger_function_name!r}")
         if callback_param_method not in _VALID_METHODS:
             raise CallbackExecutorException(
                 f"callback_param_method must be 'kwargs' or 'args', got {callback_param_method!r}"
             )
 
-        file_automation_logger.info(
-            "callback: trigger=%s kwargs=%s", trigger_function_name, kwargs
-        )
+        file_automation_logger.info("callback: trigger=%s kwargs=%s", trigger_function_name, kwargs)
         return_value = trigger(**kwargs)
 
         if callback_function_param is None:

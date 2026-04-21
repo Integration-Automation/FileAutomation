@@ -1,4 +1,5 @@
 """S3 upload operations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,6 +40,9 @@ def s3_upload_dir(dir_path: str, bucket: str, key_prefix: str = "") -> list[str]
             uploaded.append(key)
     file_automation_logger.info(
         "s3_upload_dir: %s -> s3://%s/%s (%d files)",
-        source, bucket, prefix, len(uploaded),
+        source,
+        bucket,
+        prefix,
+        len(uploaded),
     )
     return uploaded

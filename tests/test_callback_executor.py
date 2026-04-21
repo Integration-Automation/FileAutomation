@@ -1,4 +1,5 @@
 """Tests for automation_file.core.callback_executor."""
+
 from __future__ import annotations
 
 import pytest
@@ -60,7 +61,9 @@ def test_callback_bad_method_raises() -> None:
     executor = CallbackExecutor(registry)
     with pytest.raises(CallbackExecutorException):
         executor.callback_function(
-            "t", callback_function=lambda: None, callback_param_method="neither",
+            "t",
+            callback_function=lambda: None,
+            callback_param_method="neither",
         )
 
 

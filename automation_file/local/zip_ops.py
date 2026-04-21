@@ -4,6 +4,7 @@ Note: Python's standard ``zipfile`` module does not write encrypted archives.
 ``set_zip_password`` only sets the read-side password used to extract an
 already-encrypted archive.
 """
+
 from __future__ import annotations
 
 import zipfile
@@ -36,13 +37,13 @@ def zip_file(zip_file_path: str, file: str | list[str]) -> None:
             file_automation_logger.info("zip_file: %s -> %s", path, zip_file_path)
 
 
-def read_zip_file(
-    zip_file_path: str, file_name: str, password: bytes | None = None
-) -> bytes:
+def read_zip_file(zip_file_path: str, file_name: str, password: bytes | None = None) -> bytes:
     """Return the raw bytes of ``file_name`` inside the zip."""
-    with zipfile.ZipFile(zip_file_path, mode="r") as archive:
-        with archive.open(name=file_name, mode="r", pwd=password, force_zip64=True) as member:
-            data = member.read()
+    with (
+        zipfile.ZipFile(zip_file_path, mode="r") as archive,
+        archive.open(name=file_name, mode="r", pwd=password, force_zip64=True) as member,
+    ):
+        data = member.read()
     file_automation_logger.info("read_zip_file: %s/%s", zip_file_path, file_name)
     return data
 
@@ -57,7 +58,10 @@ def unzip_file(
     with zipfile.ZipFile(zip_file_path, mode="r") as archive:
         archive.extract(member=extract_member, path=extract_path, pwd=password)
     file_automation_logger.info(
-        "unzip_file: %s member=%s to=%s", zip_file_path, extract_member, extract_path,
+        "unzip_file: %s member=%s to=%s",
+        zip_file_path,
+        extract_member,
+        extract_path,
     )
 
 

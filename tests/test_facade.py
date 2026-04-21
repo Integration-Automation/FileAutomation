@@ -1,4 +1,5 @@
 """Smoke test: the public facade exposes every advertised name."""
+
 from __future__ import annotations
 
 import automation_file

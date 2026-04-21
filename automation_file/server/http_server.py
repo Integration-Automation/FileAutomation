@@ -7,6 +7,7 @@ value. Bound to loopback by default with the same opt-in semantics as
 ``Authorization: Bearer <secret>`` — useful when placing the server behind a
 reverse proxy.
 """
+
 from __future__ import annotations
 
 import hmac
@@ -32,7 +33,7 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         file_automation_logger.info("http_server: " + format, *args)
 
-    def do_POST(self) -> None:  # noqa: N802 — mandated by BaseHTTPRequestHandler
+    def do_POST(self) -> None:
         if self.path != "/actions":
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
@@ -59,7 +60,7 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
             header = self.headers.get("Authorization", "")
             if not header.startswith("Bearer "):
                 raise TCPAuthException("missing bearer token")
-            if not hmac.compare_digest(header[len("Bearer "):], secret):
+            if not hmac.compare_digest(header[len("Bearer ") :], secret):
                 raise TCPAuthException("bad shared secret")
 
         try:
@@ -131,6 +132,8 @@ def start_http_action_server(
     thread.start()
     file_automation_logger.info(
         "http_server: listening on %s:%d (auth=%s)",
-        host, port, "on" if shared_secret else "off",
+        host,
+        port,
+        "on" if shared_secret else "off",
     )
     return server

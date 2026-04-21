@@ -1,4 +1,5 @@
 """S3 listing operations."""
+
 from __future__ import annotations
 
 from automation_file.logging_config import file_automation_logger
@@ -18,6 +19,9 @@ def s3_list_bucket(bucket: str, prefix: str = "") -> list[str]:
         file_automation_logger.error("s3_list_bucket failed: %r", error)
         return []
     file_automation_logger.info(
-        "s3_list_bucket: s3://%s/%s (%d keys)", bucket, prefix, len(keys),
+        "s3_list_bucket: s3://%s/%s (%d keys)",
+        bucket,
+        prefix,
+        len(keys),
     )
     return keys

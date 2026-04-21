@@ -36,17 +36,17 @@ automation_file/
 │   │   ├── search_ops.py
 │   │   ├── share_ops.py
 │   │   └── upload_ops.py
-│   ├── s3/                     # Optional — pip install automation_file[s3]
-│   │   ├── client.py           # S3Client (lazy boto3 import)
+│   ├── s3/                     # S3 (boto3) — auto-registered in build_default_registry()
+│   │   ├── client.py           # S3Client
 │   │   ├── upload_ops.py
 │   │   ├── download_ops.py
 │   │   ├── delete_ops.py
 │   │   └── list_ops.py
-│   ├── azure_blob/             # Optional — pip install automation_file[azure]
+│   ├── azure_blob/             # Azure Blob — auto-registered in build_default_registry()
 │   │   └── {client,upload,download,delete,list}_ops.py
-│   ├── dropbox_api/            # Optional — pip install automation_file[dropbox]
+│   ├── dropbox_api/            # Dropbox — auto-registered in build_default_registry()
 │   │   └── {client,upload,download,delete,list}_ops.py
-│   └── sftp/                   # Optional — pip install automation_file[sftp]
+│   └── sftp/                   # SFTP (paramiko + RejectPolicy) — auto-registered in build_default_registry()
 │       └── {client,upload,download,delete,list}_ops.py
 ├── server/
 │   ├── tcp_server.py           # Loopback-only TCP server executing JSON actions (optional shared-secret auth)
@@ -54,6 +54,14 @@ automation_file/
 ├── project/
 │   ├── project_builder.py      # ProjectBuilder (Builder pattern)
 │   └── templates.py            # Scaffolding templates
+├── ui/                         # PySide6 GUI (required dep)
+│   ├── launcher.py             # launch_ui(argv) — boots QApplication + MainWindow
+│   ├── main_window.py          # MainWindow — tabbed control surface over every feature
+│   ├── worker.py               # ActionWorker(QRunnable) + _WorkerSignals
+│   ├── log_widget.py           # LogPanel — timestamped, read-only log stream
+│   └── tabs/                   # One tab per domain: local / http / drive / s3 /
+│                               #                    azure / dropbox / sftp /
+│                               #                    JSON actions / servers
 └── utils/
     └── file_discovery.py       # Recursive file listing by extension
 ```
@@ -73,7 +81,9 @@ automation_file/
 - `CallbackExecutor` — runs a registered trigger, then a user callback, sharing the executor's registry.
 - `PackageLoader` — imports a package by name and registers its top-level functions / classes / builtins as `<package>_<member>`.
 - `GoogleDriveClient` — wraps OAuth2 credential loading; exposes `service` lazily. `later_init(token_path, credentials_path)` bootstraps; `require_service()` raises if not initialised.
-- `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — lazy-import singleton wrappers around the optional SDKs. Each exposes `later_init(...)` plus `close()` where relevant. Operations are registered via `register_<backend>_ops(registry)`.
+- `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — singleton wrappers around the required SDKs. Each exposes `later_init(...)` plus `close()` where relevant. Their ops are auto-registered by `build_default_registry()`; `register_<backend>_ops(registry)` is still exported so callers can populate custom registries.
+- `MainWindow` — PySide6 tabbed control surface (`ui/main_window.py`). Nine tabs — Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions, Servers — share a `LogPanel` and dispatch work through `ActionWorker(QRunnable)` on the global `QThreadPool`.
+- `launch_ui(argv=None)` — boots / reuses a `QApplication`, shows `MainWindow`, and returns the exec code. Exposed lazily on the facade via `__getattr__` so the Qt runtime isn't paid for by non-UI importers.
 - `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback; optional `shared_secret` enforces `AUTH <secret>\n` prefix.
 - `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.
 - `Quota` — frozen dataclass capping bytes and wall-clock seconds per action or block (`check_size`, `time_budget` context manager, `wraps` decorator). `0` disables each cap.
@@ -84,7 +94,7 @@ automation_file/
 
 - `main` branch: stable releases, publishes `automation_file` to PyPI (version in `stable.toml`).
 - `dev` branch: development, publishes `automation_file_dev` to PyPI (version in `dev.toml`).
-- Keep both TOMLs in sync when bumping. `[project.optional-dependencies]` (s3/azure/dropbox/sftp/dev) must also stay in sync.
+- Keep both TOMLs in sync when bumping. `dependencies` and `[project.optional-dependencies]` (`dev`) must also stay in sync. Backends (`boto3`, `azure-storage-blob`, `dropbox`, `paramiko`) and `PySide6` are first-class runtime deps — do not move them back under extras.
 - CI: GitHub Actions (Windows, Python 3.10 / 3.11 / 3.12) — one matrix workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
 - CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage → uploads `coverage.xml` as an artifact.
 - Stable branch additionally runs a `publish` job on push to `main`: builds the sdist + wheel, `twine check`, `twine upload` using `PYPI_API_TOKEN`, then `gh release create v<version> --generate-notes`.

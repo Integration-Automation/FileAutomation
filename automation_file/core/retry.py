@@ -4,11 +4,13 @@
 intentionally dependency-free so that modules which do not actually use
 ``requests`` or ``googleapiclient`` can import it without pulling those in.
 """
+
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from automation_file.exceptions import RetryExhaustedException
 from automation_file.logging_config import file_automation_logger
@@ -44,7 +46,11 @@ def retry_on_transient(
                     delay = min(backoff_cap, backoff_base * (2 ** (attempt - 1)))
                     file_automation_logger.warning(
                         "retry_on_transient: %s attempt %d/%d failed (%r); sleeping %.2fs",
-                        func.__name__, attempt, max_attempts, error, delay,
+                        func.__name__,
+                        attempt,
+                        max_attempts,
+                        error,
+                        delay,
                     )
                     time.sleep(delay)
             raise RetryExhaustedException(

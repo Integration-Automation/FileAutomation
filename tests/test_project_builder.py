@@ -1,4 +1,5 @@
 """Tests for automation_file.project.project_builder."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,4 +1,5 @@
 """S3 client (Singleton Facade around ``boto3``)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,10 +9,10 @@ from automation_file.logging_config import file_automation_logger
 
 def _import_boto3() -> Any:
     try:
-        import boto3  # type: ignore[import-not-found]
+        import boto3
     except ImportError as error:
         raise RuntimeError(
-            "boto3 is required for S3 support; install `automation_file[s3]`"
+            "boto3 import failed — reinstall `automation_file` to restore the S3 backend"
         ) from error
     return boto3
 

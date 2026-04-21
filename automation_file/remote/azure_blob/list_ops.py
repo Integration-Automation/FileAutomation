@@ -1,4 +1,5 @@
 """Azure Blob listing operations."""
+
 from __future__ import annotations
 
 from automation_file.logging_config import file_automation_logger
@@ -17,6 +18,9 @@ def azure_blob_list_container(container: str, name_prefix: str = "") -> list[str
         file_automation_logger.error("azure_blob_list_container failed: %r", error)
         return []
     file_automation_logger.info(
-        "azure_blob_list_container: %s/%s (%d blobs)", container, name_prefix, len(names),
+        "azure_blob_list_container: %s/%s (%d blobs)",
+        container,
+        name_prefix,
+        len(names),
     )
     return names

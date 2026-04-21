@@ -1,4 +1,5 @@
 """Download-side Google Drive operations."""
+
 from __future__ import annotations
 
 import io
@@ -27,7 +28,9 @@ def drive_download_file(file_id: str, file_name: str) -> io.BytesIO | None:
             status, done = downloader.next_chunk()
             if status is not None:
                 file_automation_logger.info(
-                    "drive_download_file: %s %d%%", file_name, int(status.progress() * 100),
+                    "drive_download_file: %s %d%%",
+                    file_name,
+                    int(status.progress() * 100),
                 )
     except HttpError as error:
         file_automation_logger.error("drive_download_file failed: %r", error)
@@ -45,16 +48,14 @@ def drive_download_file_from_folder(folder_name: str) -> dict[str, str] | None:
     try:
         folders = (
             service.files()
-            .list(q=(
-                "mimeType = 'application/vnd.google-apps.folder' "
-                f"and name = '{folder_name}'"
-            ))
+            .list(q=(f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}'"))
             .execute()
         )
         folder_list = folders.get("files", [])
         if not folder_list:
             file_automation_logger.error(
-                "drive_download_file_from_folder: folder not found: %s", folder_name,
+                "drive_download_file_from_folder: folder not found: %s",
+                folder_name,
             )
             return None
         folder_id = folder_list[0].get("id")
@@ -68,6 +69,8 @@ def drive_download_file_from_folder(folder_name: str) -> dict[str, str] | None:
         drive_download_file(file.get("id"), file.get("name"))
         result[file.get("name")] = file.get("id")
     file_automation_logger.info(
-        "drive_download_file_from_folder: %s (%d files)", folder_name, len(result),
+        "drive_download_file_from_folder: %s (%d files)",
+        folder_name,
+        len(result),
     )
     return result
