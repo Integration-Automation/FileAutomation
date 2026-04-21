@@ -95,10 +95,10 @@ automation_file/
 - `main` branch: stable releases, publishes `automation_file` to PyPI (version in `stable.toml`).
 - `dev` branch: development, publishes `automation_file_dev` to PyPI (version in `dev.toml`).
 - Keep `dependencies` and `[project.optional-dependencies]` (`dev`) in sync across both TOMLs. Backends (`boto3`, `azure-storage-blob`, `dropbox`, `paramiko`) and `PySide6` are first-class runtime deps — do not move them back under extras.
-- **Version bumping is automatic.** The stable publish job bumps the patch in both `stable.toml` and `dev.toml`, commits the bump back to `main` with `[skip ci]`, then builds and releases. Do not hand-bump before merging to `main`.
+- **Version bumping is automatic.** A dedicated publish workflow bumps the patch in both `stable.toml` and `dev.toml`, builds, uploads to PyPI, then commits the bump back to `main` tagged as `vX.Y.Z`. Do not hand-bump before merging to `main`. The next publish run is skipped via a commit-message guard (`chore: bump version`), so the bump itself never re-triggers publishing.
 - CI: GitHub Actions (Windows, Python 3.10 / 3.11 / 3.12) — one matrix workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
 - CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage → uploads `coverage.xml` as an artifact.
-- Stable branch additionally runs a `publish` job on push to `main`: auto-bumps the patch in both TOMLs and commits back, then builds the sdist + wheel, `twine check`, `twine upload` using `PYPI_API_TOKEN`, then `gh release create v<version> --generate-notes`.
+- Publishing lives in a separate workflow (`.github/workflows/publish.yml`) that runs on push to `main`: bumps both TOMLs, copies `stable.toml` to `pyproject.toml`, builds the sdist + wheel, `twine upload` via `PYPI_API_TOKEN`, then commits + tags + pushes and creates `gh release create v<version> --generate-notes`.
 - `pre-commit` is configured (`.pre-commit-config.yaml`): trailing-whitespace, eof-fixer, check-yaml, check-toml, check-added-large-files, ruff, ruff-format, mypy. Install with `pre-commit install` after cloning.
 
 ## Development
