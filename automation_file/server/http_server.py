@@ -34,7 +34,7 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
     ) -> None:
         file_automation_logger.info("http_server: " + format_str, *args)
 
-    def do_POST(self) -> None:
+    def do_POST(self) -> None:  # pylint: disable=invalid-name — BaseHTTPRequestHandler API
         if self.path != "/actions":
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return

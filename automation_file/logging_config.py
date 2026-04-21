@@ -45,7 +45,7 @@ def _build_logger() -> logging.Logger:
     stream_handler.setLevel(logging.INFO)
     logger.addHandler(stream_handler)
 
-    logger._file_automation_initialised = True  # type: ignore[attr-defined]
+    logger._file_automation_initialised = True  # type: ignore[attr-defined]  # pylint: disable=protected-access  # stamp our own init marker on the shared logger
     return logger
 
 

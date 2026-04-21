@@ -569,13 +569,13 @@ class JSONEditorTab(BaseTab):
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(handler)
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802 — Qt override
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802  # pylint: disable=invalid-name — Qt override
         if self._is_json_drop(event):
             event.acceptProposedAction()
             return
         event.ignore()
 
-    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802 — Qt override
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802  # pylint: disable=invalid-name — Qt override
         if not self._is_json_drop(event):
             event.ignore()
             return

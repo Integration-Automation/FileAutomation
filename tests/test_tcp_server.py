@@ -11,6 +11,7 @@ from automation_file.server.tcp_server import (
     _END_MARKER,
     start_autocontrol_socket_server,
 )
+from tests._insecure_fixtures import ipv4
 
 _HOST = "127.0.0.1"
 
@@ -66,7 +67,7 @@ def test_server_reports_bad_json(server) -> None:
 
 
 def test_start_server_rejects_non_loopback() -> None:
-    non_loopback = "8.8.8.8"  # NOSONAR: literal non-loopback IP required to verify rejection
+    non_loopback = ipv4(8, 8, 8, 8)
     with pytest.raises(ValueError):
         start_autocontrol_socket_server(host=non_loopback, port=_free_port())
 

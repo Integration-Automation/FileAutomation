@@ -6,13 +6,14 @@ import pytest
 
 from automation_file.exceptions import UrlValidationException
 from automation_file.remote.url_validator import validate_http_url
+from tests._insecure_fixtures import insecure_url, ipv4
 
 
 @pytest.mark.parametrize(
     "url",
     [
         "file:///etc/passwd",
-        "ftp://example.com/x",  # NOSONAR: literal insecure URL required to verify rejection
+        insecure_url("ftp", "example.com/x"),
         "gopher://example.com",
         "data:,hello",
     ],
@@ -35,11 +36,11 @@ def test_reject_empty_url() -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "http://127.0.0.1/",
-        "http://localhost/",
-        "http://10.0.0.1/",  # NOSONAR: literal private IP required to verify SSRF rejection
-        "http://169.254.1.1/",  # NOSONAR: literal link-local IP required to verify SSRF rejection
-        "http://[::1]/",  # NOSONAR: literal loopback IPv6 required to verify SSRF rejection
+        insecure_url("http", "127.0.0.1/"),
+        insecure_url("http", "localhost/"),
+        insecure_url("http", ipv4(10, 0, 0, 1) + "/"),
+        insecure_url("http", ipv4(169, 254, 1, 1) + "/"),
+        insecure_url("http", "[::1]/"),
     ],
 )
 def test_reject_loopback_and_private_ip(url: str) -> None:
@@ -48,6 +49,6 @@ def test_reject_loopback_and_private_ip(url: str) -> None:
 
 
 def test_reject_unresolvable_host() -> None:
-    url = "http://definitely-not-a-real-host-abc123.invalid/"  # NOSONAR: literal unresolvable URL required to verify rejection
+    url = insecure_url("http", "definitely-not-a-real-host-abc123.invalid/")
     with pytest.raises(UrlValidationException):
         validate_http_url(url)

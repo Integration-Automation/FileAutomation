@@ -41,7 +41,7 @@ class ActionWorker(QRunnable):
         self.signals.log.emit(f"running: {self._label}")
         try:
             result = self._target(*self._args, **self._kwargs)
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught  # worker dispatcher boundary — must surface any failure to the UI
             self.signals.log.emit(f"failed: {self._label}: {error!r}")
             self.signals.failed.emit(error)
             return

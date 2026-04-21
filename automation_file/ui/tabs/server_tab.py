@@ -138,7 +138,7 @@ class ServerTab(BaseTab):
         file_automation_logger.info("ui: http server stopped")
         self._log.append_line("HTTP server stopped")
 
-    def closeEvent(self, event) -> None:  # noqa: N802 — Qt override
+    def closeEvent(self, event) -> None:  # noqa: N802  # pylint: disable=invalid-name — Qt override
         if self._tcp_server is not None:
             self._tcp_server.shutdown()
             self._tcp_server.server_close()

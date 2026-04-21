@@ -1,5 +1,7 @@
 """Sphinx configuration for automation_file."""
 
+# pylint: disable=invalid-name  # Sphinx requires these specific lowercase names.
+
 from __future__ import annotations
 
 import os

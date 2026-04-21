@@ -74,6 +74,6 @@ class MainWindow(QMainWindow):
     def _on_log_message(self, message: str) -> None:
         self.statusBar().showMessage(message, 5000)
 
-    def closeEvent(self, event) -> None:  # noqa: N802 — Qt override
+    def closeEvent(self, event) -> None:  # noqa: N802  # pylint: disable=invalid-name — Qt override
         self._server_tab.closeEvent(event)
         super().closeEvent(event)
