@@ -82,6 +82,17 @@ from automation_file.remote.http_download import download_file
 from automation_file.remote.s3 import S3Client, register_s3_ops, s3_instance
 from automation_file.remote.sftp import SFTPClient, register_sftp_ops, sftp_instance
 from automation_file.remote.url_validator import validate_http_url
+from automation_file.scheduler import (
+    CronExpression,
+    ScheduledJob,
+    Scheduler,
+    register_scheduler_ops,
+    schedule_add,
+    schedule_list,
+    schedule_remove,
+    schedule_remove_all,
+    scheduler,
+)
 from automation_file.server.http_server import HTTPActionServer, start_http_action_server
 from automation_file.server.tcp_server import (
     TCPActionServer,
@@ -205,6 +216,16 @@ __all__ = [
     "watch_stop",
     "watch_stop_all",
     "watch_list",
+    # Scheduler
+    "CronExpression",
+    "ScheduledJob",
+    "Scheduler",
+    "register_scheduler_ops",
+    "schedule_add",
+    "schedule_list",
+    "schedule_remove",
+    "schedule_remove_all",
+    "scheduler",
     # UI (lazy-loaded)
     "launch_ui",
 ]

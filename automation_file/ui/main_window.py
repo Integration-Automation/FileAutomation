@@ -12,6 +12,7 @@ from automation_file.ui.tabs import (
     HomeTab,
     JSONEditorTab,
     LocalOpsTab,
+    SchedulerTab,
     ServerTab,
     TransferTab,
     TriggerTab,
@@ -43,6 +44,8 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(JSONEditorTab(self._log, self._pool), "JSON actions")
         self._trigger_tab = TriggerTab(self._log, self._pool)
         self._tabs.addTab(self._trigger_tab, "Triggers")
+        self._scheduler_tab = SchedulerTab(self._log, self._pool)
+        self._tabs.addTab(self._scheduler_tab, "Scheduler")
         self._server_tab = ServerTab(self._log, self._pool)
         self._tabs.addTab(self._server_tab, "Servers")
 
@@ -80,4 +83,5 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802  # pylint: disable=invalid-name — Qt override
         self._server_tab.closeEvent(event)
         self._trigger_tab.closeEvent(event)
+        self._scheduler_tab.closeEvent(event)
         super().closeEvent(event)
