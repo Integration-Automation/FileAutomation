@@ -4,13 +4,31 @@ from __future__ import annotations
 import requests
 from tqdm import tqdm
 
-from automation_file.exceptions import UrlValidationException
+from automation_file.core.retry import retry_on_transient
+from automation_file.exceptions import RetryExhaustedException, UrlValidationException
 from automation_file.logging_config import file_automation_logger
 from automation_file.remote.url_validator import validate_http_url
 
 _DEFAULT_TIMEOUT_SECONDS = 15
 _DEFAULT_CHUNK_SIZE = 1024 * 64
 _MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+
+_RETRIABLE_EXCEPTIONS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+)
+
+
+@retry_on_transient(max_attempts=3, backoff_base=0.5, retriable=_RETRIABLE_EXCEPTIONS)
+def _open_stream(
+    file_url: str, timeout: int,
+) -> requests.Response:
+    response = requests.get(
+        file_url, stream=True, timeout=timeout, allow_redirects=False,
+    )
+    response.raise_for_status()
+    return response
 
 
 def download_file(
@@ -23,7 +41,8 @@ def download_file(
     """Download ``file_url`` to ``file_name`` with progress display.
 
     Validates the URL against SSRF rules, disables redirects, enforces a size
-    cap, and uses default TLS verification. Returns True on success.
+    cap, retries transient network errors up to three times, and uses default
+    TLS verification. Returns True on success.
     """
     try:
         validate_http_url(file_url)
@@ -32,18 +51,12 @@ def download_file(
         return False
 
     try:
-        response = requests.get(
-            file_url, stream=True, timeout=timeout, allow_redirects=False,
-        )
-        response.raise_for_status()
+        response = _open_stream(file_url, timeout)
+    except RetryExhaustedException as error:
+        file_automation_logger.error("download_file retries exhausted: %r", error)
+        return False
     except requests.exceptions.HTTPError as error:
         file_automation_logger.error("download_file HTTP error: %r", error)
-        return False
-    except requests.exceptions.ConnectionError as error:
-        file_automation_logger.error("download_file connection error: %r", error)
-        return False
-    except requests.exceptions.Timeout as error:
-        file_automation_logger.error("download_file timeout: %r", error)
         return False
     except requests.exceptions.RequestException as error:
         file_automation_logger.error("download_file request error: %r", error)

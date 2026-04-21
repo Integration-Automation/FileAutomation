@@ -46,6 +46,26 @@ class UrlValidationException(FileAutomationException):
     """Raised when a URL fails scheme / host validation (SSRF guard)."""
 
 
+class ValidationException(FileAutomationException):
+    """Raised when an action list fails pre-execution validation."""
+
+
+class RetryExhaustedException(FileAutomationException):
+    """Raised when a ``@retry_on_transient`` wrapped call runs out of attempts."""
+
+
+class QuotaExceededException(FileAutomationException):
+    """Raised when an action exceeds a configured size or duration quota."""
+
+
+class PathTraversalException(FileAutomationException):
+    """Raised when a user-supplied path escapes the allowed root."""
+
+
+class TCPAuthException(FileAutomationException):
+    """Raised when a TCP client fails shared-secret authentication."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"

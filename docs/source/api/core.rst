@@ -16,6 +16,12 @@ Core
 .. automodule:: automation_file.core.json_store
    :members:
 
+.. automodule:: automation_file.core.retry
+   :members:
+
+.. automodule:: automation_file.core.quota
+   :members:
+
 .. automodule:: automation_file.exceptions
    :members:
 

@@ -1,6 +1,6 @@
 # FileAutomation
 
-Automation-first Python library for local file / directory / zip operations, HTTP downloads, and Google Drive integration. Actions are defined as JSON and dispatched through a central registry so they can be executed in-process, from disk, or over a TCP socket.
+Automation-first Python library for local file / directory / zip operations, HTTP downloads, and remote storage (Google Drive, S3, Azure Blob, Dropbox, SFTP). Actions are defined as JSON and dispatched through a central registry so they can be executed in-process, from disk, over a TCP socket, or over HTTP.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ Automation-first Python library for local file / directory / zip operations, HTT
 ```
 automation_file/
 ├── __init__.py                 # Public API facade (every name users import)
-├── __main__.py                 # CLI entry (argparse dispatcher)
+├── __main__.py                 # CLI entry (argparse dispatcher, subcommands + legacy flags)
 ├── exceptions.py               # Exception hierarchy (FileAutomationException base)
 ├── logging_config.py           # file_automation_logger (file + stderr handlers)
 ├── core/
@@ -17,24 +17,40 @@ automation_file/
 │   ├── action_executor.py      # ActionExecutor — runs JSON action lists (Facade + Template Method)
 │   ├── callback_executor.py    # CallbackExecutor — trigger then callback composition
 │   ├── package_loader.py       # PackageLoader — dynamically registers package members
-│   └── json_store.py           # Thread-safe read/write of JSON action files
+│   ├── json_store.py           # Thread-safe read/write of JSON action files
+│   ├── retry.py                # retry_on_transient — capped exponential back-off decorator
+│   └── quota.py                # Quota — size + time budget guards
 ├── local/                      # Strategy modules — each file is a batch of pure operations
 │   ├── file_ops.py
 │   ├── dir_ops.py
-│   └── zip_ops.py
+│   ├── zip_ops.py
+│   └── safe_paths.py           # safe_join / is_within — path traversal guard
 ├── remote/
 │   ├── url_validator.py        # SSRF guard for outbound URLs
-│   ├── http_download.py        # SSRF-validated HTTP download with size/timeout caps
-│   └── google_drive/
-│       ├── client.py           # GoogleDriveClient (Singleton Facade)
-│       ├── delete_ops.py
-│       ├── download_ops.py
-│       ├── folder_ops.py
-│       ├── search_ops.py
-│       ├── share_ops.py
-│       └── upload_ops.py
+│   ├── http_download.py        # SSRF-validated HTTP download with size/timeout caps + retry
+│   ├── google_drive/
+│   │   ├── client.py           # GoogleDriveClient (Singleton Facade)
+│   │   ├── delete_ops.py
+│   │   ├── download_ops.py
+│   │   ├── folder_ops.py
+│   │   ├── search_ops.py
+│   │   ├── share_ops.py
+│   │   └── upload_ops.py
+│   ├── s3/                     # Optional — pip install automation_file[s3]
+│   │   ├── client.py           # S3Client (lazy boto3 import)
+│   │   ├── upload_ops.py
+│   │   ├── download_ops.py
+│   │   ├── delete_ops.py
+│   │   └── list_ops.py
+│   ├── azure_blob/             # Optional — pip install automation_file[azure]
+│   │   └── {client,upload,download,delete,list}_ops.py
+│   ├── dropbox_api/            # Optional — pip install automation_file[dropbox]
+│   │   └── {client,upload,download,delete,list}_ops.py
+│   └── sftp/                   # Optional — pip install automation_file[sftp]
+│       └── {client,upload,download,delete,list}_ops.py
 ├── server/
-│   └── tcp_server.py           # Loopback-only TCP server executing JSON actions
+│   ├── tcp_server.py           # Loopback-only TCP server executing JSON actions (optional shared-secret auth)
+│   └── http_server.py          # Loopback-only HTTP server (POST /actions, optional Bearer auth)
 ├── project/
 │   ├── project_builder.py      # ProjectBuilder (Builder pattern)
 │   └── templates.py            # Scaffolding templates
@@ -53,32 +69,43 @@ automation_file/
 ## Key types
 
 - `ActionRegistry` — mutable name → callable mapping. `register`, `register_many`, `resolve`, `unregister`, `event_dict` (live view for legacy callers).
-- `ActionExecutor` — holds a registry and runs JSON action lists. `execute_action(list|dict)`, `execute_files(paths)`, `add_command_to_executor(mapping)`.
+- `ActionExecutor` — holds a registry and runs JSON action lists. `execute_action(list|dict, validate_first=False, dry_run=False)`, `execute_action_parallel(list, max_workers=None)`, `validate(list) -> list[str]`, `execute_files(paths)`, `add_command_to_executor(mapping)`.
 - `CallbackExecutor` — runs a registered trigger, then a user callback, sharing the executor's registry.
 - `PackageLoader` — imports a package by name and registers its top-level functions / classes / builtins as `<package>_<member>`.
 - `GoogleDriveClient` — wraps OAuth2 credential loading; exposes `service` lazily. `later_init(token_path, credentials_path)` bootstraps; `require_service()` raises if not initialised.
-- `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback.
+- `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — lazy-import singleton wrappers around the optional SDKs. Each exposes `later_init(...)` plus `close()` where relevant. Operations are registered via `register_<backend>_ops(registry)`.
+- `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback; optional `shared_secret` enforces `AUTH <secret>\n` prefix.
+- `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.
+- `Quota` — frozen dataclass capping bytes and wall-clock seconds per action or block (`check_size`, `time_budget` context manager, `wraps` decorator). `0` disables each cap.
+- `retry_on_transient(max_attempts, backoff_base, backoff_cap, retriable)` — decorator that retries with capped exponential back-off and raises `RetryExhaustedException` chained to the last error.
+- `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
 
 ## Branching & CI
 
 - `main` branch: stable releases, publishes `automation_file` to PyPI (version in `stable.toml`).
 - `dev` branch: development, publishes `automation_file_dev` to PyPI (version in `dev.toml`).
-- Keep both TOMLs in sync when bumping.
+- Keep both TOMLs in sync when bumping. `[project.optional-dependencies]` (s3/azure/dropbox/sftp/dev) must also stay in sync.
 - CI: GitHub Actions (Windows, Python 3.10 / 3.11 / 3.12) — one matrix workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
-- CI steps: install deps → `pytest tests/ -v`.
+- CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage → uploads `coverage.xml` as an artifact.
+- Stable branch additionally runs a `publish` job on push to `main`: builds the sdist + wheel, `twine check`, `twine upload` using `PYPI_API_TOKEN`, then `gh release create v<version> --generate-notes`.
+- `pre-commit` is configured (`.pre-commit-config.yaml`): trailing-whitespace, eof-fixer, check-yaml, check-toml, check-added-large-files, ruff, ruff-format, mypy. Install with `pre-commit install` after cloning.
 
 ## Development
 
 ```bash
-python -m pip install -r dev_requirements.txt pytest
+python -m pip install -r dev_requirements.txt pytest pytest-cov
+python -m pip install -e ".[dev]"       # ruff, mypy, pre-commit
 python -m pytest tests/ -v --tb=short
+ruff check automation_file/ tests/
+ruff format --check automation_file/ tests/
+mypy automation_file/
 python -m automation_file --help
 ```
 
 **Testing:**
 - Unit tests live under `tests/` (pytest). Fixtures in `tests/conftest.py` (`sample_file`, `sample_dir`).
-- Tests cover every module in `core/`, `local/`, `remote/url_validator`, `project/`, `server/`, `utils/`, plus a facade smoke test.
-- Google Drive / HTTP-download code paths that require real credentials or network access are **not** exercised in CI — only their URL-validation / input-validation guards are.
+- Tests cover every module in `core/`, `local/`, `remote/url_validator`, `project/`, `server/`, `utils/`, plus a facade smoke test, retry/quota/safe_paths, HTTP+TCP auth, and optional-backend registration.
+- Google Drive / HTTP-download / S3 / Azure / Dropbox / SFTP code paths that require real credentials or network access are **not** exercised in CI — only their URL-validation, auth, and guard-clause behaviour are.
 - Run all tests before submitting changes: `python -m pytest tests/ -v`.
 
 ## Conventions
@@ -121,6 +148,22 @@ All code must follow secure-by-default principles. Review every change against t
 - Do not remove the loopback guard to "make it easier to test remotely". The server dispatches arbitrary registry commands; exposing it to the network is equivalent to exposing a Python REPL.
 - The server accepts a single JSON payload per connection (`recv(8192)`). Do not raise that limit without also adding a length-framed protocol.
 - `quit_server` triggers an orderly shutdown; do not add an administrative bypass that skips the loopback check.
+- Optional `shared_secret=` enforces an `AUTH <secret>\n` prefix; the comparison uses `hmac.compare_digest` (constant time). Never log the secret or the raw payload.
+
+### HTTP server
+- `HTTPActionServer` / `start_http_action_server` mirror the TCP server's posture: loopback-only by default, `allow_non_loopback=True` required to bind elsewhere, optional `shared_secret` enforced as `Authorization: Bearer <secret>` using `hmac.compare_digest`.
+- Only `POST /actions` is handled. Request body capped at 1 MB — do not raise without also switching to a streaming parser.
+- Responses are JSON. Auth failures return `401`; malformed JSON returns `400`; unknown paths return `404`.
+
+### Path traversal
+- Any caller resolving a user-supplied path against a trusted root must go through `automation_file.local.safe_paths.safe_join` (raises `PathTraversalException`) or the `is_within` check. Never concatenate + `Path.resolve()` yourself and skip the containment check — symlinks and `..` segments bypass naive string checks.
+
+### SFTP host verification
+- `SFTPClient` uses `paramiko.RejectPolicy()` — unknown hosts are rejected, never auto-added. Callers pass `known_hosts=` explicitly or rely on `~/.ssh/known_hosts`. Do not swap in `AutoAddPolicy` for convenience.
+
+### Reliability (retry / quota)
+- `retry_on_transient` only retries the exception types passed via `retriable=(…)`. Never widen to bare `Exception` — masks logic bugs as transient failures. Always exhausts to `RetryExhaustedException` chained with `raise ... from err`.
+- `Quota(max_bytes=…, max_seconds=…)` — prefer `Quota.wraps(...)` over inline checks when guarding a whole operation. `0` disables each cap.
 
 ### Google Drive
 - Credentials are stored at the caller-supplied `token_path` with `encoding="utf-8"`. Never log or print the token contents.

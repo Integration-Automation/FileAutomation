@@ -1,16 +1,15 @@
-# Rename to dev version
-# This is dev version
+# Stable release metadata — copied to pyproject.toml by the publish workflow.
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "automation_file"
-version = "0.0.29"
+version = "0.0.30"
 authors = [
     { name = "JE-Chen", email = "zenmailman@gmail.com" },
 ]
-description = ""
+description = "JSON-driven file, Drive, and cloud automation framework."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license-files = ["LICENSE"]
@@ -29,6 +28,13 @@ classifiers = [
     "Environment :: X11 Applications",
     "Operating System :: OS Independent"
 ]
+
+[project.optional-dependencies]
+s3 = ["boto3"]
+azure = ["azure-storage-blob"]
+dropbox = ["dropbox"]
+sftp = ["paramiko"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pre-commit"]
 
 [project.urls]
 "Homepage" = "https://github.com/JE-Chen/Integration-testing-environment"

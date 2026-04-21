@@ -3,9 +3,15 @@
 Binds to localhost by default. Explicitly rejects non-loopback binds unless
 ``allow_non_loopback`` is True because the server accepts arbitrary action
 names from clients and should not be exposed to the network by accident.
+
+When a ``shared_secret`` is supplied the server requires each connection to
+begin with ``AUTH <secret>\\n`` before the JSON payload. This is the minimum
+bar for exposing the server beyond loopback; use a TLS-terminating proxy for
+anything resembling production.
 """
 from __future__ import annotations
 
+import hmac
 import ipaddress
 import json
 import socket
@@ -15,6 +21,7 @@ import threading
 from typing import Any
 
 from automation_file.core.action_executor import execute_action
+from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
 
 _DEFAULT_HOST = "localhost"
@@ -22,6 +29,7 @@ _DEFAULT_PORT = 9943
 _RECV_BYTES = 8192
 _END_MARKER = b"Return_Data_Over_JE\n"
 _QUIT_COMMAND = "quit_server"
+_AUTH_PREFIX = "AUTH "
 
 
 class _TCPServerHandler(socketserver.StreamRequestHandler):
@@ -35,6 +43,14 @@ class _TCPServerHandler(socketserver.StreamRequestHandler):
             command_string = raw.strip().decode("utf-8")
         except UnicodeDecodeError as error:
             self._send_line(f"decode error: {error!r}")
+            self._send_bytes(_END_MARKER)
+            return
+
+        try:
+            command_string = self._enforce_auth(command_string)
+        except TCPAuthException as error:
+            file_automation_logger.warning("tcp_server auth: %r", error)
+            self._send_line("auth error")
             self._send_bytes(_END_MARKER)
             return
 
@@ -58,6 +74,20 @@ class _TCPServerHandler(socketserver.StreamRequestHandler):
         finally:
             self._send_bytes(_END_MARKER)
 
+    def _enforce_auth(self, command_string: str) -> str:
+        secret: str | None = getattr(self.server, "shared_secret", None)
+        if not secret:
+            return command_string
+        head, _, rest = command_string.partition("\n")
+        if not head.startswith(_AUTH_PREFIX):
+            raise TCPAuthException("missing AUTH header")
+        supplied = head[len(_AUTH_PREFIX):].strip()
+        if not hmac.compare_digest(supplied, secret):
+            raise TCPAuthException("bad shared secret")
+        if not rest:
+            raise TCPAuthException("empty payload after AUTH")
+        return rest
+
     def _send_line(self, text: str) -> None:
         self._send_bytes(text.encode("utf-8") + b"\n")
 
@@ -74,9 +104,15 @@ class TCPActionServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address: tuple[str, int], request_handler_class: type) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        request_handler_class: type,
+        shared_secret: str | None = None,
+    ) -> None:
         super().__init__(server_address, request_handler_class)
         self.close_flag: bool = False
+        self.shared_secret: str | None = shared_secret
 
 
 def _ensure_loopback(host: str) -> None:
@@ -97,14 +133,27 @@ def start_autocontrol_socket_server(
     host: str = _DEFAULT_HOST,
     port: int = _DEFAULT_PORT,
     allow_non_loopback: bool = False,
+    shared_secret: str | None = None,
 ) -> TCPActionServer:
-    """Start the action-dispatching TCP server on a background thread."""
+    """Start the action-dispatching TCP server on a background thread.
+
+    ``shared_secret`` turns on per-connection authentication: clients must send
+    ``AUTH <secret>\\n`` followed by the JSON payload. Binding to a non-loopback
+    address without a shared secret is strongly discouraged.
+    """
     if not allow_non_loopback:
         _ensure_loopback(host)
-    server = TCPActionServer((host, port), _TCPServerHandler)
+    if allow_non_loopback and not shared_secret:
+        file_automation_logger.warning(
+            "tcp_server: non-loopback bind without shared_secret is insecure",
+        )
+    server = TCPActionServer((host, port), _TCPServerHandler, shared_secret=shared_secret)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    file_automation_logger.info("tcp_server: listening on %s:%d", host, port)
+    file_automation_logger.info(
+        "tcp_server: listening on %s:%d (auth=%s)",
+        host, port, "on" if shared_secret else "off",
+    )
     return server
 
 

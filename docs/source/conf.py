@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 project = "automation_file"
 author = "JE-Chen"
 copyright = "2026, JE-Chen"  # noqa: A001 - Sphinx requires this name
-release = "0.0.31"
+release = "0.0.32"
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -38,6 +38,10 @@ autodoc_mock_imports = [
     "google_auth_oauthlib",
     "requests",
     "tqdm",
+    "boto3",
+    "azure",
+    "dropbox",
+    "paramiko",
 ]
 
 intersphinx_mapping = {

@@ -14,11 +14,12 @@ transient errors are common.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Mapping
 
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.json_store import read_action_json
-from automation_file.exceptions import ExecuteActionException
+from automation_file.exceptions import ExecuteActionException, ValidationException
 from automation_file.logging_config import file_automation_logger
 
 
@@ -31,46 +32,103 @@ class ActionExecutor:
             {
                 "FA_execute_action": self.execute_action,
                 "FA_execute_files": self.execute_files,
+                "FA_execute_action_parallel": self.execute_action_parallel,
+                "FA_validate": self.validate,
             }
         )
 
     # Template-method: single action ------------------------------------
     def _execute_event(self, action: list) -> Any:
-        if not isinstance(action, list) or not action:
-            raise ExecuteActionException(f"malformed action: {action!r}")
-        name = action[0]
+        name, payload_kind, payload = self._parse_action(action)
         command = self.registry.resolve(name)
         if command is None:
             raise ExecuteActionException(f"unknown action: {name!r}")
-        if len(action) == 1:
+        if payload_kind == "none":
             return command()
+        if payload_kind == "kwargs":
+            return command(**payload)
+        return command(*payload)
+
+    @staticmethod
+    def _parse_action(action: list) -> tuple[str, str, Any]:
+        if not isinstance(action, list) or not action:
+            raise ExecuteActionException(f"malformed action: {action!r}")
+        name = action[0]
+        if not isinstance(name, str):
+            raise ExecuteActionException(f"action name must be str: {action!r}")
+        if len(action) == 1:
+            return name, "none", None
         if len(action) == 2:
             payload = action[1]
             if isinstance(payload, dict):
-                return command(**payload)
+                return name, "kwargs", payload
             if isinstance(payload, list):
-                return command(*payload)
+                return name, "args", payload
             raise ExecuteActionException(
                 f"action {name!r} payload must be dict or list, got {type(payload).__name__}"
             )
         raise ExecuteActionException(f"action has too many elements: {action!r}")
 
     # Public API --------------------------------------------------------
-    def execute_action(self, action_list: list | Mapping[str, Any]) -> dict[str, Any]:
-        """Execute every action; return ``{"execute: <action>": result|repr(error)}``."""
+    def validate(self, action_list: list | Mapping[str, Any]) -> list[str]:
+        """Validate shape and resolve every name; return the list of action names.
+
+        Raises :class:`ValidationException` on the first problem. Useful for
+        fail-fast checks before executing an entire batch.
+        """
         actions = self._coerce(action_list)
+        names: list[str] = []
+        for action in actions:
+            try:
+                name, _, _ = self._parse_action(action)
+            except ExecuteActionException as error:
+                raise ValidationException(str(error)) from error
+            if self.registry.resolve(name) is None:
+                raise ValidationException(f"unknown action: {name!r}")
+            names.append(name)
+        return names
+
+    def execute_action(
+        self,
+        action_list: list | Mapping[str, Any],
+        dry_run: bool = False,
+        validate_first: bool = False,
+    ) -> dict[str, Any]:
+        """Execute every action; return ``{"execute: <action>": result|repr(error)}``.
+
+        ``dry_run=True`` logs and records the resolved name without invoking the
+        command. ``validate_first=True`` runs :meth:`validate` before touching
+        any action so a typo aborts the whole batch up-front.
+        """
+        actions = self._coerce(action_list)
+        if validate_first:
+            self.validate(actions)
         results: dict[str, Any] = {}
         for action in actions:
             key = f"execute: {action}"
-            try:
-                results[key] = self._execute_event(action)
-                file_automation_logger.info("execute_action: %s", action)
-            except ExecuteActionException as error:
-                file_automation_logger.error("execute_action malformed: %r", error)
-                results[key] = repr(error)
-            except Exception as error:  # pylint: disable=broad-except
-                file_automation_logger.error("execute_action runtime error: %r", error)
-                results[key] = repr(error)
+            results[key] = self._run_one(action, dry_run=dry_run)
+        return results
+
+    def execute_action_parallel(
+        self,
+        action_list: list | Mapping[str, Any],
+        max_workers: int = 4,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Execute actions concurrently with a ``ThreadPoolExecutor``.
+
+        Callers are responsible for ensuring the chosen actions are independent
+        (no shared file target, no ordering dependency).
+        """
+        actions = self._coerce(action_list)
+        results: dict[str, Any] = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [
+                (index, action, pool.submit(self._run_one, action, dry_run))
+                for index, action in enumerate(actions)
+            ]
+            for index, action, future in futures:
+                results[f"execute[{index}]: {action}"] = future.result()
         return results
 
     def execute_files(self, execute_files_list: list[str]) -> list[dict[str, Any]]:
@@ -85,6 +143,26 @@ class ActionExecutor:
         self.registry.register_many(command_dict)
 
     # Internals ---------------------------------------------------------
+    def _run_one(self, action: list, dry_run: bool) -> Any:
+        try:
+            if dry_run:
+                name, kind, payload = self._parse_action(action)
+                if self.registry.resolve(name) is None:
+                    raise ExecuteActionException(f"unknown action: {name!r}")
+                file_automation_logger.info(
+                    "dry_run: %s kind=%s payload=%r", name, kind, payload,
+                )
+                return f"dry_run:{name}"
+            value = self._execute_event(action)
+            file_automation_logger.info("execute_action: %s", action)
+            return value
+        except ExecuteActionException as error:
+            file_automation_logger.error("execute_action malformed: %r", error)
+            return repr(error)
+        except Exception as error:  # pylint: disable=broad-except
+            file_automation_logger.error("execute_action runtime error: %r", error)
+            return repr(error)
+
     @staticmethod
     def _coerce(action_list: list | Mapping[str, Any]) -> list:
         if isinstance(action_list, Mapping):
@@ -105,9 +183,29 @@ class ActionExecutor:
 executor: ActionExecutor = ActionExecutor()
 
 
-def execute_action(action_list: list | Mapping[str, Any]) -> dict[str, Any]:
+def execute_action(
+    action_list: list | Mapping[str, Any],
+    dry_run: bool = False,
+    validate_first: bool = False,
+) -> dict[str, Any]:
     """Module-level shim that delegates to the shared executor."""
-    return executor.execute_action(action_list)
+    return executor.execute_action(
+        action_list, dry_run=dry_run, validate_first=validate_first,
+    )
+
+
+def execute_action_parallel(
+    action_list: list | Mapping[str, Any],
+    max_workers: int = 4,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Module-level shim that delegates to the shared executor."""
+    return executor.execute_action_parallel(action_list, max_workers, dry_run)
+
+
+def validate_action(action_list: list | Mapping[str, Any]) -> list[str]:
+    """Module-level shim that delegates to :meth:`ActionExecutor.validate`."""
+    return executor.validate(action_list)
 
 
 def execute_files(execute_files_list: list[str]) -> list[dict[str, Any]]:
