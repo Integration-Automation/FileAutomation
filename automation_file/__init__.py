@@ -99,6 +99,7 @@ from automation_file.remote.azure_blob import (
     azure_blob_instance,
     register_azure_blob_ops,
 )
+from automation_file.remote.cross_backend import CrossBackendException, copy_between
 from automation_file.remote.dropbox_api import (
     DropboxClient,
     dropbox_instance,
@@ -276,6 +277,8 @@ __all__ = [
     "FTPException",
     "ftp_instance",
     "register_ftp_ops",
+    "CrossBackendException",
+    "copy_between",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",
