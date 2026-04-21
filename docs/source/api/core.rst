@@ -31,6 +31,24 @@ Core
 .. automodule:: automation_file.core.manifest
    :members:
 
+.. automodule:: automation_file.core.fim
+   :members:
+
+.. automodule:: automation_file.core.audit
+   :members:
+
+.. automodule:: automation_file.core.crypto
+   :members:
+
+.. automodule:: automation_file.core.metrics
+   :members:
+
+.. automodule:: automation_file.core.substitution
+   :members:
+
+.. automodule:: automation_file.core.config_watcher
+   :members:
+
 .. automodule:: automation_file.core.plugins
    :members:
 

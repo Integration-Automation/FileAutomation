@@ -27,8 +27,21 @@ facade.
 - **Entry-point plugins** — third-party packages register their own `FA_*` actions via `[project.entry-points."automation_file.actions"]`; `build_default_registry()` picks them up automatically
 - **Incremental directory sync** — rsync-style mirror with size+mtime or checksum change detection, optional delete of extras, dry-run (`FA_sync_dir`)
 - **Directory manifests** — JSON snapshot of every file's checksum under a root, with separate missing/modified/extra reporting on verify (`FA_write_manifest`, `FA_verify_manifest`)
-- **Notification sinks** — webhook / Slack / SMTP with a fanout manager that does per-sink error isolation and sliding-window dedup; auto-notify on trigger + scheduler failures (`FA_notify_send`, `FA_notify_list`)
+- **Notification sinks** — webhook / Slack / SMTP / Telegram / Discord / Teams / PagerDuty with a fanout manager that does per-sink error isolation and sliding-window dedup; auto-notify on trigger + scheduler failures (`FA_notify_send`, `FA_notify_list`)
 - **Config file + secret providers** — declare notification sinks / defaults in `automation_file.toml`; `${env:…}` and `${file:…}` references resolve through an Env/File/Chained provider abstraction so secrets stay out of the file itself
+- **Config hot reload** — `ConfigWatcher` polls `automation_file.toml` and re-applies sinks / defaults on change without restart
+- **Shell / grep / JSON edit / tar / backup rotation** — `FA_run_shell` (argument-list subprocess with timeout), `FA_grep` (streaming text search), `FA_json_get` / `FA_json_set` / `FA_json_delete` (in-place JSON editing), `FA_create_tar` / `FA_extract_tar`, `FA_rotate_backups`
+- **FTP / FTPS backend** — plain FTP or explicit FTPS via `FTP_TLS.auth()`; auto-registered as `FA_ftp_*`
+- **Cross-backend copy** — `FA_copy_between` moves data between any two backends via `local://`, `s3://`, `drive://`, `azure://`, `dropbox://`, `sftp://`, `ftp://` URIs
+- **Scheduler overlap guard** — running jobs are skipped on the next fire unless `allow_overlap=True`
+- **Server action ACL** — `allowed_actions=(...)` restricts which commands TCP / HTTP servers will dispatch
+- **Variable substitution** — opt-in `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}` expansion in action arguments via `execute_action(..., substitute=True)`
+- **Conditional execution** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` run a nested action list only when a guard passes
+- **SQLite audit log** — `AuditLog(db_path)` records every action execution with actor / status / duration; query via `recent` / `count` / `purge`
+- **File integrity monitor** — `IntegrityMonitor` polls a tree against a manifest and fires a callback + notification on drift
+- **HTTPActionClient SDK** — typed Python client for the HTTP action server with shared-secret auth, loopback guard, and OPTIONS-based ping
+- **AES-256-GCM file encryption** — `encrypt_file` / `decrypt_file` with `generate_key()` / `key_from_password()` (PBKDF2-HMAC-SHA256); JSON actions `FA_encrypt_file` / `FA_decrypt_file`
+- **Prometheus metrics exporter** — `start_metrics_server()` exposes `automation_file_actions_total{action,status}` counters and `automation_file_action_duration_seconds{action}` histograms
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -498,6 +511,118 @@ Unresolved `${…}` references raise `SecretNotFoundException` rather than
 silently becoming empty strings. Custom provider chains can be built from
 `ChainedSecretProvider` / `EnvSecretProvider` / `FileSecretProvider` and
 passed as `AutomationConfig.load(path, provider=…)`.
+
+### Variable substitution in action lists
+Opt in with `substitute=True` and `${…}` references expand at dispatch time:
+
+```python
+from automation_file import execute_action
+
+execute_action(
+    [["FA_create_file", {"file_path": "reports/${date:%Y-%m-%d}/${uuid}.txt"}]],
+    substitute=True,
+)
+```
+
+Supports `${env:VAR}`, `${date:FMT}` (strftime), `${uuid}`, `${cwd}`. Unknown
+names raise `SubstitutionException` — no silent empty strings.
+
+### Conditional execution
+Run a nested action list only when a path-based guard passes:
+
+```json
+[
+  ["FA_if_exists", {"path": "/data/in/job.json",
+                    "then": [["FA_copy_file", {"source": "/data/in/job.json",
+                                               "target": "/data/processed/job.json"}]]}],
+  ["FA_if_newer",  {"source": "/src", "target": "/dst",
+                    "then": [["FA_sync_dir", {"src": "/src", "dst": "/dst"}]]}],
+  ["FA_if_size_gt", {"path": "/logs/app.log", "size": 10485760,
+                     "then": [["FA_run_shell", {"command": ["logrotate", "/logs/app.log"]}]]}]
+]
+```
+
+### SQLite audit log
+`AuditLog` writes one row per action with short-lived connections and a
+module-level lock:
+
+```python
+from automation_file import AuditLog
+
+audit = AuditLog("audit.sqlite3")
+audit.record(action="FA_copy_file", actor="ops",
+             status="ok", duration_ms=12, detail={"src": "a", "dst": "b"})
+
+for row in audit.recent(limit=50):
+    print(row["timestamp"], row["action"], row["status"])
+```
+
+### File integrity monitor
+Poll a tree against a manifest and fire a callback + notification on drift:
+
+```python
+from automation_file import IntegrityMonitor, notification_manager, write_manifest
+
+write_manifest("/srv/site", "/srv/MANIFEST.json")
+
+mon = IntegrityMonitor(
+    root="/srv/site",
+    manifest_path="/srv/MANIFEST.json",
+    interval=60.0,
+    manager=notification_manager,
+    on_drift=lambda summary: print("drift:", summary),
+)
+mon.start()
+```
+
+Manifest-load errors are surfaced as drift so tamper and config issues
+aren't silently different code paths.
+
+### AES-256-GCM file encryption
+Authenticated encryption with a self-describing envelope. Derive a key from
+a password or generate one directly:
+
+```python
+from automation_file import encrypt_file, decrypt_file, key_from_password
+
+key = key_from_password("correct horse battery staple", salt=b"app-salt-v1")
+encrypt_file("secret.pdf", "secret.pdf.enc", key, associated_data=b"v1")
+decrypt_file("secret.pdf.enc", "secret.pdf", key, associated_data=b"v1")
+```
+
+Tamper is detected via GCM's authentication tag and reported as
+`CryptoException("authentication failed")`. JSON actions:
+`FA_encrypt_file`, `FA_decrypt_file`.
+
+### HTTPActionClient Python SDK
+Typed client for the HTTP action server; enforces loopback by default and
+carries the shared secret for you:
+
+```python
+from automation_file import HTTPActionClient
+
+with HTTPActionClient("http://127.0.0.1:9944", shared_secret="s3cr3t") as client:
+    client.ping()                                       # OPTIONS /actions
+    result = client.execute([["FA_create_dir", {"dir_path": "x"}]])
+```
+
+Auth failures map to `HTTPActionClientException` with `kind="unauthorized"`;
+404 responses report the server exists but does not expose `/actions`.
+
+### Prometheus metrics exporter
+`ActionExecutor` records one counter row and one histogram sample per
+action. Serve them on a loopback `/metrics` endpoint:
+
+```python
+from automation_file import start_metrics_server
+
+server = start_metrics_server(host="127.0.0.1", port=9945)
+# curl http://127.0.0.1:9945/metrics
+```
+
+Exports `automation_file_actions_total{action,status}` and
+`automation_file_action_duration_seconds{action}`. Non-loopback binds
+require `allow_non_loopback=True` explicitly.
 
 ### DAG action executor
 Run actions in dependency order; independent branches fan out across a

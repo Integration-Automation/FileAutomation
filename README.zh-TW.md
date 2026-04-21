@@ -25,8 +25,21 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **Entry-point 外掛** — 第三方套件透過 `[project.entry-points."automation_file.actions"]` 註冊自訂 `FA_*` 動作；`build_default_registry()` 會自動載入
 - **增量目錄同步** — rsync 風格鏡像，支援 size+mtime 或 checksum 變更偵測，選擇性刪除多餘檔案，支援乾跑（`FA_sync_dir`）
 - **目錄 manifest** — 以 JSON 快照記錄樹下每個檔案的檢查碼，驗證時分開回報 missing / modified / extra（`FA_write_manifest`、`FA_verify_manifest`）
-- **通知 sink** — webhook / Slack / SMTP，fanout 管理器做個別 sink 錯誤隔離與滑動視窗去重；trigger + scheduler 失敗時自動通知（`FA_notify_send`、`FA_notify_list`）
+- **通知 sink** — webhook / Slack / SMTP / Telegram / Discord / Teams / PagerDuty，fanout 管理器做個別 sink 錯誤隔離與滑動視窗去重；trigger + scheduler 失敗時自動通知（`FA_notify_send`、`FA_notify_list`）
 - **設定檔 + 秘密提供者** — 在 `automation_file.toml` 宣告通知 sink / 預設值；`${env:…}` 與 `${file:…}` 參考透過 Env / File / Chained 提供者抽象解析，讓秘密不留在檔案裡
+- **設定熱重載** — `ConfigWatcher` 輪詢 `automation_file.toml`，變更時即時套用 sink / 預設值，無需重啟
+- **Shell / grep / JSON 編輯 / tar / 備份輪替** — `FA_run_shell`（參數列表式 subprocess，含逾時）、`FA_grep`（串流文字搜尋）、`FA_json_get` / `FA_json_set` / `FA_json_delete`（原地 JSON 編輯）、`FA_create_tar` / `FA_extract_tar`、`FA_rotate_backups`
+- **FTP / FTPS 後端** — 純 FTP 或透過 `FTP_TLS.auth()` 的顯式 FTPS；自動註冊為 `FA_ftp_*`
+- **跨後端複製** — `FA_copy_between` 透過 `local://`、`s3://`、`drive://`、`azure://`、`dropbox://`、`sftp://`、`ftp://` URI 在任意兩個後端之間搬運資料
+- **排程器重疊防護** — 正在執行的工作在下次觸發時會被跳過，除非明確傳入 `allow_overlap=True`
+- **伺服器動作 ACL** — `allowed_actions=(...)` 限制 TCP / HTTP 伺服器可派送的指令
+- **變數替換** — 動作參數中可選使用 `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}`，透過 `execute_action(..., substitute=True)` 展開
+- **條件式執行** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` 僅在路徑守護通過時執行巢狀動作清單
+- **SQLite 稽核日誌** — `AuditLog(db_path)` 為每個動作記錄 actor / status / duration；以 `recent` / `count` / `purge` 查詢
+- **檔案完整性監控** — `IntegrityMonitor` 依 manifest 輪詢整棵樹，偵測到 drift 時觸發 callback + 通知
+- **HTTPActionClient SDK** — HTTP 動作伺服器的型別化 Python 客戶端，具 shared-secret 驗證、loopback 防護與 OPTIONS ping
+- **AES-256-GCM 檔案加密** — `encrypt_file` / `decrypt_file` 搭配 `generate_key()` / `key_from_password()`（PBKDF2-HMAC-SHA256）；JSON 動作 `FA_encrypt_file` / `FA_decrypt_file`
+- **Prometheus metrics 匯出器** — `start_metrics_server()` 提供 `automation_file_actions_total{action,status}` 計數器與 `automation_file_action_duration_seconds{action}` 直方圖
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -488,6 +501,115 @@ config.apply_to(notification_manager)
 可組合 `ChainedSecretProvider` / `EnvSecretProvider` /
 `FileSecretProvider` 建立自訂提供者鏈，並以
 `AutomationConfig.load(path, provider=…)` 傳入。
+
+### 動作清單變數替換
+以 `substitute=True` 啟用後，`${…}` 參考會在派送時展開：
+
+```python
+from automation_file import execute_action
+
+execute_action(
+    [["FA_create_file", {"file_path": "reports/${date:%Y-%m-%d}/${uuid}.txt"}]],
+    substitute=True,
+)
+```
+
+支援 `${env:VAR}`、`${date:FMT}`（strftime）、`${uuid}`、`${cwd}`。未知名稱
+會拋出 `SubstitutionException`，不會默默變成空字串。
+
+### 條件式執行
+只在路徑守護通過時執行巢狀動作清單：
+
+```json
+[
+  ["FA_if_exists", {"path": "/data/in/job.json",
+                    "then": [["FA_copy_file", {"source": "/data/in/job.json",
+                                               "target": "/data/processed/job.json"}]]}],
+  ["FA_if_newer",  {"source": "/src", "target": "/dst",
+                    "then": [["FA_sync_dir", {"src": "/src", "dst": "/dst"}]]}],
+  ["FA_if_size_gt", {"path": "/logs/app.log", "size": 10485760,
+                     "then": [["FA_run_shell", {"command": ["logrotate", "/logs/app.log"]}]]}]
+]
+```
+
+### SQLite 稽核日誌
+`AuditLog` 以短連線 + 模組層級 lock 為每個動作寫入一筆紀錄：
+
+```python
+from automation_file import AuditLog
+
+audit = AuditLog("audit.sqlite3")
+audit.record(action="FA_copy_file", actor="ops",
+             status="ok", duration_ms=12, detail={"src": "a", "dst": "b"})
+
+for row in audit.recent(limit=50):
+    print(row["timestamp"], row["action"], row["status"])
+```
+
+### 檔案完整性監控
+依 manifest 輪詢整棵樹，偵測到 drift 時觸發 callback + 通知：
+
+```python
+from automation_file import IntegrityMonitor, notification_manager, write_manifest
+
+write_manifest("/srv/site", "/srv/MANIFEST.json")
+
+mon = IntegrityMonitor(
+    root="/srv/site",
+    manifest_path="/srv/MANIFEST.json",
+    interval=60.0,
+    manager=notification_manager,
+    on_drift=lambda summary: print("drift:", summary),
+)
+mon.start()
+```
+
+載入 manifest 時的錯誤也會被視為 drift，讓竄改與設定問題走同一條處理
+路徑。
+
+### AES-256-GCM 檔案加密
+具驗證的加密與自述式封包格式。可由密碼衍生金鑰或直接產生金鑰：
+
+```python
+from automation_file import encrypt_file, decrypt_file, key_from_password
+
+key = key_from_password("correct horse battery staple", salt=b"app-salt-v1")
+encrypt_file("secret.pdf", "secret.pdf.enc", key, associated_data=b"v1")
+decrypt_file("secret.pdf.enc", "secret.pdf", key, associated_data=b"v1")
+```
+
+竄改由 GCM 驗證 tag 偵測，以 `CryptoException("authentication failed")`
+回報。JSON 動作：`FA_encrypt_file`、`FA_decrypt_file`。
+
+### HTTPActionClient Python SDK
+HTTP 動作伺服器的型別化客戶端；預設強制 loopback，並自動附帶 shared
+secret：
+
+```python
+from automation_file import HTTPActionClient
+
+with HTTPActionClient("http://127.0.0.1:9944", shared_secret="s3cr3t") as client:
+    client.ping()                                       # OPTIONS /actions
+    result = client.execute([["FA_create_dir", {"dir_path": "x"}]])
+```
+
+驗證失敗會轉成 `HTTPActionClientException(kind="unauthorized")`;
+404 則表示伺服器存在但未對外提供 `/actions`。
+
+### Prometheus metrics 匯出器
+`ActionExecutor` 為每個動作記錄一筆計數器與一筆直方圖樣本。在 loopback
+`/metrics` 端點提供：
+
+```python
+from automation_file import start_metrics_server
+
+server = start_metrics_server(host="127.0.0.1", port=9945)
+# curl http://127.0.0.1:9945/metrics
+```
+
+匯出 `automation_file_actions_total{action,status}` 以及
+`automation_file_action_duration_seconds{action}`。若要綁定非 loopback
+位址必須明確傳入 `allow_non_loopback=True`。
 
 ### DAG 動作執行器
 依相依關係執行動作；獨立分支會透過執行緒池平行展開。每個節點形式為

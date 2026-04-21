@@ -8,6 +8,7 @@ API reference
    local
    remote
    server
+   client
    trigger
    scheduler
    notify
