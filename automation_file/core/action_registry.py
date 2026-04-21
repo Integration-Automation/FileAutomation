@@ -153,7 +153,7 @@ def _http_commands() -> dict[str, Command]:
 
 
 def _utils_commands() -> dict[str, Command]:
-    from automation_file.core import checksum, manifest
+    from automation_file.core import checksum, crypto, manifest
     from automation_file.remote import cross_backend
     from automation_file.utils import deduplicate, fast_find, grep, rotate
 
@@ -168,6 +168,8 @@ def _utils_commands() -> dict[str, Command]:
         "FA_grep": grep.grep_files,
         "FA_rotate_backups": rotate.rotate_backups,
         "FA_copy_between": cross_backend.copy_between,
+        "FA_encrypt_file": crypto.encrypt_file,
+        "FA_decrypt_file": crypto.decrypt_file,
     }
 
 
