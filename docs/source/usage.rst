@@ -250,6 +250,44 @@ transfer loop. The transfer function catches it, marks the reporter
 ``status="cancelled"``, and returns ``False`` — callers don't need to handle
 the exception themselves.
 
+Fast file search
+----------------
+
+:func:`fast_find` picks the cheapest backend available on the host — OS
+index first, streaming scandir walk as a fallback — so large trees are
+searched with minimal energy:
+
+* macOS: ``mdfind`` (Spotlight)
+* Linux: ``plocate`` / ``locate`` database
+* Windows: Everything's ``es.exe`` CLI, if installed
+* Fallback: ``os.scandir`` generator with ``fnmatch`` matching and early
+  termination via ``limit=``
+
+.. code-block:: python
+
+   from automation_file import fast_find, scandir_find, has_os_index
+
+   # Query an indexer when available, fall back to scandir otherwise.
+   results = fast_find("/var/log", "*.log", limit=100)
+
+   # Force the portable path (skip the OS indexer).
+   results = fast_find("/data", "report_*.csv", use_index=False)
+
+   # Streaming generator — stop early without scanning the whole tree.
+   for path in scandir_find("/data", "*.csv"):
+       if "2026" in path:
+           break
+
+   # Which indexer will fast_find try?  Returns "mdfind" / "locate" /
+   # "plocate" / "es" / None.
+   has_os_index()
+
+The same action is available to JSON action lists as ``FA_fast_find``:
+
+.. code-block:: json
+
+   [["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
+
 GUI (PySide6)
 -------------
 

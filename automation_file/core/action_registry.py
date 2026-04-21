@@ -129,6 +129,12 @@ def _http_commands() -> dict[str, Command]:
     return {"FA_download_file": http_download.download_file}
 
 
+def _utils_commands() -> dict[str, Command]:
+    from automation_file.utils import fast_find
+
+    return {"FA_fast_find": fast_find.fast_find}
+
+
 def _register_cloud_backends(registry: ActionRegistry) -> None:
     from automation_file.remote.azure_blob import register_azure_blob_ops
     from automation_file.remote.dropbox_api import register_dropbox_ops
@@ -164,6 +170,7 @@ def build_default_registry() -> ActionRegistry:
     registry = ActionRegistry()
     registry.register_many(_local_commands())
     registry.register_many(_http_commands())
+    registry.register_many(_utils_commands())
     registry.register_many(_drive_commands())
     _register_cloud_backends(registry)
     _register_trigger_ops(registry)

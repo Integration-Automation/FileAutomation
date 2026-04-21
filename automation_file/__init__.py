@@ -119,6 +119,7 @@ from automation_file.trigger import (
     watch_stop,
     watch_stop_all,
 )
+from automation_file.utils.fast_find import fast_find, has_os_index, scandir_find
 from automation_file.utils.file_discovery import get_dir_files_as_list
 
 if TYPE_CHECKING:
@@ -218,6 +219,9 @@ __all__ = [
     "ProjectBuilder",
     "create_project_dir",
     "get_dir_files_as_list",
+    "fast_find",
+    "scandir_find",
+    "has_os_index",
     # Triggers
     "FileWatcher",
     "TriggerManager",

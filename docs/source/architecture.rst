@@ -87,7 +87,8 @@ Module layout
    │   ├── log_widget.py        # LogPanel
    │   └── tabs/                # one tab per backend + JSON runner + servers
    └── utils/
-       └── file_discovery.py
+       ├── file_discovery.py
+       └── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback
 
 Execution modes
 ---------------

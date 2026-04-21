@@ -17,6 +17,7 @@ facade.
 - **File-watcher triggers** — run an action list whenever a path changes (`FA_watch_*`)
 - **Cron scheduler** — recurring action lists on a stdlib-only 5-field parser (`FA_schedule_*`)
 - **Transfer progress + cancellation** — opt-in `progress_name` hook on HTTP and S3 transfers (`FA_progress_*`)
+- **Fast file search** — OS index fast path (`mdfind` / `locate` / `es.exe`) with a streaming `scandir` fallback (`FA_fast_find`)
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -313,6 +314,32 @@ progress_cancel("big-download")
 The shared `progress_registry` exposes live snapshots via `progress_list()`
 and the `FA_progress_list` / `FA_progress_cancel` / `FA_progress_clear` JSON
 actions. The GUI's **Progress** tab polls the registry every half second.
+
+### Fast file search
+Query an OS index when available (`mdfind` on macOS, `locate` / `plocate` on
+Linux, Everything's `es.exe` on Windows) and fall back to a streaming
+`os.scandir` walk otherwise. No extra dependencies.
+
+```python
+from automation_file import fast_find, scandir_find, has_os_index
+
+# Uses the OS indexer when available, scandir fallback otherwise.
+results = fast_find("/var/log", "*.log", limit=100)
+
+# Force the portable path (skip the OS indexer).
+results = fast_find("/data", "report_*.csv", use_index=False)
+
+# Streaming — stop early without scanning the whole tree.
+for path in scandir_find("/data", "*.csv"):
+    if "2026" in path:
+        break
+```
+
+`FA_fast_find` exposes the same function to JSON action lists:
+
+```json
+[["FA_fast_find", {"root": "/var/log", "pattern": "*.log", "limit": 50}]]
+```
 
 ### GUI
 ```bash
