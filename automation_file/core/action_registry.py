@@ -138,7 +138,19 @@ def _utils_commands() -> dict[str, Command]:
         "FA_file_checksum": checksum.file_checksum,
         "FA_verify_checksum": checksum.verify_checksum,
         "FA_find_duplicates": deduplicate.find_duplicates,
+        "FA_execute_action_dag": _lazy_execute_action_dag,
     }
+
+
+def _lazy_execute_action_dag(
+    nodes: list,
+    max_workers: int = 4,
+    fail_fast: bool = True,
+) -> dict[str, Any]:
+    """Deferred import shim so the registry module doesn't depend on the DAG executor."""
+    from automation_file.core.dag_executor import execute_action_dag
+
+    return execute_action_dag(nodes, max_workers=max_workers, fail_fast=fail_fast)
 
 
 def _register_cloud_backends(registry: ActionRegistry) -> None:

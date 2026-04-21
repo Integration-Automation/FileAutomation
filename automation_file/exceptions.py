@@ -67,6 +67,10 @@ class TCPAuthException(FileAutomationException):
     """Raised when a TCP client fails shared-secret authentication."""
 
 
+class DagException(FileAutomationException):
+    """Raised when a DAG action list has a cycle, unknown dep, or duplicate id."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"
