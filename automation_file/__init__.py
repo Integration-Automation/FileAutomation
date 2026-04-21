@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from automation_file.client import HTTPActionClient, HTTPActionClientException
 from automation_file.core.action_executor import (
     ActionExecutor,
     add_command_to_executor,
@@ -299,6 +300,8 @@ __all__ = [
     "start_autocontrol_socket_server",
     "HTTPActionServer",
     "start_http_action_server",
+    "HTTPActionClient",
+    "HTTPActionClientException",
     "ActionACL",
     "ActionNotPermittedException",
     "ProjectBuilder",
