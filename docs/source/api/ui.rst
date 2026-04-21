@@ -59,7 +59,7 @@ Tabs
 .. automodule:: automation_file.ui.tabs.sftp_tab
    :members:
 
-.. automodule:: automation_file.ui.tabs.action_tab
+.. automodule:: automation_file.ui.tabs.json_editor_tab
    :members:
 
 .. automodule:: automation_file.ui.tabs.server_tab

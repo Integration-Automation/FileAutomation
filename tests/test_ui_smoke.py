@@ -51,7 +51,7 @@ def test_main_window_constructs(qt_app) -> None:
         "AzureBlobTab",
         "DropboxTab",
         "SFTPTab",
-        "ActionRunnerTab",
+        "JSONEditorTab",
         "ServerTab",
     ],
 )

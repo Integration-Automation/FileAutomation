@@ -8,11 +8,11 @@ from PySide6.QtWidgets import QMainWindow, QSplitter, QTabWidget, QVBoxLayout, Q
 from automation_file.logging_config import file_automation_logger
 from automation_file.ui.log_widget import LogPanel
 from automation_file.ui.tabs import (
-    ActionRunnerTab,
     AzureBlobTab,
     DropboxTab,
     GoogleDriveTab,
     HTTPDownloadTab,
+    JSONEditorTab,
     LocalOpsTab,
     S3Tab,
     ServerTab,
@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(AzureBlobTab(self._log, self._pool), "Azure Blob")
         tabs.addTab(DropboxTab(self._log, self._pool), "Dropbox")
         tabs.addTab(SFTPTab(self._log, self._pool), "SFTP")
-        tabs.addTab(ActionRunnerTab(self._log, self._pool), "JSON actions")
+        tabs.addTab(JSONEditorTab(self._log, self._pool), "JSON actions")
         self._server_tab = ServerTab(self._log, self._pool)
         tabs.addTab(self._server_tab, "Servers")
 
