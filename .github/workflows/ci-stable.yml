@@ -65,7 +65,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,133 +104,17 @@ jobs:
           print(f"stable.toml -> {stable_version}")
           print(f"dev.toml    -> {dev_version}")
           PY
-      - name: Push signed bump commit to a release branch
+      - name: Commit and push bumped versions back to main
         id: bump_commit
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          python - <<'PY'
-          import base64
-          import json
-          import os
-          import subprocess
-          import urllib.error
-          import urllib.request
-
-          head_oid = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          repo = os.environ["GITHUB_REPOSITORY"]
-          token = os.environ["GH_TOKEN"]
-          version = os.environ["VERSION"]
-          branch = f"release/bump-v{version}"
-
-          def api(path, method="GET", body=None):
-              req = urllib.request.Request(
-                  f"https://api.github.com/{path}",
-                  data=(json.dumps(body).encode("utf-8") if body is not None else None),
-                  headers={
-                      "Authorization": f"Bearer {token}",
-                      "Accept": "application/vnd.github+json",
-                      "Content-Type": "application/json",
-                  },
-                  method=method,
-              )
-              with urllib.request.urlopen(req) as resp:
-                  raw = resp.read()
-                  return json.loads(raw) if raw else None
-
-          # Delete any pre-existing release branch (from a prior partial run)
-          # so the bump always starts from main's HEAD. Avoids STALE_DATA from
-          # createCommitOnBranch and prevents stacking multiple bump commits.
-          # Any open PR on the stale branch gets auto-closed when the branch
-          # is deleted, which is fine — we always open a fresh PR below.
-          try:
-              api(f"repos/{repo}/git/refs/heads/{branch}", method="DELETE")
-              print(f"deleted stale branch: {branch}")
-          except urllib.error.HTTPError as error:
-              if error.code not in (404, 422):  # ref doesn't exist; nothing to clean
-                  raise
-
-          api(
-              f"repos/{repo}/git/refs",
-              method="POST",
-              body={"ref": f"refs/heads/{branch}", "sha": head_oid},
-          )
-          expected_oid = head_oid
-
-          def b64(path: str) -> str:
-              with open(path, "rb") as fp:
-                  return base64.b64encode(fp.read()).decode("ascii")
-
-          mutation = """
-          mutation($input: CreateCommitOnBranchInput!) {
-            createCommitOnBranch(input: $input) {
-              commit { oid url }
-            }
-          }
-          """
-
-          payload = {
-              "query": mutation,
-              "variables": {
-                  "input": {
-                      "branch": {
-                          "repositoryNameWithOwner": repo,
-                          "branchName": branch,
-                      },
-                      "message": {
-                          "headline": f"Bump version to v{version} [skip ci]",
-                      },
-                      "expectedHeadOid": expected_oid,
-                      "fileChanges": {
-                          "additions": [
-                              {"path": "stable.toml", "contents": b64("stable.toml")},
-                              {"path": "dev.toml", "contents": b64("dev.toml")},
-                          ]
-                      },
-                  }
-              },
-          }
-
-          request = urllib.request.Request(
-              "https://api.github.com/graphql",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Accept": "application/vnd.github+json",
-                  "Content-Type": "application/json",
-              },
-              method="POST",
-          )
-          with urllib.request.urlopen(request) as resp:
-              body = json.loads(resp.read())
-          if body.get("errors"):
-              raise SystemExit(f"GraphQL error: {body['errors']}")
-          commit = body["data"]["createCommitOnBranch"]["commit"]
-          print(f"bump commit: {commit['oid']} -> {commit['url']}")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fp:
-              fp.write(f"branch={branch}\n")
-              fp.write(f"oid={commit['oid']}\n")
-          PY
-      - name: Open PR for the version bump
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-          BRANCH: ${{ steps.bump_commit.outputs.branch }}
-        run: |
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Bump version to v${VERSION} [skip ci]" \
-            --body "Automated patch bump emitted by the stable publish workflow. [skip ci]"
-      - name: Try to auto-merge the bump PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: ${{ steps.bump_commit.outputs.branch }}
-        run: |
-          gh pr merge "$BRANCH" --squash --auto --delete-branch \
-            || echo "auto-merge unavailable; PR left open for manual merge"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stable.toml dev.toml
+          git commit -m "Bump version to v${VERSION} [skip ci]"
+          git push origin HEAD:main
+          echo "oid=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Use stable.toml as pyproject.toml
         run: cp stable.toml pyproject.toml
       - name: Build sdist and wheel
