@@ -140,21 +140,24 @@ jobs:
                   raw = resp.read()
                   return json.loads(raw) if raw else None
 
+          # Delete any pre-existing release branch (from a prior partial run)
+          # so the bump always starts from main's HEAD. Avoids STALE_DATA from
+          # createCommitOnBranch and prevents stacking multiple bump commits.
+          # Any open PR on the stale branch gets auto-closed when the branch
+          # is deleted, which is fine — we always open a fresh PR below.
           try:
-              api(
-                  f"repos/{repo}/git/refs",
-                  method="POST",
-                  body={"ref": f"refs/heads/{branch}", "sha": head_oid},
-              )
-              expected_oid = head_oid
+              api(f"repos/{repo}/git/refs/heads/{branch}", method="DELETE")
+              print(f"deleted stale branch: {branch}")
           except urllib.error.HTTPError as error:
-              if error.code != 422:  # 422 = ref already exists; OK to reuse
+              if error.code not in (404, 422):  # ref doesn't exist; nothing to clean
                   raise
-              # Branch already exists (likely from a previous run); use its
-              # actual tip as expectedHeadOid so createCommitOnBranch doesn't
-              # fail with STALE_DATA.
-              ref_info = api(f"repos/{repo}/git/ref/heads/{branch}")
-              expected_oid = ref_info["object"]["sha"]
+
+          api(
+              f"repos/{repo}/git/refs",
+              method="POST",
+              body={"ref": f"refs/heads/{branch}", "sha": head_oid},
+          )
+          expected_oid = head_oid
 
           def b64(path: str) -> str:
               with open(path, "rb") as fp:
