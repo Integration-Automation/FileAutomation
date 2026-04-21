@@ -146,9 +146,15 @@ jobs:
                   method="POST",
                   body={"ref": f"refs/heads/{branch}", "sha": head_oid},
               )
+              expected_oid = head_oid
           except urllib.error.HTTPError as error:
               if error.code != 422:  # 422 = ref already exists; OK to reuse
                   raise
+              # Branch already exists (likely from a previous run); use its
+              # actual tip as expectedHeadOid so createCommitOnBranch doesn't
+              # fail with STALE_DATA.
+              ref_info = api(f"repos/{repo}/git/ref/heads/{branch}")
+              expected_oid = ref_info["object"]["sha"]
 
           def b64(path: str) -> str:
               with open(path, "rb") as fp:
@@ -173,7 +179,7 @@ jobs:
                       "message": {
                           "headline": f"Bump version to v{version} [skip ci]",
                       },
-                      "expectedHeadOid": head_oid,
+                      "expectedHeadOid": expected_oid,
                       "fileChanges": {
                           "additions": [
                               {"path": "stable.toml", "contents": b64("stable.toml")},
