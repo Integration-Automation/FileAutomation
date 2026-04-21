@@ -22,6 +22,7 @@ from typing import Any
 from automation_file.core.action_executor import execute_action
 from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.network_guards import ensure_loopback
 
 _DEFAULT_HOST = "localhost"
@@ -63,11 +64,17 @@ class _TCPServerHandler(socketserver.StreamRequestHandler):
 
         try:
             payload = json.loads(command_string)
+            acl: ActionACL | None = getattr(self.server, "action_acl", None)
+            if acl is not None:
+                acl.enforce(payload)
             results = execute_action(payload)
             for key, value in results.items():
                 self._send_line(f"{key} -> {value}")
         except json.JSONDecodeError as error:
             self._send_line(f"json error: {error!r}")
+        except ActionNotPermittedException as error:
+            file_automation_logger.warning("tcp_server acl: %r", error)
+            self._send_line(f"forbidden: {error}")
         except Exception as error:  # pylint: disable=broad-except
             file_automation_logger.error("tcp_server handler: %r", error)
             self._send_line(f"execution error: {error!r}")
@@ -109,10 +116,12 @@ class TCPActionServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         server_address: tuple[str, int],
         request_handler_class: type,
         shared_secret: str | None = None,
+        action_acl: ActionACL | None = None,
     ) -> None:
         super().__init__(server_address, request_handler_class)
         self.close_flag: bool = False
         self.shared_secret: str | None = shared_secret
+        self.action_acl: ActionACL | None = action_acl
 
 
 def start_autocontrol_socket_server(
@@ -120,12 +129,15 @@ def start_autocontrol_socket_server(
     port: int = _DEFAULT_PORT,
     allow_non_loopback: bool = False,
     shared_secret: str | None = None,
+    action_acl: ActionACL | None = None,
 ) -> TCPActionServer:
     """Start the action-dispatching TCP server on a background thread.
 
     ``shared_secret`` turns on per-connection authentication: clients must send
     ``AUTH <secret>\\n`` followed by the JSON payload. Binding to a non-loopback
-    address without a shared secret is strongly discouraged.
+    address without a shared secret is strongly discouraged. ``action_acl``
+    filters each incoming payload; any referenced action the ACL denies causes
+    the whole request to be rejected.
     """
     if not allow_non_loopback:
         ensure_loopback(host)
@@ -133,7 +145,12 @@ def start_autocontrol_socket_server(
         file_automation_logger.warning(
             "tcp_server: non-loopback bind without shared_secret is insecure",
         )
-    server = TCPActionServer((host, port), _TCPServerHandler, shared_secret=shared_secret)
+    server = TCPActionServer(
+        (host, port),
+        _TCPServerHandler,
+        shared_secret=shared_secret,
+        action_acl=action_acl,
+    )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     file_automation_logger.info(

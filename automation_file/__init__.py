@@ -150,6 +150,7 @@ from automation_file.scheduler import (
     schedule_remove_all,
     scheduler,
 )
+from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.http_server import HTTPActionServer, start_http_action_server
 from automation_file.server.tcp_server import (
     TCPActionServer,
@@ -284,6 +285,8 @@ __all__ = [
     "start_autocontrol_socket_server",
     "HTTPActionServer",
     "start_http_action_server",
+    "ActionACL",
+    "ActionNotPermittedException",
     "ProjectBuilder",
     "create_project_dir",
     "get_dir_files_as_list",
