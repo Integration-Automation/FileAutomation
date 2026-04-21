@@ -22,6 +22,17 @@ from automation_file.core.action_registry import ActionRegistry, build_default_r
 from automation_file.core.callback_executor import CallbackExecutor
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.package_loader import PackageLoader
+from automation_file.core.progress import (
+    CancellationToken,
+    CancelledException,
+    ProgressRegistry,
+    ProgressReporter,
+    progress_cancel,
+    progress_clear,
+    progress_list,
+    progress_registry,
+    register_progress_ops,
+)
 from automation_file.core.quota import Quota
 from automation_file.core.retry import retry_on_transient
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
@@ -226,6 +237,16 @@ __all__ = [
     "schedule_remove",
     "schedule_remove_all",
     "scheduler",
+    # Progress / cancellation
+    "CancellationToken",
+    "CancelledException",
+    "ProgressRegistry",
+    "ProgressReporter",
+    "progress_cancel",
+    "progress_clear",
+    "progress_list",
+    "progress_registry",
+    "register_progress_ops",
     # UI (lazy-loaded)
     "launch_ui",
 ]

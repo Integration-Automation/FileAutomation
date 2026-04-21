@@ -153,6 +153,12 @@ def _register_scheduler_ops(registry: ActionRegistry) -> None:
     register_scheduler_ops(registry)
 
 
+def _register_progress_ops(registry: ActionRegistry) -> None:
+    from automation_file.core.progress import register_progress_ops
+
+    register_progress_ops(registry)
+
+
 def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action."""
     registry = ActionRegistry()
@@ -162,6 +168,7 @@ def build_default_registry() -> ActionRegistry:
     _register_cloud_backends(registry)
     _register_trigger_ops(registry)
     _register_scheduler_ops(registry)
+    _register_progress_ops(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)
     )

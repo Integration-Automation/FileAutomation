@@ -9,6 +9,7 @@ from automation_file.ui.tabs.home_tab import HomeTab
 from automation_file.ui.tabs.http_tab import HTTPDownloadTab
 from automation_file.ui.tabs.json_editor_tab import JSONEditorTab
 from automation_file.ui.tabs.local_tab import LocalOpsTab
+from automation_file.ui.tabs.progress_tab import ProgressTab
 from automation_file.ui.tabs.s3_tab import S3Tab
 from automation_file.ui.tabs.scheduler_tab import SchedulerTab
 from automation_file.ui.tabs.server_tab import ServerTab
@@ -24,6 +25,7 @@ __all__ = [
     "HomeTab",
     "JSONEditorTab",
     "LocalOpsTab",
+    "ProgressTab",
     "S3Tab",
     "SFTPTab",
     "SchedulerTab",

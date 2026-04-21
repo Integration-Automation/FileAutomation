@@ -5,6 +5,11 @@ from __future__ import annotations
 import requests
 from tqdm import tqdm
 
+from automation_file.core.progress import (
+    CancelledException,
+    ProgressReporter,
+    progress_registry,
+)
 from automation_file.core.retry import retry_on_transient
 from automation_file.exceptions import RetryExhaustedException, UrlValidationException
 from automation_file.logging_config import file_automation_logger
@@ -42,12 +47,15 @@ def download_file(
     chunk_size: int = _DEFAULT_CHUNK_SIZE,
     timeout: int = _DEFAULT_TIMEOUT_SECONDS,
     max_bytes: int = _MAX_RESPONSE_BYTES,
+    progress_name: str | None = None,
 ) -> bool:
     """Download ``file_url`` to ``file_name`` with progress display.
 
     Validates the URL against SSRF rules, disables redirects, enforces a size
     cap, retries transient network errors up to three times, and uses default
-    TLS verification. Returns True on success.
+    TLS verification. Pass ``progress_name`` to register the transfer with
+    :data:`~automation_file.core.progress.progress_registry` so it can be
+    polled or cancelled from the GUI. Returns True on success.
     """
     try:
         validate_http_url(file_url)
@@ -76,10 +84,17 @@ def download_file(
         )
         return False
 
+    reporter: ProgressReporter | None = None
+    token = None
+    if progress_name:
+        reporter, token = progress_registry.create(progress_name, total=total_size or None)
+
     written = 0
     try:
         with open(file_name, "wb") as output, _progress(total_size, file_name) as progress:
             for chunk in response.iter_content(chunk_size=chunk_size):
+                if token is not None:
+                    token.raise_if_cancelled()
                 if not chunk:
                     continue
                 written += len(chunk)
@@ -88,13 +103,26 @@ def download_file(
                         "download_file aborted: stream exceeded %d bytes",
                         max_bytes,
                     )
+                    if reporter is not None:
+                        reporter.finish(status="aborted")
                     return False
                 output.write(chunk)
                 progress.update(len(chunk))
+                if reporter is not None:
+                    reporter.update(len(chunk))
+    except CancelledException:
+        file_automation_logger.warning("download_file cancelled: %s", progress_name)
+        if reporter is not None:
+            reporter.finish(status="cancelled")
+        return False
     except OSError as error:
         file_automation_logger.error("download_file write error: %r", error)
+        if reporter is not None:
+            reporter.finish(status="error")
         return False
 
+    if reporter is not None:
+        reporter.finish(status="done")
     file_automation_logger.info("download_file: %s -> %s (%d bytes)", file_url, file_name, written)
     return True
 

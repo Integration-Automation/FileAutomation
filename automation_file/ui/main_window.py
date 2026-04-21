@@ -12,6 +12,7 @@ from automation_file.ui.tabs import (
     HomeTab,
     JSONEditorTab,
     LocalOpsTab,
+    ProgressTab,
     SchedulerTab,
     ServerTab,
     TransferTab,
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(self._home_tab, "Home")
         self._tabs.addTab(LocalOpsTab(self._log, self._pool), "Local")
         self._tabs.addTab(TransferTab(self._log, self._pool), "Transfer")
+        self._tabs.addTab(ProgressTab(self._log, self._pool), "Progress")
         self._tabs.addTab(JSONEditorTab(self._log, self._pool), "JSON actions")
         self._trigger_tab = TriggerTab(self._log, self._pool)
         self._tabs.addTab(self._trigger_tab, "Triggers")
