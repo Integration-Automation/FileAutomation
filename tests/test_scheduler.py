@@ -14,6 +14,7 @@ import pytest
 from automation_file.exceptions import FileAutomationException
 from automation_file.scheduler.cron import CronException, CronExpression
 from automation_file.scheduler.manager import (
+    ScheduledJob,
     Scheduler,
     SchedulerException,
     _safe_execute,
@@ -164,3 +165,41 @@ def test_default_registry_contains_scheduler_ops() -> None:
 
 def test_safe_execute_swallows_exceptions_cleanly() -> None:
     _safe_execute("unit-test", [["FA_does_not_exist"]])
+
+
+def test_scheduler_skips_overlap_by_default() -> None:
+    engine = Scheduler()
+    job = ScheduledJob(
+        name="busy",
+        cron=CronExpression.parse("* * * * *"),
+        action_list=[["FA_schedule_list"]],
+    )
+    job.running = True  # pretend previous run is still in flight
+    engine._dispatch(job, dt.datetime(2026, 4, 21, 12, 0))
+    assert job.skipped == 1
+    assert job.runs == 0
+
+
+def test_scheduler_allows_overlap_when_opted_in() -> None:
+    engine = Scheduler()
+    job = ScheduledJob(
+        name="parallel",
+        cron=CronExpression.parse("* * * * *"),
+        action_list=[["FA_schedule_list"]],
+        allow_overlap=True,
+    )
+    job.running = True
+    engine._dispatch(job, dt.datetime(2026, 4, 21, 12, 0))
+    assert job.runs == 1
+    assert job.skipped == 0
+
+
+def test_scheduled_job_snapshot_includes_overlap_fields() -> None:
+    engine = Scheduler()
+    try:
+        snapshot = engine.add("watch", "* * * * *", [["FA_schedule_list"]])
+        assert snapshot["allow_overlap"] is False
+        assert snapshot["running"] is False
+        assert snapshot["skipped"] == 0
+    finally:
+        engine.shutdown()

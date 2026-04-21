@@ -34,6 +34,9 @@ class ScheduledJob:
     action_list: list[list[Any]]
     last_run: dt.datetime | None = field(default=None)
     runs: int = field(default=0)
+    allow_overlap: bool = field(default=False)
+    running: bool = field(default=False)
+    skipped: int = field(default=0)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +45,9 @@ class ScheduledJob:
             "actions": len(self.action_list),
             "last_run": self.last_run.isoformat() if self.last_run else None,
             "runs": self.runs,
+            "allow_overlap": self.allow_overlap,
+            "running": self.running,
+            "skipped": self.skipped,
         }
 
 
@@ -80,31 +86,65 @@ class Scheduler:
         for job in due:
             self._dispatch(job, moment)
 
-    @staticmethod
-    def _dispatch(job: ScheduledJob, moment: dt.datetime) -> None:
-        job.last_run = moment
-        job.runs += 1
+    def _dispatch(self, job: ScheduledJob, moment: dt.datetime) -> None:
+        with self._lock:
+            if job.running and not job.allow_overlap:
+                job.skipped += 1
+                file_automation_logger.warning(
+                    "scheduler[%s]: previous run still active — skipping (skipped=%d)",
+                    job.name,
+                    job.skipped,
+                )
+                return
+            job.running = True
+            job.last_run = moment
+            job.runs += 1
+            run_no = job.runs
         file_automation_logger.info(
-            "scheduler[%s]: firing at %s (run #%d)", job.name, moment.isoformat(), job.runs
+            "scheduler[%s]: firing at %s (run #%d)", job.name, moment.isoformat(), run_no
         )
         worker = threading.Thread(
-            target=_safe_execute,
-            args=(job.name, job.action_list),
+            target=self._run_job,
+            args=(job,),
             name=f"fa-scheduler-{job.name}",
             daemon=True,
         )
         worker.start()
 
-    def add(self, name: str, cron_expression: str, action_list: list[list[Any]]) -> dict[str, Any]:
+    def _run_job(self, job: ScheduledJob) -> None:
+        try:
+            _safe_execute(job.name, job.action_list)
+        finally:
+            with self._lock:
+                job.running = False
+
+    def add(
+        self,
+        name: str,
+        cron_expression: str,
+        action_list: list[list[Any]],
+        *,
+        allow_overlap: bool = False,
+    ) -> dict[str, Any]:
         cron = CronExpression.parse(cron_expression)
         with self._lock:
             if name in self._jobs:
                 raise SchedulerException(f"job already registered: {name}")
-            job = ScheduledJob(name=name, cron=cron, action_list=list(action_list))
+            job = ScheduledJob(
+                name=name,
+                cron=cron,
+                action_list=list(action_list),
+                allow_overlap=allow_overlap,
+            )
             self._jobs[name] = job
             snapshot = job.as_dict()
         self._ensure_running()
-        file_automation_logger.info("scheduler: added job %r (cron=%r)", name, cron.source)
+        file_automation_logger.info(
+            "scheduler: added job %r (cron=%r allow_overlap=%s)",
+            name,
+            cron.source,
+            allow_overlap,
+        )
         return snapshot
 
     def remove(self, name: str) -> dict[str, Any]:
@@ -150,9 +190,19 @@ def _safe_execute(job_name: str, action_list: list[list[Any]]) -> None:
 scheduler: Scheduler = Scheduler()
 
 
-def schedule_add(name: str, cron_expression: str, action_list: list[list[Any]]) -> dict[str, Any]:
-    """Register a named job that fires ``action_list`` on ``cron_expression``."""
-    return scheduler.add(name, cron_expression, action_list)
+def schedule_add(
+    name: str,
+    cron_expression: str,
+    action_list: list[list[Any]],
+    *,
+    allow_overlap: bool = False,
+) -> dict[str, Any]:
+    """Register a named job that fires ``action_list`` on ``cron_expression``.
+
+    When ``allow_overlap`` is False (the default), a tick that fires while a
+    previous run is still active is skipped and counted in ``skipped``.
+    """
+    return scheduler.add(name, cron_expression, action_list, allow_overlap=allow_overlap)
 
 
 def schedule_remove(name: str) -> dict[str, Any]:
