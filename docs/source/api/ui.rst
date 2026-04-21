@@ -59,6 +59,9 @@ Tabs
 .. automodule:: automation_file.ui.tabs.sftp_tab
    :members:
 
+.. automodule:: automation_file.ui.tabs.transfer_tab
+   :members:
+
 .. automodule:: automation_file.ui.tabs.json_editor_tab
    :members:
 
