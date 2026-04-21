@@ -20,6 +20,11 @@ from automation_file.core.action_executor import (
 )
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.callback_executor import CallbackExecutor
+from automation_file.core.checksum import (
+    ChecksumMismatchException,
+    file_checksum,
+    verify_checksum,
+)
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.package_loader import PackageLoader
 from automation_file.core.progress import (
@@ -222,6 +227,9 @@ __all__ = [
     "fast_find",
     "scandir_find",
     "has_os_index",
+    "file_checksum",
+    "verify_checksum",
+    "ChecksumMismatchException",
     # Triggers
     "FileWatcher",
     "TriggerManager",
