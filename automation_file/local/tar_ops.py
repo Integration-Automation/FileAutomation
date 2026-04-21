@@ -26,6 +26,8 @@ _COMPRESSIONS: dict[str | None, _WriteMode] = {
     "xz": "w:xz",
 }
 
+_TAR_FILTER_SUPPORTED = hasattr(tarfile, "data_filter")
+
 
 class TarException(FileAutomationException):
     """Raised when tar creation or extraction fails."""
@@ -77,7 +79,10 @@ def extract_tar(source: str, target_dir: str) -> list[str]:
         with tarfile.open(str(src_path), "r:*") as archive:
             _verify_members(archive, dest)
             for member in archive.getmembers():
-                archive.extract(member, str(dest), filter="data")
+                if _TAR_FILTER_SUPPORTED:
+                    archive.extract(member, str(dest), filter="data")
+                else:
+                    archive.extract(member, str(dest))
                 extracted.append(member.name)
     except PathTraversalException:
         raise
