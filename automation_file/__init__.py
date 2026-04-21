@@ -61,6 +61,17 @@ from automation_file.local.zip_ops import (
     zip_file_info,
     zip_info,
 )
+from automation_file.notify import (
+    EmailSink,
+    NotificationException,
+    NotificationManager,
+    NotificationSink,
+    SlackSink,
+    WebhookSink,
+    notification_manager,
+    notify_send,
+    register_notify_ops,
+)
 from automation_file.project.project_builder import ProjectBuilder, create_project_dir
 from automation_file.remote.azure_blob import (
     AzureBlobClient,
@@ -263,6 +274,16 @@ __all__ = [
     "progress_list",
     "progress_registry",
     "register_progress_ops",
+    # Notifications
+    "EmailSink",
+    "NotificationException",
+    "NotificationManager",
+    "NotificationSink",
+    "SlackSink",
+    "WebhookSink",
+    "notification_manager",
+    "notify_send",
+    "register_notify_ops",
     # UI (lazy-loaded)
     "launch_ui",
 ]

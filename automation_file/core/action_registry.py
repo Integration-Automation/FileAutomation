@@ -183,6 +183,12 @@ def _register_progress_ops(registry: ActionRegistry) -> None:
     register_progress_ops(registry)
 
 
+def _register_notify_ops(registry: ActionRegistry) -> None:
+    from automation_file.notify import register_notify_ops
+
+    register_notify_ops(registry)
+
+
 def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action.
 
@@ -199,6 +205,7 @@ def build_default_registry() -> ActionRegistry:
     _register_trigger_ops(registry)
     _register_scheduler_ops(registry)
     _register_progress_ops(registry)
+    _register_notify_ops(registry)
     _load_plugins(registry)
     file_automation_logger.info(
         "action_registry: built default registry with %d commands", len(registry)

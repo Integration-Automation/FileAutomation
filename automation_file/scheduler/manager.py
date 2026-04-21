@@ -138,11 +138,13 @@ class Scheduler:
 
 def _safe_execute(job_name: str, action_list: list[list[Any]]) -> None:
     from automation_file.core.action_executor import executor
+    from automation_file.notify.manager import notify_on_failure
 
     try:
         executor.execute_action(action_list)
     except FileAutomationException as error:
         file_automation_logger.warning("scheduler[%s]: dispatch failed: %r", job_name, error)
+        notify_on_failure(f"scheduler[{job_name}]", error)
 
 
 scheduler: Scheduler = Scheduler()

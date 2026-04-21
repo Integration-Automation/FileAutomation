@@ -66,6 +66,7 @@ class _DispatchingHandler(FileSystemEventHandler):
             return
         file_automation_logger.info("trigger[%s]: %s %s", self._name, kind, event.src_path)
         from automation_file.core.action_executor import executor
+        from automation_file.notify.manager import notify_on_failure
 
         try:
             executor.execute_action(self._action_list)
@@ -73,6 +74,7 @@ class _DispatchingHandler(FileSystemEventHandler):
             file_automation_logger.warning(
                 "trigger[%s]: action dispatch failed: %r", self._name, error
             )
+            notify_on_failure(f"trigger[{self._name}]", error)
 
 
 class FileWatcher:
