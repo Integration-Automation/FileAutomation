@@ -52,7 +52,8 @@ Module layout
    │   ├── package_loader.py
    │   ├── json_store.py
    │   ├── retry.py             # @retry_on_transient
-   │   └── quota.py             # Quota(max_bytes, max_seconds)
+   │   ├── quota.py             # Quota(max_bytes, max_seconds)
+   │   └── progress.py          # CancellationToken, ProgressReporter, progress_registry
    ├── local/
    │   ├── file_ops.py
    │   ├── dir_ops.py
@@ -69,12 +70,19 @@ Module layout
    ├── server/
    │   ├── tcp_server.py        # loopback-only, optional shared-secret
    │   └── http_server.py       # POST /actions, Bearer auth
+   ├── trigger/
+   │   └── manager.py           # FileWatcher + TriggerManager (watchdog-backed)
+   ├── scheduler/
+   │   ├── cron.py              # 5-field cron expression parser
+   │   └── manager.py           # Scheduler background thread + ScheduledJob
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
    ├── ui/                      # PySide6 GUI
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # 9-tab MainWindow
+   │   ├── main_window.py       # tabbed MainWindow (Home, Local, Transfer,
+   │   │                        #   Progress, JSON actions, Triggers,
+   │   │                        #   Scheduler, Servers)
    │   ├── worker.py            # ActionWorker (QRunnable)
    │   ├── log_widget.py        # LogPanel
    │   └── tabs/                # one tab per backend + JSON runner + servers
@@ -105,6 +113,29 @@ Reliability utilities
   exponential back-off. Used by :func:`automation_file.download_file`.
 * :class:`automation_file.core.quota.Quota` — dataclass bundling an optional
   ``max_bytes`` size cap and an optional ``max_seconds`` time budget.
+* :class:`automation_file.core.progress.CancellationToken` and
+  :class:`automation_file.core.progress.ProgressReporter` — opt-in per-transfer
+  instrumentation. HTTP download and S3 upload/download accept a
+  ``progress_name=`` kwarg that wires both primitives into the transfer loop;
+  JSON actions ``FA_progress_list`` / ``FA_progress_cancel`` /
+  ``FA_progress_clear`` address the central registry.
+
+Event-driven dispatch
+---------------------
+
+Two long-running subsystems reuse the shared executor instead of forking
+their own dispatch paths:
+
+* :mod:`automation_file.trigger` wraps ``watchdog`` observers. Each
+  :class:`~automation_file.trigger.FileWatcher` forwards matching filesystem
+  events to an action list dispatched through the shared registry.
+  :data:`~automation_file.trigger.trigger_manager` owns the name → watcher
+  map so the GUI and JSON actions share one lifecycle.
+* :mod:`automation_file.scheduler` runs one background thread that wakes on
+  minute boundaries, iterates registered
+  :class:`~automation_file.scheduler.ScheduledJob` instances, and dispatches
+  every matching job on a short-lived worker thread so a slow action can't
+  starve subsequent jobs.
 
 Security boundaries
 -------------------

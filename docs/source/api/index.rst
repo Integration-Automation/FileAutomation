@@ -8,6 +8,9 @@ API reference
    local
    remote
    server
+   trigger
+   scheduler
+   progress
    project
    ui
    utils

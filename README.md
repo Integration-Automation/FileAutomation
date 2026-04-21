@@ -14,7 +14,10 @@ facade.
 - JSON action lists executed by a shared `ActionExecutor` — validate, dry-run, parallel
 - Loopback-first TCP **and** HTTP servers that accept JSON command batches with optional shared-secret auth
 - Reliability primitives: `retry_on_transient` decorator, `Quota` size / time budgets
-- PySide6 GUI (`python -m automation_file ui`) with a tab per backend plus a JSON-action runner
+- **File-watcher triggers** — run an action list whenever a path changes (`FA_watch_*`)
+- **Cron scheduler** — recurring action lists on a stdlib-only 5-field parser (`FA_schedule_*`)
+- **Transfer progress + cancellation** — opt-in `progress_name` hook on HTTP and S3 transfers (`FA_progress_*`)
+- PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
 
@@ -36,6 +39,12 @@ flowchart LR
         Json[json_store]
         Retry[retry]
         QuotaMod[quota]
+        Progress[progress<br/>Token + Reporter]
+    end
+
+    subgraph Events["event-driven"]
+        TriggerMod["trigger<br/>watchdog file watcher"]
+        SchedulerMod["scheduler<br/>cron background thread"]
     end
 
     subgraph Local["local"]
@@ -101,6 +110,14 @@ flowchart LR
     Registry --> Dropbox
     Registry --> SFTP
     Registry --> Builder
+    Registry --> TriggerMod
+    Registry --> SchedulerMod
+    Registry --> Progress
+
+    TriggerMod --> Executor
+    SchedulerMod --> Executor
+    Http --> Progress
+    S3 --> Progress
 
     Http --> UrlVal
     Http --> Retry
@@ -130,7 +147,7 @@ Requirements:
 - Python 3.10+
 - Bundled dependencies: `google-api-python-client`, `google-auth-oauthlib`,
   `requests`, `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`, `paramiko`,
-  `PySide6`
+  `PySide6`, `watchdog`
 
 ## Usage
 
@@ -240,6 +257,63 @@ All backends (`s3`, `azure_blob`, `dropbox_api`, `sftp`) expose the same five
 operations: `upload_file`, `upload_dir`, `download_file`, `delete_*`, `list_*`.
 SFTP uses `paramiko.RejectPolicy` — unknown hosts are rejected, not auto-added.
 
+### File-watcher triggers
+Run an action list whenever a filesystem event fires on a watched path:
+
+```python
+from automation_file import watch_start, watch_stop
+
+watch_start(
+    name="inbox-sweeper",
+    path="/data/inbox",
+    action_list=[["FA_copy_all_file_to_dir", {"source_dir": "/data/inbox",
+                                              "target_dir": "/data/processed"}]],
+    events=["created", "modified"],
+    recursive=False,
+)
+# later:
+watch_stop("inbox-sweeper")
+```
+
+`FA_watch_start` / `FA_watch_stop` / `FA_watch_stop_all` / `FA_watch_list`
+surface the same lifecycle to JSON action lists.
+
+### Cron scheduler
+Recurring action lists on a stdlib-only 5-field cron parser:
+
+```python
+from automation_file import schedule_add
+
+schedule_add(
+    name="nightly-snapshot",
+    cron_expression="0 2 * * *",        # every day at 02:00 local time
+    action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                                 "zip_name": "/backup/data_nightly"}]],
+)
+```
+
+Supports `*`, exact values, `a-b` ranges, comma lists, and `*/n` step
+syntax with `jan..dec` / `sun..sat` aliases. JSON actions:
+`FA_schedule_add`, `FA_schedule_remove`, `FA_schedule_remove_all`,
+`FA_schedule_list`.
+
+### Transfer progress + cancellation
+HTTP and S3 transfers accept an opt-in `progress_name` kwarg:
+
+```python
+from automation_file import download_file, progress_cancel
+
+download_file("https://example.com/big.bin", "big.bin",
+              progress_name="big-download")
+
+# From another thread or the GUI:
+progress_cancel("big-download")
+```
+
+The shared `progress_registry` exposes live snapshots via `progress_list()`
+and the `FA_progress_list` / `FA_progress_cancel` / `FA_progress_clear` JSON
+actions. The GUI's **Progress** tab polls the registry every half second.
+
 ### GUI
 ```bash
 python -m automation_file ui        # or: python main_ui.py
@@ -250,7 +324,7 @@ from automation_file import launch_ui
 launch_ui()
 ```
 
-Tabs: Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions,
+Tabs: Home, Local, Transfer, Progress, JSON actions, Triggers, Scheduler,
 Servers. A persistent log panel at the bottom streams every result and error.
 
 ### Scaffold an executor-based project

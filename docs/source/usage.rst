@@ -176,6 +176,80 @@ SFTP specifically uses :class:`paramiko.RejectPolicy` — unknown hosts are
 rejected rather than auto-added. Provide ``known_hosts`` explicitly or rely on
 ``~/.ssh/known_hosts``.
 
+File-watcher triggers
+---------------------
+
+Run an action list whenever a filesystem event fires on a watched path. The
+module-level :data:`~automation_file.trigger.trigger_manager` keeps a named
+registry of active watchers so the JSON facade and the GUI share one
+lifecycle.
+
+.. code-block:: python
+
+   from automation_file import watch_start, watch_stop
+
+   watch_start(
+       name="inbox-sweeper",
+       path="/data/inbox",
+       action_list=[["FA_copy_all_file_to_dir", {"source_dir": "/data/inbox",
+                                                 "target_dir": "/data/processed"}]],
+       events=["created", "modified"],
+       recursive=False,
+   )
+   # later:
+   watch_stop("inbox-sweeper")
+
+Or drive it from a JSON action list with ``FA_watch_start`` /
+``FA_watch_stop`` / ``FA_watch_stop_all`` / ``FA_watch_list``.
+
+Cron scheduler
+--------------
+
+Run an action list on a recurring schedule. The 5-field cron parser supports
+``*``, exact values, ``a-b`` ranges, comma-separated lists, and ``*/n`` step
+syntax with ``jan``..``dec`` / ``sun``..``sat`` aliases.
+
+.. code-block:: python
+
+   from automation_file import schedule_add
+
+   schedule_add(
+       name="nightly-snapshot",
+       cron_expression="0 2 * * *",           # every day at 02:00 local time
+       action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                                    "zip_name": "/backup/data_nightly"}]],
+   )
+
+A background thread wakes on minute boundaries, so expressions with
+sub-minute precision are not supported. Use ``FA_schedule_add`` /
+``FA_schedule_remove`` / ``FA_schedule_remove_all`` / ``FA_schedule_list``
+from JSON.
+
+Transfer progress + cancellation
+--------------------------------
+
+Pass ``progress_name="<label>"`` to :func:`download_file`,
+:func:`s3_upload_file`, or :func:`s3_download_file` to register the transfer
+with the shared progress registry. The GUI's **Progress** tab polls the
+registry every half second; ``FA_progress_list``, ``FA_progress_cancel``,
+and ``FA_progress_clear`` give JSON action lists the same view.
+
+.. code-block:: python
+
+   from automation_file import download_file, progress_cancel
+
+   # In one thread:
+   download_file("https://example.com/big.bin", "big.bin",
+                 progress_name="big-download")
+
+   # In another thread / from the GUI:
+   progress_cancel("big-download")
+
+Cancellation raises :class:`~automation_file.CancelledException` inside the
+transfer loop. The transfer function catches it, marks the reporter
+``status="cancelled"``, and returns ``False`` — callers don't need to handle
+the exception themselves.
+
 GUI (PySide6)
 -------------
 
@@ -193,7 +267,7 @@ A tabbed control surface wraps every feature:
 
    launch_ui()
 
-Tabs: Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions,
+Tabs: Home, Local, Transfer, Progress, JSON actions, Triggers, Scheduler,
 Servers. A persistent log panel below the tabs streams every call's result or
 error. Background work runs on ``QThreadPool`` via ``ActionWorker`` so the UI
 stays responsive.
