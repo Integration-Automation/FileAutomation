@@ -31,6 +31,7 @@ from automation_file.core.checksum import (
 from automation_file.core.circuit_breaker import CircuitBreaker
 from automation_file.core.config import AutomationConfig, ConfigException
 from automation_file.core.config_watcher import ConfigWatcher
+from automation_file.core.content_store import ContentStore
 from automation_file.core.crypto import (
     CryptoException,
     decrypt_file,
@@ -222,6 +223,7 @@ __all__ = [
     "ActionRegistry",
     "CallbackExecutor",
     "CircuitBreaker",
+    "ContentStore",
     "FileLock",
     "PackageLoader",
     "Quota",
