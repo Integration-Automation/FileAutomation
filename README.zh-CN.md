@@ -40,6 +40,12 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **HTTPActionClient SDK** — HTTP 动作服务器的类型化 Python 客户端,具 shared-secret 认证、loopback 守护与 OPTIONS ping
 - **AES-256-GCM 文件加密** — `encrypt_file` / `decrypt_file` 搭配 `generate_key()` / `key_from_password()`(PBKDF2-HMAC-SHA256);JSON 动作 `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics 导出器** — `start_metrics_server()` 提供 `automation_file_actions_total{action,status}` 计数器与 `automation_file_action_duration_seconds{action}` 直方图
+- **WebDAV 后端** — `WebDAVClient` 提供 `exists` / `upload` / `download` / `delete` / `mkcol` / `list_dir`，适用于任何 RFC 4918 服务器；除非显式传入 `allow_private_hosts=True`，否则拒绝私有 / loopback 目标
+- **SMB / CIFS 后端** — `SMBClient` 基于 `smbprotocol` 的高阶 `smbclient` API；采用 UNC 路径，默认启用加密会话
+- **fsspec 桥接** — 通过 `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` 等函数，驱动任何 `fsspec` 支持的文件系统（memory、local、s3、gcs、abfs、…）
+- **HTTP 服务器观测端点** — `GET /healthz` / `GET /readyz` 探针、`GET /openapi.json` 规格，以及 `GET /progress`（通过 WebSocket 推送实时传输快照）
+- **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
+- **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -611,6 +617,74 @@ server = start_metrics_server(host="127.0.0.1", port=9945)
 `automation_file_action_duration_seconds{action}`。若要绑定非 loopback
 地址必须显式传入 `allow_non_loopback=True`。
 
+### WebDAV、SMB/CIFS、fsspec
+在一等公民的 S3 / Azure / Dropbox / SFTP 之外，额外的远程后端：
+
+```python
+from automation_file import WebDAVClient, SMBClient, fsspec_upload
+
+# RFC 4918 WebDAV —— loopback / 私有目标需要显式开关。
+dav = WebDAVClient("https://files.example.com/remote.php/dav",
+                   username="alice", password="s3cr3t")
+dav.upload("/local/report.csv", "team/reports/report.csv")
+
+# 通过 smbprotocol 的高阶 smbclient API 操作 SMB / CIFS。
+with SMBClient("fileserver", "share", "alice", "s3cr3t") as smb:
+    smb.upload("/local/report.csv", "reports/report.csv")
+
+# 任何 fsspec 能寻址的目标 —— memory、gcs、abfs、local、…
+fsspec_upload("/local/report.csv", "memory://reports/report.csv")
+```
+
+### HTTP 服务器观测端点
+`start_http_action_server()` 额外提供 liveness / readiness 探针、OpenAPI 3.0
+规格，以及实时进度快照的 WebSocket 流：
+
+```bash
+curl http://127.0.0.1:9944/healthz          # {"status": "ok"}
+curl http://127.0.0.1:9944/readyz           # 注册表非空时 200，否则 503
+curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 规格
+# 使用 WebSocket 连接 ws://127.0.0.1:9944/progress 获取实时进度帧。
+```
+
+### HTMX Web UI
+基于标准库 HTTP + HTMX（以带 SRI 的固定 CDN URL 加载）构建的只读观测仪表板。
+默认仅允许 loopback，可选 shared-secret：
+
+```python
+from automation_file import start_web_ui
+
+server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
+# 浏览 http://127.0.0.1:9955/ —— health、progress、registry 片段每几秒
+# 自动轮询一次；写入操作仍然保留在动作服务器。
+```
+
+### MCP（Model Context Protocol）服务器
+通过 stdio 上的 JSON-RPC 2.0 把每个已注册的 `FA_*` 动作暴露给 MCP 主机
+（Claude Desktop、MCP CLI）：
+
+```python
+from automation_file import MCPServer
+
+MCPServer().serve_stdio()          # 从 stdin 读取 JSON-RPC，写入 stdout
+```
+
+`pip install` 后，`[project.scripts]` 会提供 `automation_file_mcp` console
+script，MCP 主机无需编写 Python glue 即可启动桥接器。三种等价的启动方式：
+
+```bash
+automation_file_mcp                                      # 已安装的 console script
+python -m automation_file mcp                            # CLI 子命令
+python examples/mcp/run_mcp.py                           # 独立启动脚本
+```
+
+三者都支持 `--name`、`--version`、`--allowed-actions`（逗号分隔白名单——
+强烈建议使用，因为默认注册表包含 `FA_run_shell` 等高权限动作）。可直接复制的
+Claude Desktop 示例配置请见 [`examples/mcp/`](examples/mcp)。
+
+工具描述符在运行时由动作签名自动生成——参数名称与类型会转换为 JSON schema，
+主机无需任何手动配置即可渲染字段。
+
 ### DAG 动作执行器
 按依赖顺序执行动作；独立分支通过线程池并行展开。每个节点的形式为
 `{"id": ..., "action": [...], "depends_on": [...]}`：
@@ -693,6 +767,8 @@ python -m automation_file create-file hello.txt --content "hi"
 python -m automation_file server --host 127.0.0.1 --port 9943
 python -m automation_file http-server --host 127.0.0.1 --port 9944
 python -m automation_file drive-upload my.txt --token token.json --credentials creds.json
+python -m automation_file mcp --allowed-actions FA_file_checksum,FA_fast_find
+automation_file_mcp --allowed-actions FA_file_checksum,FA_fast_find  # 已安装的 console script
 
 # 旧式标志（JSON 动作清单）
 python -m automation_file --execute_file actions.json

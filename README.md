@@ -42,6 +42,12 @@ facade.
 - **HTTPActionClient SDK** — typed Python client for the HTTP action server with shared-secret auth, loopback guard, and OPTIONS-based ping
 - **AES-256-GCM file encryption** — `encrypt_file` / `decrypt_file` with `generate_key()` / `key_from_password()` (PBKDF2-HMAC-SHA256); JSON actions `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics exporter** — `start_metrics_server()` exposes `automation_file_actions_total{action,status}` counters and `automation_file_action_duration_seconds{action}` histograms
+- **WebDAV backend** — `WebDAVClient` with `exists` / `upload` / `download` / `delete` / `mkcol` / `list_dir` on any RFC 4918 server; rejects private / loopback targets unless `allow_private_hosts=True`
+- **SMB / CIFS backend** — `SMBClient` over `smbprotocol`'s high-level `smbclient` API; UNC-based, encrypted sessions by default
+- **fsspec bridge** — drive any `fsspec`-backed filesystem (memory, local, s3, gcs, abfs, …) through the action registry with `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` etc.
+- **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
+- **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
+- **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -624,6 +630,77 @@ Exports `automation_file_actions_total{action,status}` and
 `automation_file_action_duration_seconds{action}`. Non-loopback binds
 require `allow_non_loopback=True` explicitly.
 
+### WebDAV, SMB/CIFS, fsspec
+Extra remote backends alongside the first-class S3 / Azure / Dropbox / SFTP:
+
+```python
+from automation_file import WebDAVClient, SMBClient, fsspec_upload
+
+# RFC 4918 WebDAV — loopback/private targets require opt-in.
+dav = WebDAVClient("https://files.example.com/remote.php/dav",
+                   username="alice", password="s3cr3t")
+dav.upload("/local/report.csv", "team/reports/report.csv")
+
+# SMB / CIFS via smbprotocol's high-level smbclient API.
+with SMBClient("fileserver", "share", "alice", "s3cr3t") as smb:
+    smb.upload("/local/report.csv", "reports/report.csv")
+
+# Anything fsspec can address — memory, gcs, abfs, local, …
+fsspec_upload("/local/report.csv", "memory://reports/report.csv")
+```
+
+### HTTP server observability
+`start_http_action_server()` additionally exposes liveness / readiness probes,
+an OpenAPI 3.0 spec, and a WebSocket stream of progress snapshots:
+
+```bash
+curl http://127.0.0.1:9944/healthz          # {"status": "ok"}
+curl http://127.0.0.1:9944/readyz           # 200 when registry non-empty, 503 otherwise
+curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 spec
+# Connect a WebSocket to ws://127.0.0.1:9944/progress for live progress frames.
+```
+
+### HTMX Web UI
+A read-only observability dashboard built on stdlib HTTP + HTMX (loaded from
+a pinned CDN URL with SRI). Loopback-only by default; optional shared secret:
+
+```python
+from automation_file import start_web_ui
+
+server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
+# Browse http://127.0.0.1:9955/ — health, progress, and registry fragments
+# auto-poll every few seconds. Write operations stay on the action servers.
+```
+
+### MCP (Model Context Protocol) server
+Expose every registered `FA_*` action to an MCP host (Claude Desktop, MCP
+CLIs) over JSON-RPC 2.0 on stdio:
+
+```python
+from automation_file import MCPServer
+
+MCPServer().serve_stdio()          # reads JSON-RPC from stdin, writes to stdout
+```
+
+`pip install` exposes an `automation_file_mcp` console script (via
+`[project.scripts]`) so MCP hosts can launch the bridge without any Python
+glue. Three equivalent launch styles:
+
+```bash
+automation_file_mcp                                      # installed console script
+python -m automation_file mcp                            # CLI subcommand
+python examples/mcp/run_mcp.py                           # standalone launcher
+```
+
+All three accept `--name`, `--version`, and `--allowed-actions` (comma-
+separated whitelist — strongly recommended since the default registry
+includes high-privilege actions like `FA_run_shell`). See
+[`examples/mcp/`](examples/mcp) for ready-to-copy Claude Desktop config.
+
+Tool descriptors are generated on the fly by introspecting each action's
+signature — parameter names and types become a JSON schema, so hosts can
+render fields without any manual wiring.
+
 ### DAG action executor
 Run actions in dependency order; independent branches fan out across a
 thread pool. Each node is `{"id": ..., "action": [...], "depends_on":
@@ -709,6 +786,8 @@ python -m automation_file create-file hello.txt --content "hi"
 python -m automation_file server --host 127.0.0.1 --port 9943
 python -m automation_file http-server --host 127.0.0.1 --port 9944
 python -m automation_file drive-upload my.txt --token token.json --credentials creds.json
+python -m automation_file mcp --allowed-actions FA_file_checksum,FA_fast_find
+automation_file_mcp --allowed-actions FA_file_checksum,FA_fast_find  # installed console script
 
 # Legacy flags (JSON action lists)
 python -m automation_file --execute_file actions.json
