@@ -27,6 +27,7 @@ from automation_file.core.checksum import (
     file_checksum,
     verify_checksum,
 )
+from automation_file.core.circuit_breaker import CircuitBreaker
 from automation_file.core.config import AutomationConfig, ConfigException
 from automation_file.core.config_watcher import ConfigWatcher
 from automation_file.core.crypto import (
@@ -55,6 +56,7 @@ from automation_file.core.progress import (
     register_progress_ops,
 )
 from automation_file.core.quota import Quota
+from automation_file.core.rate_limit import RateLimiter
 from automation_file.core.retry import retry_on_transient
 from automation_file.core.secrets import (
     ChainedSecretProvider,
@@ -215,8 +217,10 @@ __all__ = [
     "ActionExecutor",
     "ActionRegistry",
     "CallbackExecutor",
+    "CircuitBreaker",
     "PackageLoader",
     "Quota",
+    "RateLimiter",
     "build_default_registry",
     "execute_action",
     "execute_action_parallel",
