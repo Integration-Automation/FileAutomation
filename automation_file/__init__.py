@@ -89,10 +89,12 @@ from automation_file.local.json_edit import (
     json_get,
     json_set,
 )
+from automation_file.local.mime import detect_from_bytes, detect_mime
 from automation_file.local.safe_paths import is_within, safe_join
 from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.tar_ops import TarException, create_tar, extract_tar
+from automation_file.local.templates import render_file, render_string
 from automation_file.local.zip_ops import (
     read_zip_file,
     set_zip_password,
@@ -254,8 +256,12 @@ __all__ = [
     "create_file",
     "copy_dir",
     "create_dir",
+    "detect_from_bytes",
+    "detect_mime",
     "remove_dir_tree",
     "rename_dir",
+    "render_file",
+    "render_string",
     "sync_dir",
     "SyncException",
     "create_tar",
