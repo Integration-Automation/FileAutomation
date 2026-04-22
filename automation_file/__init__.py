@@ -186,6 +186,7 @@ from automation_file.remote.google_drive.upload_ops import (
 from automation_file.remote.http_download import download_file
 from automation_file.remote.s3 import S3Client, register_s3_ops, s3_instance
 from automation_file.remote.sftp import SFTPClient, register_sftp_ops, sftp_instance
+from automation_file.remote.smb import SMBClient, SMBEntry
 from automation_file.remote.url_validator import validate_http_url
 from automation_file.remote.webdav import WebDAVClient, WebDAVEntry
 from automation_file.scheduler import (
@@ -364,6 +365,8 @@ __all__ = [
     "copy_between",
     "WebDAVClient",
     "WebDAVEntry",
+    "SMBClient",
+    "SMBEntry",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",
