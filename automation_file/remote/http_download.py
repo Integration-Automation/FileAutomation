@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,19 @@ _RETRIABLE_EXCEPTIONS = (
     requests.exceptions.Timeout,
     requests.exceptions.ChunkedEncodingError,
 )
+
+
+@dataclass(frozen=True)
+class _StreamContext:
+    """Bundle of per-download stream knobs; avoids 10+ positional args."""
+
+    write_mode: str
+    chunk_size: int
+    start_byte: int
+    total_size: int
+    max_bytes: int
+    reporter: ProgressReporter | None
+    token: Any
 
 
 @retry_on_transient(max_attempts=3, backoff_base=0.5, retriable=_RETRIABLE_EXCEPTIONS)
@@ -73,38 +87,31 @@ def _stream_to_disk(
     response: requests.Response,
     part_path: Path,
     target: Path,
-    *,
-    write_mode: str,
-    chunk_size: int,
-    start_byte: int,
-    total_size: int,
-    max_bytes: int,
-    reporter: ProgressReporter | None,
-    token: Any,
+    ctx: _StreamContext,
 ) -> int | None:
     """Stream ``response`` into ``part_path``. Returns bytes written, or None on failure."""
-    written = start_byte
+    written = ctx.start_byte
     with (
-        open(part_path, write_mode) as output,
-        _progress(total_size, str(target)) as progress,
+        open(part_path, ctx.write_mode) as output,  # pylint: disable=unspecified-encoding
+        _progress(ctx.total_size, str(target)) as progress,
     ):
-        if start_byte > 0:
-            progress.update(start_byte)
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if token is not None:
-                token.raise_if_cancelled()
+        if ctx.start_byte > 0:
+            progress.update(ctx.start_byte)
+        for chunk in response.iter_content(chunk_size=ctx.chunk_size):
+            if ctx.token is not None:
+                ctx.token.raise_if_cancelled()
             if not chunk:
                 continue
             written += len(chunk)
-            if written > max_bytes:
+            if written > ctx.max_bytes:
                 file_automation_logger.error(
-                    "download_file aborted: stream exceeded %d bytes", max_bytes
+                    "download_file aborted: stream exceeded %d bytes", ctx.max_bytes
                 )
                 return None
             output.write(chunk)
             progress.update(len(chunk))
-            if reporter is not None:
-                reporter.update(len(chunk))
+            if ctx.reporter is not None:
+                ctx.reporter.update(len(chunk))
     return written
 
 
@@ -151,41 +158,23 @@ def _run_stream(
     response: requests.Response,
     part_path: Path,
     target: Path,
-    *,
-    write_mode: str,
-    chunk_size: int,
-    start_byte: int,
-    total_size: int,
-    max_bytes: int,
-    reporter: ProgressReporter | None,
-    token: Any,
+    ctx: _StreamContext,
     progress_name: str | None,
 ) -> int | None:
     try:
-        written = _stream_to_disk(
-            response,
-            part_path,
-            target,
-            write_mode=write_mode,
-            chunk_size=chunk_size,
-            start_byte=start_byte,
-            total_size=total_size,
-            max_bytes=max_bytes,
-            reporter=reporter,
-            token=token,
-        )
+        written = _stream_to_disk(response, part_path, target, ctx)
     except CancelledException:
         file_automation_logger.warning("download_file cancelled: %s", progress_name)
-        if reporter is not None:
-            reporter.finish(status="cancelled")
+        if ctx.reporter is not None:
+            ctx.reporter.finish(status="cancelled")
         return None
     except OSError as error:
         file_automation_logger.error("download_file write error: %r", error)
-        if reporter is not None:
-            reporter.finish(status="error")
+        if ctx.reporter is not None:
+            ctx.reporter.finish(status="error")
         return None
-    if written is None and reporter is not None:
-        reporter.finish(status="aborted")
+    if written is None and ctx.reporter is not None:
+        ctx.reporter.finish(status="aborted")
     return written
 
 
@@ -234,11 +223,7 @@ def download_file(
         return False
 
     reporter, token = _make_reporter(progress_name, total_size, start_byte)
-
-    written = _run_stream(
-        response,
-        part_path,
-        target,
+    ctx = _StreamContext(
         write_mode=write_mode,
         chunk_size=chunk_size,
         start_byte=start_byte,
@@ -246,8 +231,9 @@ def download_file(
         max_bytes=max_bytes,
         reporter=reporter,
         token=token,
-        progress_name=progress_name,
     )
+
+    written = _run_stream(response, part_path, target, ctx, progress_name)
     if written is None:
         return False
 

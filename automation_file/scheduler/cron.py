@@ -80,6 +80,7 @@ def _expand_chunk(
     field_index: int,
     low: int,
     high: int,
+    *,
     effective_high: int,
 ) -> set[int]:
     if chunk == "*":
@@ -107,7 +108,7 @@ def _parse_field(raw: str, field_index: int) -> frozenset[int]:
         if not chunk:
             raise CronException(f"cron: empty chunk in field {field_index}")
         base, step = _split_step(chunk)
-        result |= _expand_chunk(base, step, field_index, low, high, effective_high)
+        result |= _expand_chunk(base, step, field_index, low, high, effective_high=effective_high)
     if field_index == 4 and 7 in result:
         result.discard(7)
         result.add(0)

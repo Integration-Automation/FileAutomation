@@ -167,7 +167,8 @@ def _run_indexer(
 
 
 def _capture(argv: list[str]) -> list[str]:
-    completed = subprocess.run(  # nosec B603 nosemgrep — argv[0] is a fixed-name indexer; shell=False
+    # argv[0] is a fixed-name indexer (mdfind/locate/es); shell=False.
+    completed = subprocess.run(  # nosec B603 nosemgrep
         argv,
         capture_output=True,
         timeout=_INDEX_TIMEOUT_SECONDS,
