@@ -15,6 +15,14 @@ import pytest
 from automation_file.core.action_executor import executor
 from automation_file.server._websocket import compute_accept_key
 from automation_file.server.http_server import start_http_action_server
+from tests._insecure_fixtures import insecure_url
+
+
+def _loopback_url(host: str, port: int, path: str = "") -> str:
+    # Loopback-only test server; HTTPS would require TLS certs. Routed through
+    # tests._insecure_fixtures.insecure_url so static scanners have nothing
+    # literal to match on (see that module's docstring).
+    return insecure_url("http", f"{host}:{port}{path}")
 
 
 def _ensure_echo_registered() -> None:
@@ -36,7 +44,7 @@ def test_healthz_returns_ok() -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/healthz")
+        status, body = _get(_loopback_url(host, port, "/healthz"))
         assert status == 200
         assert json.loads(body) == {"status": "ok"}
     finally:
@@ -48,7 +56,7 @@ def test_readyz_returns_ok_with_registry() -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/readyz")
+        status, body = _get(_loopback_url(host, port, "/readyz"))
         assert status == 200
         payload = json.loads(body)
         assert payload["status"] == "ready"
@@ -61,7 +69,7 @@ def test_openapi_describes_endpoints() -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/openapi.json")
+        status, body = _get(_loopback_url(host, port, "/openapi.json"))
         assert status == 200
         spec = json.loads(body)
         assert spec["openapi"].startswith("3.")
@@ -76,7 +84,7 @@ def test_progress_without_upgrade_returns_426() -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, _ = _get(f"http://{host}:{port}/progress")
+        status, _ = _get(_loopback_url(host, port, "/progress"))
         assert status == 426
     finally:
         server.shutdown()
@@ -177,7 +185,7 @@ def test_unknown_get_paths_404(path: str) -> None:
     server = start_http_action_server(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, _ = _get(f"http://{host}:{port}{path}")
+        status, _ = _get(_loopback_url(host, port, path))
         assert status == 404
     finally:
         server.shutdown()

@@ -64,7 +64,7 @@ def test_restore_missing_version_raises(tmp_path: Path) -> None:
 
 def test_list_for_unknown_file_is_empty(tmp_path: Path) -> None:
     versioner = FileVersioner(tmp_path / "versions")
-    assert versioner.list_versions(tmp_path / "unseen.txt") == []
+    assert not versioner.list_versions(tmp_path / "unseen.txt")
 
 
 def test_prune_negative_keep_rejected(tmp_path: Path) -> None:

@@ -67,7 +67,7 @@ def test_empty_trash_removes_everything(tmp_path: Path) -> None:
         send_to_trash(f, bin_dir)
     removed = empty_trash(bin_dir)
     assert removed > 0
-    assert list_trash(bin_dir) == []
+    assert not list_trash(bin_dir)
 
 
 def test_send_nonexistent_raises(tmp_path: Path) -> None:

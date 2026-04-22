@@ -1,5 +1,6 @@
 """Tests for automation_file.remote.smb.client."""
 
+# pylint: disable=redefined-outer-name,undefined-variable  # pytest fixtures + lazy annotations
 from __future__ import annotations
 
 import sys
@@ -80,8 +81,8 @@ def test_upload_streams_file(smbclient_module: ModuleType, tmp_path: Path) -> No
     local.write_bytes(b"abcdefg")
     written: list[bytes] = []
 
-    class _FakeRemote:
-        def __enter__(self) -> _FakeRemote:
+    class _FakeRemoteWrite:
+        def __enter__(self) -> _FakeRemoteWrite:
             return self
 
         def __exit__(self, *_: object) -> None:
@@ -90,7 +91,7 @@ def test_upload_streams_file(smbclient_module: ModuleType, tmp_path: Path) -> No
         def write(self, chunk: bytes) -> None:
             written.append(chunk)
 
-    smbclient_module.open_file.return_value = _FakeRemote()  # type: ignore[attr-defined]
+    smbclient_module.open_file.return_value = _FakeRemoteWrite()  # type: ignore[attr-defined]
     client = SMBClient("fs", "pub")
     client.upload(local, "remote/data.bin")
     assert b"".join(written) == b"abcdefg"
@@ -106,11 +107,11 @@ def test_upload_rejects_missing_local(smbclient_module: ModuleType, tmp_path: Pa
 
 
 def test_download_writes_file(smbclient_module: ModuleType, tmp_path: Path) -> None:
-    class _FakeRemote:
+    class _FakeRemoteRead:
         def __init__(self) -> None:
             self._chunks = [b"hello", b"-", b"world", b""]
 
-        def __enter__(self) -> _FakeRemote:
+        def __enter__(self) -> _FakeRemoteRead:
             return self
 
         def __exit__(self, *_: object) -> None:
@@ -119,7 +120,7 @@ def test_download_writes_file(smbclient_module: ModuleType, tmp_path: Path) -> N
         def read(self, _size: int) -> bytes:
             return self._chunks.pop(0)
 
-    smbclient_module.open_file.return_value = _FakeRemote()  # type: ignore[attr-defined]
+    smbclient_module.open_file.return_value = _FakeRemoteRead()  # type: ignore[attr-defined]
     client = SMBClient("fs", "pub")
     dest = tmp_path / "out" / "copy.bin"
     client.download("remote/data.bin", dest)

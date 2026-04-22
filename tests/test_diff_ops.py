@@ -81,7 +81,7 @@ def test_diff_dirs_rejects_missing(tmp_path: Path) -> None:
         diff_dirs(tmp_path / "nope", tmp_path)
 
 
-def test_iter_dir_diff_labels_entries(tmp_path: Path) -> None:
+def test_iter_dir_diff_labels_entries() -> None:
     diff = DirDiff(added=("a",), removed=("b",), changed=("c",))
     entries = list(iter_dir_diff(diff))
     assert ("added", "a") in entries

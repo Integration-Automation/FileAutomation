@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -22,17 +23,18 @@ from automation_file.remote.fsspec_bridge import (  # noqa: E402
 )
 
 
+def _purge_memory_fs() -> None:
+    fs = fsspec.filesystem("memory")
+    for path in list(fs.store):
+        with contextlib.suppress(FileNotFoundError):
+            fs.rm(path)
+
+
 @pytest.fixture(autouse=True)
-def _reset_memory_fs() -> None:
-    fs = fsspec.filesystem("memory")
-    for path in list(fs.store):
-        with contextlib.suppress(FileNotFoundError):
-            fs.rm(path)
+def _reset_memory_fs() -> Iterator[None]:
+    _purge_memory_fs()
     yield
-    fs = fsspec.filesystem("memory")
-    for path in list(fs.store):
-        with contextlib.suppress(FileNotFoundError):
-            fs.rm(path)
+    _purge_memory_fs()
 
 
 def test_get_fs_from_protocol() -> None:

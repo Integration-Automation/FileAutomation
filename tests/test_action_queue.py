@@ -96,4 +96,4 @@ def test_purge_clears_all(tmp_path: Path) -> None:
     removed = q.purge()
     assert removed == 3
     assert q.size() == 0
-    assert q.dead_letters() == []
+    assert not q.dead_letters()

@@ -30,10 +30,18 @@ def test_opens_after_threshold_failures() -> None:
         cb.call(lambda: 1)
 
 
+def _raise_connection_error(msg: str = "x") -> None:
+    raise ConnectionError(msg)
+
+
+def _raise_value_error(msg: str = "v") -> None:
+    raise ValueError(msg)
+
+
 def test_half_open_allows_probe_and_closes_on_success() -> None:
     cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
     with pytest.raises(ConnectionError):
-        cb.call(lambda: (_ for _ in ()).throw(ConnectionError("x")))
+        cb.call(_raise_connection_error)
     assert cb.state == "open"
 
     time.sleep(0.08)
@@ -45,20 +53,20 @@ def test_half_open_allows_probe_and_closes_on_success() -> None:
 def test_half_open_failure_reopens() -> None:
     cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
     with pytest.raises(ConnectionError):
-        cb.call(lambda: (_ for _ in ()).throw(ConnectionError("x")))
+        cb.call(_raise_connection_error)
     time.sleep(0.08)
     assert cb.state == "half_open"
     with pytest.raises(ConnectionError):
-        cb.call(lambda: (_ for _ in ()).throw(ConnectionError("y")))
+        cb.call(_raise_connection_error, "y")
     assert cb.state == "open"
 
 
 def test_non_retriable_exception_does_not_count() -> None:
     cb = CircuitBreaker(failure_threshold=2, recovery_timeout=1.0, retriable=(ConnectionError,))
     with pytest.raises(ValueError):
-        cb.call(lambda: (_ for _ in ()).throw(ValueError("v")))
+        cb.call(_raise_value_error)
     with pytest.raises(ValueError):
-        cb.call(lambda: (_ for _ in ()).throw(ValueError("v")))
+        cb.call(_raise_value_error)
     assert cb.state == "closed"
 
 
@@ -78,7 +86,7 @@ def test_wraps_decorator_applies_breaker() -> None:
 def test_reset_restores_closed() -> None:
     cb = CircuitBreaker(failure_threshold=1, recovery_timeout=10.0)
     with pytest.raises(ConnectionError):
-        cb.call(lambda: (_ for _ in ()).throw(ConnectionError("x")))
+        cb.call(_raise_connection_error)
     assert cb.state == "open"
     cb.reset()
     assert cb.state == "closed"

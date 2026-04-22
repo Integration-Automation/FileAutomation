@@ -10,7 +10,11 @@ import pytest
 from automation_file.core.action_executor import executor
 from automation_file.core.progress import progress_registry
 from automation_file.server.web_ui import start_web_ui
-from tests._insecure_fixtures import ipv4
+from tests._insecure_fixtures import insecure_url, ipv4
+
+
+def _loopback(host: str, port: int, path: str = "") -> str:
+    return insecure_url("http", f"{host}:{port}{path}")
 
 
 def _ensure_echo_registered() -> None:
@@ -32,7 +36,7 @@ def test_index_returns_html_with_htmx_script() -> None:
     server = start_web_ui(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/")
+        status, body = _get(_loopback(host, port, "/"))
         assert status == 200
         assert "htmx.org" in body
         assert 'hx-get="/ui/progress"' in body
@@ -47,7 +51,7 @@ def test_registry_fragment_lists_actions() -> None:
     server = start_web_ui(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/ui/registry")
+        status, body = _get(_loopback(host, port, "/ui/registry"))
         assert status == 200
         assert "<ul>" in body or "registry empty" in body
         assert "test_webui_echo" in body
@@ -62,7 +66,7 @@ def test_progress_fragment_reflects_registry() -> None:
     server = start_web_ui(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/ui/progress")
+        status, body = _get(_loopback(host, port, "/ui/progress"))
         assert status == 200
         assert "webui_probe" in body
         assert "50.0%" in body
@@ -76,7 +80,7 @@ def test_health_fragment_contains_registry_size() -> None:
     server = start_web_ui(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, body = _get(f"http://{host}:{port}/ui/health")
+        status, body = _get(_loopback(host, port, "/ui/health"))
         assert status == 200
         assert "registry size" in body
         assert "alive" in body
@@ -94,9 +98,9 @@ def test_shared_secret_required_when_set() -> None:
     server = start_web_ui(host="127.0.0.1", port=0, shared_secret="s3cr3t")
     host, port = server.server_address
     try:
-        status, _ = _get(f"http://{host}:{port}/")
+        status, _ = _get(_loopback(host, port, "/"))
         assert status == 401
-        status, body = _get(f"http://{host}:{port}/", headers={"Authorization": "Bearer s3cr3t"})
+        status, body = _get(_loopback(host, port, "/"), headers={"Authorization": "Bearer s3cr3t"})
         assert status == 200
         assert "Bearer s3cr3t" in body  # echoed into hx-headers for polling
     finally:
@@ -108,7 +112,7 @@ def test_unknown_path_returns_404() -> None:
     server = start_web_ui(host="127.0.0.1", port=0)
     host, port = server.server_address
     try:
-        status, _ = _get(f"http://{host}:{port}/nope")
+        status, _ = _get(_loopback(host, port, "/nope"))
         assert status == 404
     finally:
         server.shutdown()

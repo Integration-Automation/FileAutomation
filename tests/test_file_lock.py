@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404 - tests spawn a sibling python to exercise cross-process locking
 import sys
 import threading
 import time
@@ -62,7 +62,7 @@ def test_cross_process_exclusion(tmp_path: Path) -> None:
     outer = FileLock(lock_path)
     outer.acquire()
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - sys.executable + generated test script
             [sys.executable, str(script_path)],
             capture_output=True,
             text=True,
