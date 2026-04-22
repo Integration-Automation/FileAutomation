@@ -19,6 +19,7 @@ from automation_file.core.action_executor import (
     executor,
     validate_action,
 )
+from automation_file.core.action_queue import ActionQueue, QueueItem
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.audit import AuditException, AuditLog
 from automation_file.core.callback_executor import CallbackExecutor
@@ -217,12 +218,14 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     # Core
     "ActionExecutor",
+    "ActionQueue",
     "ActionRegistry",
     "CallbackExecutor",
     "CircuitBreaker",
     "FileLock",
     "PackageLoader",
     "Quota",
+    "QueueItem",
     "RateLimiter",
     "SQLiteLock",
     "build_default_registry",
