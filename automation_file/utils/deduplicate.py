@@ -57,6 +57,18 @@ def find_duplicates(
     return groups
 
 
+def _classify_entry(entry: os.DirEntry[str]) -> tuple[str, int | None]:
+    """Return ``("dir", None)``, ``("file", size)``, or ``("skip", None)``."""
+    try:
+        if entry.is_dir(follow_symlinks=False):
+            return "dir", None
+        if not entry.is_file(follow_symlinks=False):
+            return "skip", None
+        return "file", entry.stat(follow_symlinks=False).st_size
+    except OSError:
+        return "skip", None
+
+
 def _group_by_size(root: Path, min_size: int) -> dict[int, list[str]]:
     buckets: dict[int, list[str]] = defaultdict(list)
     stack: list[str] = [str(root)]
@@ -64,22 +76,15 @@ def _group_by_size(root: Path, min_size: int) -> dict[int, list[str]]:
         current = stack.pop()
         try:
             iterator = os.scandir(current)
-        except (PermissionError, FileNotFoundError, OSError):
+        except OSError:
             continue
         with iterator as entries:
             for entry in entries:
-                try:
-                    if entry.is_dir(follow_symlinks=False):
-                        stack.append(entry.path)
-                        continue
-                    if not entry.is_file(follow_symlinks=False):
-                        continue
-                    size = entry.stat(follow_symlinks=False).st_size
-                except OSError:
-                    continue
-                if size < min_size:
-                    continue
-                buckets[size].append(os.path.abspath(entry.path))
+                kind, size = _classify_entry(entry)
+                if kind == "dir":
+                    stack.append(entry.path)
+                elif kind == "file" and size is not None and size >= min_size:
+                    buckets[size].append(os.path.abspath(entry.path))
     return {size: paths for size, paths in buckets.items() if len(paths) > 1}
 
 

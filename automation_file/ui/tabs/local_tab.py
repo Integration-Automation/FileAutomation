@@ -41,11 +41,39 @@ class _ActionEntry(NamedTuple):
     build: Callable[[LocalOpsTab], QWidget]
 
 
+# pylint: disable-next=too-many-instance-attributes
 class LocalOpsTab(BaseTab):
-    """Dropdown-driven local file, directory, and ZIP operations."""
+    """Dropdown-driven local file, directory, and ZIP operations.
+
+    Each operation owns its own input widgets (one QLineEdit per field,
+    plus a content QTextEdit for create-file). That is intentional — the
+    dropdown switches between pre-built pages rather than reusing widgets
+    across operations — so the attribute count is inherent to the design.
+    """
 
     def __init__(self, log, pool) -> None:
         super().__init__(log, pool)
+
+        # Widgets populated lazily by the _page_* builders.
+        self._create_path: QLineEdit
+        self._create_content: QTextEdit
+        self._copy_src: QLineEdit
+        self._copy_dst: QLineEdit
+        self._rename_src: QLineEdit
+        self._rename_dst: QLineEdit
+        self._remove_path: QLineEdit
+        self._dir_create: QLineEdit
+        self._dir_copy_src: QLineEdit
+        self._dir_copy_dst: QLineEdit
+        self._dir_rename_src: QLineEdit
+        self._dir_rename_dst: QLineEdit
+        self._dir_remove: QLineEdit
+        self._zip_file_path: QLineEdit
+        self._zip_file_name: QLineEdit
+        self._zip_dir_path: QLineEdit
+        self._zip_dir_name: QLineEdit
+        self._unzip_archive: QLineEdit
+        self._unzip_target: QLineEdit
 
         entries = self._entries()
         self._picker = QComboBox()

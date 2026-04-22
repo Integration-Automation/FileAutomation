@@ -133,15 +133,7 @@ def _sleep_forever() -> None:
         time.sleep(3600)
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="automation_file")
-    parser.add_argument("-e", "--execute_file", help="path to an action JSON file")
-    parser.add_argument("-d", "--execute_dir", help="directory containing action JSON files")
-    parser.add_argument("-c", "--create_project", help="scaffold a project at this path")
-    parser.add_argument("--execute_str", help="JSON action list as a string")
-
-    subparsers = parser.add_subparsers(dest="command")
-
+def _add_zip_commands(subparsers: argparse._SubParsersAction) -> None:
     zip_parser = subparsers.add_parser("zip", help="zip a file or directory")
     zip_parser.add_argument("source")
     zip_parser.add_argument("target")
@@ -159,6 +151,8 @@ def _build_parser() -> argparse.ArgumentParser:
     unzip_parser.add_argument("--password", default=None)
     unzip_parser.set_defaults(handler=_cmd_unzip)
 
+
+def _add_file_commands(subparsers: argparse._SubParsersAction) -> None:
     download_parser = subparsers.add_parser("download", help="SSRF-validated HTTP download")
     download_parser.add_argument("url")
     download_parser.add_argument("output")
@@ -169,6 +163,8 @@ def _build_parser() -> argparse.ArgumentParser:
     touch_parser.add_argument("--content", default="")
     touch_parser.set_defaults(handler=_cmd_create_file)
 
+
+def _add_server_commands(subparsers: argparse._SubParsersAction) -> None:
     server_parser = subparsers.add_parser("server", help="run the TCP action server")
     server_parser.add_argument("--host", default="localhost")
     server_parser.add_argument("--port", type=int, default=9943)
@@ -183,6 +179,8 @@ def _build_parser() -> argparse.ArgumentParser:
     http_parser.add_argument("--shared-secret", default=None)
     http_parser.set_defaults(handler=_cmd_http_server)
 
+
+def _add_integration_commands(subparsers: argparse._SubParsersAction) -> None:
     ui_parser = subparsers.add_parser("ui", help="launch the PySide6 GUI")
     ui_parser.set_defaults(handler=_cmd_ui)
 
@@ -206,6 +204,19 @@ def _build_parser() -> argparse.ArgumentParser:
     drive_parser.add_argument("--name", default=None)
     drive_parser.set_defaults(handler=_cmd_drive_upload)
 
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="automation_file")
+    parser.add_argument("-e", "--execute_file", help="path to an action JSON file")
+    parser.add_argument("-d", "--execute_dir", help="directory containing action JSON files")
+    parser.add_argument("-c", "--create_project", help="scaffold a project at this path")
+    parser.add_argument("--execute_str", help="JSON action list as a string")
+
+    subparsers = parser.add_subparsers(dest="command")
+    _add_zip_commands(subparsers)
+    _add_file_commands(subparsers)
+    _add_server_commands(subparsers)
+    _add_integration_commands(subparsers)
     return parser
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from automation_file.core.progress import (
@@ -25,21 +26,25 @@ def s3_download_file(
     """
     client = s3_instance.require_client()
     Path(target_path).parent.mkdir(parents=True, exist_ok=True)
-    callback = None
+    callback: Callable[[int], None] | None = None
     reporter = None
     token = None
     if progress_name:
-        total = None
+        total: int | None = None
         try:
             head = client.head_object(Bucket=bucket, Key=key)
             total = int(head.get("ContentLength", 0)) or None
         except Exception:  # pylint: disable=broad-except
             total = None
         reporter, token = progress_registry.create(progress_name, total=total)
+        _reporter = reporter
+        _token = token
 
-        def callback(bytes_transferred: int) -> None:
-            token.raise_if_cancelled()
-            reporter.update(bytes_transferred)
+        def _progress_callback(bytes_transferred: int) -> None:
+            _token.raise_if_cancelled()
+            _reporter.update(bytes_transferred)
+
+        callback = _progress_callback
 
     try:
         client.download_file(bucket, key, target_path, Callback=callback)

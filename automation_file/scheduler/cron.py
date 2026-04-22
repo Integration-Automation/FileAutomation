@@ -64,6 +64,40 @@ def _expand_range(start: int, end: int, step: int, low: int, high: int) -> set[i
     return set(range(start, end + 1, step))
 
 
+def _split_step(chunk: str) -> tuple[str, int]:
+    if "/" not in chunk:
+        return chunk, 1
+    base, step_text = chunk.split("/", 1)
+    try:
+        return base, int(step_text)
+    except ValueError as error:
+        raise CronException(f"cron: bad step {step_text!r}") from error
+
+
+def _expand_chunk(
+    chunk: str,
+    step: int,
+    field_index: int,
+    low: int,
+    high: int,
+    *,
+    effective_high: int,
+) -> set[int]:
+    if chunk == "*":
+        return _expand_range(low, high, step, low, high)
+    if "-" in chunk:
+        start_text, end_text = chunk.split("-", 1)
+        start = _parse_value(start_text, field_index)
+        end = _parse_value(end_text, field_index)
+        return _expand_range(start, end, step, low, effective_high)
+    value = _parse_value(chunk, field_index)
+    if value < low or value > effective_high:
+        raise CronException(f"cron: value {value} outside [{low},{high}]")
+    if step == 1:
+        return {value}
+    return _expand_range(value, effective_high, step, low, effective_high)
+
+
 def _parse_field(raw: str, field_index: int) -> frozenset[int]:
     low, high = _FIELD_BOUNDS[field_index]
     # DoW accepts 7 as an alias for Sunday (0) before range validation.
@@ -73,30 +107,8 @@ def _parse_field(raw: str, field_index: int) -> frozenset[int]:
         chunk = part.strip()
         if not chunk:
             raise CronException(f"cron: empty chunk in field {field_index}")
-        step = 1
-        if "/" in chunk:
-            base, step_text = chunk.split("/", 1)
-            try:
-                step = int(step_text)
-            except ValueError as error:
-                raise CronException(f"cron: bad step {step_text!r}") from error
-            chunk = base
-        if chunk == "*":
-            result |= _expand_range(low, high, step, low, high)
-            continue
-        if "-" in chunk:
-            start_text, end_text = chunk.split("-", 1)
-            start = _parse_value(start_text, field_index)
-            end = _parse_value(end_text, field_index)
-            result |= _expand_range(start, end, step, low, effective_high)
-            continue
-        value = _parse_value(chunk, field_index)
-        if value < low or value > effective_high:
-            raise CronException(f"cron: value {value} outside [{low},{high}]")
-        if step == 1:
-            result.add(value)
-        else:
-            result |= _expand_range(value, effective_high, step, low, effective_high)
+        base, step = _split_step(chunk)
+        result |= _expand_chunk(base, step, field_index, low, high, effective_high=effective_high)
     if field_index == 4 and 7 in result:
         result.discard(7)
         result.add(0)

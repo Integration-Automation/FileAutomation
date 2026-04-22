@@ -31,6 +31,75 @@ from automation_file.exceptions import DagException
 __all__ = ["execute_action_dag"]
 
 
+class _DagRun:
+    """Mutable scheduling state shared by the submit / completion helpers."""
+
+    def __init__(
+        self,
+        nodes: list[Mapping[str, Any]],
+        pool: ThreadPoolExecutor,
+        fail_fast: bool,
+    ) -> None:
+        self.graph, self.indegree = _build_graph(nodes)
+        self.node_map = {_require_id(node): node for node in nodes}
+        self.results: dict[str, Any] = {}
+        self.lock = threading.Lock()
+        self.ready: deque[str] = deque(
+            node_id for node_id, count in self.indegree.items() if count == 0
+        )
+        self.in_flight: dict[Future[Any], str] = {}
+        self.pool = pool
+        self.fail_fast = fail_fast
+
+    def _mark_skipped(self, dependent: str, reason_id: str) -> None:
+        with self.lock:
+            if dependent in self.results:
+                return
+            self.results[dependent] = f"skipped: dep {reason_id!r} failed"
+        for grandchild in self.graph.get(dependent, ()):
+            self.indegree[grandchild] -= 1
+            self._mark_skipped(grandchild, dependent)
+
+    def _skip_dependents(self, node_id: str) -> None:
+        for dependent in self.graph.get(node_id, ()):
+            self.indegree[dependent] -= 1
+            self._mark_skipped(dependent, node_id)
+
+    def submit(self, node_id: str) -> None:
+        action = self.node_map[node_id].get("action")
+        if not isinstance(action, list):
+            err = DagException(f"node {node_id!r} missing action list")
+            with self.lock:
+                self.results[node_id] = repr(err)
+            if self.fail_fast:
+                self._skip_dependents(node_id)
+            return
+        future = self.pool.submit(_run_action, action)
+        self.in_flight[future] = node_id
+
+    def _complete(self, node_id: str, value: Any, failed: bool) -> None:
+        with self.lock:
+            self.results[node_id] = value
+        for dependent in self.graph.get(node_id, ()):
+            self.indegree[dependent] -= 1
+            if failed and self.fail_fast:
+                self._mark_skipped(dependent, node_id)
+            elif self.indegree[dependent] == 0 and dependent not in self.results:
+                self.ready.append(dependent)
+
+    def drain_completed(self) -> None:
+        done, _ = wait(list(self.in_flight), return_when=FIRST_COMPLETED)
+        for future in done:
+            node_id = self.in_flight.pop(future)
+            try:
+                value: Any = future.result()
+                failed = False
+            except Exception as err:  # pylint: disable=broad-except
+                value = repr(err)
+                failed = True
+            self._complete(node_id, value, failed)
+
+
 def execute_action_dag(
     nodes: list[Mapping[str, Any]],
     max_workers: int = 4,
@@ -46,54 +115,15 @@ def execute_action_dag(
     Raises :class:`DagException` for static errors detected before any action
     runs: duplicate ids, unknown dependencies, or cycles.
     """
-    graph, indegree = _build_graph(nodes)
-    node_map = {_require_id(node): node for node in nodes}
-    results: dict[str, Any] = {}
-    lock = threading.Lock()
-
-    ready: deque[str] = deque(node_id for node_id, count in indegree.items() if count == 0)
-
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        in_flight: dict[Future[Any], str] = {}
-
-        def submit(node_id: str) -> None:
-            action = node_map[node_id].get("action")
-            if not isinstance(action, list):
-                err = DagException(f"node {node_id!r} missing action list")
-                with lock:
-                    results[node_id] = repr(err)
-                if fail_fast:
-                    for dependent in graph.get(node_id, ()):
-                        indegree[dependent] -= 1
-                        _mark_skipped(dependent, node_id, graph, indegree, results, lock)
-                return
-            future = pool.submit(_run_action, action)
-            in_flight[future] = node_id
-
-        while ready or in_flight:
-            while ready:
-                submit(ready.popleft())
-            if not in_flight:
+        state = _DagRun(nodes, pool, fail_fast)
+        while state.ready or state.in_flight:
+            while state.ready:
+                state.submit(state.ready.popleft())
+            if not state.in_flight:
                 break
-            done, _ = wait(list(in_flight), return_when=FIRST_COMPLETED)
-            for future in done:
-                node_id = in_flight.pop(future)
-                failed = False
-                try:
-                    value: Any = future.result()
-                except Exception as err:  # pylint: disable=broad-except
-                    value = repr(err)
-                    failed = True
-                with lock:
-                    results[node_id] = value
-                for dependent in graph.get(node_id, ()):
-                    indegree[dependent] -= 1
-                    if failed and fail_fast:
-                        _mark_skipped(dependent, node_id, graph, indegree, results, lock)
-                    elif indegree[dependent] == 0 and dependent not in results:
-                        ready.append(dependent)
-
-    return results
+            state.drain_completed()
+    return state.results
 
 
 def _run_action(action: list) -> Any:
@@ -156,20 +186,3 @@ def _detect_cycle(
                 queue.append(dependent)
     if visited != len(ids):
         raise DagException("cycle detected in DAG")
-
-
-def _mark_skipped(
-    dependent: str,
-    reason_id: str,
-    graph: dict[str, list[str]],
-    indegree: dict[str, int],
-    results: dict[str, Any],
-    lock: threading.Lock,
-) -> None:
-    with lock:
-        if dependent in results:
-            return
-        results[dependent] = f"skipped: dep {reason_id!r} failed"
-    for grandchild in graph.get(dependent, ()):
-        indegree[grandchild] -= 1
-        _mark_skipped(grandchild, dependent, graph, indegree, results, lock)

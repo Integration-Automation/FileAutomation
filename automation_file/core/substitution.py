@@ -23,7 +23,7 @@ from datetime import datetime
 
 from automation_file.exceptions import FileAutomationException
 
-_PATTERN = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]*))?\}")
+_PATTERN = re.compile(r"\$\{([a-zA-Z_]\w*)(?::([^}]*))?\}", re.ASCII)
 
 
 class SubstitutionException(FileAutomationException):

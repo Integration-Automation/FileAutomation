@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +20,7 @@ from automation_file.notify import (
 
 
 @pytest.fixture(autouse=True)
-def _reset_manager() -> None:
+def _reset_manager() -> Iterator[None]:
     notification_manager.unregister_all()
     yield
     notification_manager.unregister_all()
@@ -38,7 +39,7 @@ def test_webhook_posts_json() -> None:
     post.assert_called_once()
     kwargs = post.call_args.kwargs
     assert kwargs["allow_redirects"] is False
-    assert kwargs["timeout"] == 10.0
+    assert kwargs["timeout"] == pytest.approx(10.0)
     import json
 
     body = json.loads(kwargs["data"].decode("utf-8"))
@@ -88,7 +89,7 @@ def test_email_send_uses_smtp_context_manager() -> None:
         sender="me@example.com",
         recipients=["you@example.com"],
         username="me",
-        password="pw",
+        password="pw",  # NOSONAR test fixture — not a real credential
         use_tls=True,
     )
     with patch("automation_file.notify.sinks.smtplib.SMTP") as smtp_cls:
@@ -109,7 +110,7 @@ def test_email_repr_hides_password() -> None:
         sender="me@example.com",
         recipients=["you@example.com"],
         username="me",
-        password="secret-pw",
+        password="secret-pw",  # NOSONAR test fixture — repr-hiding assertion
     )
     assert "secret-pw" not in repr(sink)
 
@@ -199,7 +200,7 @@ def test_manager_unregister() -> None:
         name = "rec"
 
         def send(self, subject: str, body: str, level: str = "info") -> None:
-            pass
+            """No-op sink — the test only checks manager register/unregister."""
 
     manager = NotificationManager(dedup_seconds=0.0)
     manager.register(_Recorder())

@@ -67,6 +67,11 @@ class NotificationManager:
             sinks = list(self._sinks.values())
         return [_describe(sink) for sink in sinks]
 
+    def has_sinks(self) -> bool:
+        """Return whether at least one sink is currently registered."""
+        with self._lock:
+            return bool(self._sinks)
+
     def notify(
         self,
         subject: str,
@@ -148,9 +153,8 @@ def notify_on_failure(context: str, error: FileAutomationException | Exception) 
     Does nothing when no sinks are registered, so callers can call this
     unconditionally without having to check the configuration.
     """
-    with notification_manager._lock:
-        if not notification_manager._sinks:
-            return
+    if not notification_manager.has_sinks():
+        return
     try:
         notification_manager.notify(
             f"automation_file: {context} failed", repr(error), level="error"

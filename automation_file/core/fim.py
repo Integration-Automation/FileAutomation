@@ -23,7 +23,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from automation_file.core.manifest import ManifestException, verify_manifest
+from automation_file.core.manifest import verify_manifest
 from automation_file.exceptions import FileAutomationException
 from automation_file.logging_config import file_automation_logger
 from automation_file.notify import NotificationManager, notification_manager
@@ -86,7 +86,7 @@ class IntegrityMonitor:
         """Run one verification pass and return the summary."""
         try:
             summary = verify_manifest(self._root, self._manifest_path)
-        except (ManifestException, FileAutomationException) as err:
+        except FileAutomationException as err:
             file_automation_logger.error("integrity_monitor: verify failed: %r", err)
             summary = {
                 "matched": [],

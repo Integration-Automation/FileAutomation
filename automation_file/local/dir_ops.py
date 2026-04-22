@@ -18,7 +18,7 @@ def copy_dir(dir_path: str, target_dir_path: str) -> bool:
         shutil.copytree(source, Path(target_dir_path), dirs_exist_ok=True)
         file_automation_logger.info("copy_dir: %s -> %s", source, target_dir_path)
         return True
-    except (OSError, shutil.Error) as error:
+    except OSError as error:
         file_automation_logger.error("copy_dir failed: %r", error)
         return False
 
@@ -32,7 +32,7 @@ def remove_dir_tree(dir_path: str) -> bool:
         shutil.rmtree(path)
         file_automation_logger.info("remove_dir_tree: %s", path)
         return True
-    except (OSError, shutil.Error) as error:
+    except OSError as error:
         file_automation_logger.error("remove_dir_tree failed: %r", error)
         return False
 

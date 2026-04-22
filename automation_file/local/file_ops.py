@@ -22,7 +22,7 @@ def copy_file(file_path: str, target_path: str, copy_metadata: bool = True) -> b
             shutil.copy(source, target_path)
         file_automation_logger.info("copy_file: %s -> %s", source, target_path)
         return True
-    except (OSError, shutil.Error) as error:
+    except OSError as error:
         file_automation_logger.error("copy_file failed: %r", error)
         return False
 
@@ -65,7 +65,7 @@ def copy_all_file_to_dir(dir_path: str, target_dir_path: str) -> bool:
         shutil.move(str(source), str(destination))
         file_automation_logger.info("copy_all_file_to_dir: %s -> %s", source, destination)
         return True
-    except (OSError, shutil.Error) as error:
+    except OSError as error:
         file_automation_logger.error("copy_all_file_to_dir failed: %r", error)
         return False
 

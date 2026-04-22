@@ -83,4 +83,4 @@ def _iter_entry_points() -> list[EntryPoint]:
     except TypeError:
         # importlib.metadata before 3.10 used a different API; the project
         # targets 3.10+, so this branch exists only as defensive padding.
-        return list(entry_points().get(ENTRY_POINT_GROUP, []))
+        return list(entry_points().get(ENTRY_POINT_GROUP, []))  # pylint: disable=no-member

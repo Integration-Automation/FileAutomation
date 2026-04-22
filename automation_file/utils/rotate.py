@@ -26,6 +26,41 @@ class RotateException(FileAutomationException):
     """Raised when rotate_backups receives invalid arguments."""
 
 
+def _validate_keep_counts(counts: dict[str, int]) -> None:
+    for name, value in counts.items():
+        if value < 0:
+            raise RotateException(f"{name} must be >= 0")
+
+
+def _gather_candidates(root: Path, pattern: str) -> list[tuple[Path, float]]:
+    candidates = [
+        (entry, entry.stat().st_mtime)
+        for entry in root.iterdir()
+        if entry.is_file() and fnmatch.fnmatch(entry.name, pattern)
+    ]
+    candidates.sort(key=lambda item: item[1], reverse=True)
+    return candidates
+
+
+def _delete_unkept(
+    candidates: list[tuple[Path, float]],
+    kept_paths: set[Path],
+    dry_run: bool,
+) -> list[str]:
+    deleted: list[str] = []
+    for path, _mtime in candidates:
+        if path in kept_paths:
+            continue
+        deleted.append(str(path))
+        if dry_run:
+            continue
+        try:
+            path.unlink()
+        except OSError as err:
+            file_automation_logger.error("rotate_backups: unlink %s failed: %r", path, err)
+    return deleted
+
+
 def rotate_backups(
     directory: str,
     pattern: str = "*",
@@ -51,28 +86,20 @@ def rotate_backups(
     any enabled bucket. ``0`` disables a bucket. No file can appear in
     both ``kept`` and ``deleted``.
     """
-    for name, value in (
-        ("keep_daily", keep_daily),
-        ("keep_weekly", keep_weekly),
-        ("keep_monthly", keep_monthly),
-        ("keep_yearly", keep_yearly),
-    ):
-        if value < 0:
-            raise RotateException(f"{name} must be >= 0")
+    _validate_keep_counts(
+        {
+            "keep_daily": keep_daily,
+            "keep_weekly": keep_weekly,
+            "keep_monthly": keep_monthly,
+            "keep_yearly": keep_yearly,
+        }
+    )
 
     root = Path(directory)
     if not root.is_dir():
         raise RotateException(f"not a directory: {directory}")
 
-    candidates: list[tuple[Path, float]] = []
-    for entry in root.iterdir():
-        if not entry.is_file():
-            continue
-        if not fnmatch.fnmatch(entry.name, pattern):
-            continue
-        candidates.append((entry, entry.stat().st_mtime))
-    candidates.sort(key=lambda item: item[1], reverse=True)
-
+    candidates = _gather_candidates(root, pattern)
     kept = _select_kept(
         candidates,
         keep_daily=keep_daily,
@@ -81,17 +108,7 @@ def rotate_backups(
         keep_yearly=keep_yearly,
     )
     kept_paths = {path for path, _ in kept}
-    deleted: list[str] = []
-    for path, _mtime in candidates:
-        if path in kept_paths:
-            continue
-        deleted.append(str(path))
-        if dry_run:
-            continue
-        try:
-            path.unlink()
-        except OSError as err:
-            file_automation_logger.error("rotate_backups: unlink %s failed: %r", path, err)
+    deleted = _delete_unkept(candidates, kept_paths, dry_run)
 
     file_automation_logger.info(
         "rotate_backups: kept=%d deleted=%d dry_run=%s",

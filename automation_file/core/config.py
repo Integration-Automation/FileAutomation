@@ -53,7 +53,6 @@ from automation_file.logging_config import file_automation_logger
 from automation_file.notify.manager import NotificationManager
 from automation_file.notify.sinks import (
     EmailSink,
-    NotificationException,
     NotificationSink,
     SlackSink,
     WebhookSink,
@@ -156,8 +155,6 @@ def _build_sink(entry: dict[str, Any]) -> NotificationSink:
         )
     try:
         return builder(entry)
-    except NotificationException:
-        raise
     except (TypeError, ValueError) as err:
         raise ConfigException(
             f"invalid config for sink {entry.get('name') or sink_type!r}: {err}"

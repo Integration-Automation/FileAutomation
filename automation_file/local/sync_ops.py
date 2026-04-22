@@ -69,10 +69,10 @@ def sync_dir(
 
     src_entries = _walk_relative(source)
     for rel in src_entries:
-        _process_source_entry(source, destination, rel, compare, dry_run, summary)
+        _process_source_entry(source, destination, rel, compare, dry_run=dry_run, summary=summary)
 
     if delete:
-        _delete_extras(source, destination, src_entries, dry_run, summary)
+        _delete_extras(destination, src_entries, dry_run, summary)
 
     file_automation_logger.info(
         "sync_dir %s -> %s: copied=%d skipped=%d deleted=%d errors=%d (dry_run=%s)",
@@ -103,6 +103,7 @@ def _process_source_entry(
     destination: Path,
     rel: Path,
     compare: str,
+    *,
     dry_run: bool,
     summary: dict[str, Any],
 ) -> None:
@@ -149,7 +150,6 @@ def _copy_one(src: Path, dst: Path) -> None:
 
 
 def _delete_extras(
-    source: Path,
     destination: Path,
     src_entries: list[Path],
     dry_run: bool,

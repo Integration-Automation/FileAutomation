@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import posixpath
-from ftplib import error_perm
+from ftplib import error_perm  # nosec B402 — FTP transport is opt-in via client configuration
 from pathlib import Path
 
 from automation_file.exceptions import FileNotExistsException

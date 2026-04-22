@@ -97,7 +97,7 @@ def test_apply_to_registers_and_sets_dedup(tmp_path: Path, monkeypatch: pytest.M
     manager = NotificationManager(dedup_seconds=0.0)
     count = config.apply_to(manager)
     assert count == 1
-    assert manager.dedup_seconds == 120.5
+    assert manager.dedup_seconds == pytest.approx(120.5)
     descriptions = manager.list()
     assert descriptions[0]["name"] == "team"
 

@@ -46,9 +46,13 @@ def test_execute_action_unknown_records_error() -> None:
     assert "unknown action" in value
 
 
+def _raise_runtime_error() -> None:
+    raise RuntimeError("nope")
+
+
 def test_execute_action_runtime_error_is_caught() -> None:
     executor = _fresh_executor()
-    executor.registry.register("boom", lambda: (_ for _ in ()).throw(RuntimeError("nope")))
+    executor.registry.register("boom", _raise_runtime_error)
     results = executor.execute_action([["boom"]])
     [value] = results.values()
     assert "RuntimeError" in value
