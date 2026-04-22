@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from ftplib import FTP, FTP_TLS
+from ftplib import FTP, FTP_TLS  # nosec B321 - plaintext FTP is opt-in via tls=False
 from typing import Any
 
 from automation_file.exceptions import FileAutomationException
@@ -46,7 +46,8 @@ class FTPClient:
         if opts.tls:
             ftp: FTP = FTP_TLS(timeout=opts.timeout)
         else:
-            ftp = FTP(timeout=opts.timeout)  # NOSONAR python:S5332
+            # Plaintext FTP only when caller opts in via tls=False.
+            ftp = FTP(timeout=opts.timeout)  # nosec B321 NOSONAR python:S5332
         try:
             ftp.connect(opts.host, opts.port, timeout=opts.timeout)
             if opts.tls and isinstance(ftp, FTP_TLS):

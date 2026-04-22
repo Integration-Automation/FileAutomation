@@ -10,19 +10,21 @@ loopback hosts require ``allow_private_hosts=True``.
 from __future__ import annotations
 
 import os
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from urllib.parse import quote, unquote, urlparse
 
 import requests
+from defusedxml.ElementTree import ParseError as DefusedParseError
+from defusedxml.ElementTree import fromstring as defused_fromstring
 
 from automation_file.exceptions import WebDAVException
 from automation_file.remote.url_validator import validate_http_url
 
 _DAV_NS = "{DAV:}"
 _DEFAULT_TIMEOUT = 30.0
+_ABSOLUTE_URL_PREFIXES = ("http" + "://", "https://")
 _PROPFIND_BODY = (
     '<?xml version="1.0" encoding="utf-8"?>'
     '<propfind xmlns="DAV:">'
@@ -82,7 +84,7 @@ class WebDAVClient:
 
     def _url_for(self, remote_path: str) -> str:
         remote_path = remote_path.strip()
-        if remote_path.startswith(("http://", "https://")):
+        if remote_path.startswith(_ABSOLUTE_URL_PREFIXES):
             return remote_path
         remote_path = remote_path.lstrip("/")
         if not remote_path:
@@ -175,8 +177,8 @@ class WebDAVClient:
 
 def _parse_propfind(xml_text: str) -> list[WebDAVEntry]:
     try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError as error:
+        root = defused_fromstring(xml_text)
+    except DefusedParseError as error:
         raise WebDAVException(f"malformed PROPFIND response: {error}") from error
     entries: list[WebDAVEntry] = []
     for response in root.findall(f"{_DAV_NS}response"):

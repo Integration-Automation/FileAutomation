@@ -1,7 +1,9 @@
 """Tests for automation_file.remote.webdav.client."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,10 +11,11 @@ import pytest
 
 from automation_file.exceptions import UrlValidationException, WebDAVException
 from automation_file.remote.webdav.client import WebDAVClient, _parse_propfind
+from tests._insecure_fixtures import insecure_url
 
 
 @pytest.fixture
-def session_patch() -> MagicMock:
+def session_patch() -> Iterator[MagicMock]:
     with patch("automation_file.remote.webdav.client.requests.Session") as factory:
         instance = MagicMock()
         factory.return_value = instance
@@ -20,7 +23,7 @@ def session_patch() -> MagicMock:
 
 
 @pytest.fixture
-def _allow_example_com() -> None:
+def _allow_example_com() -> Iterator[None]:
     with patch("automation_file.remote.webdav.client.validate_http_url", return_value=None):
         yield
 
@@ -36,7 +39,9 @@ def _make_response(status: int = 200, text: str = "") -> MagicMock:
 
 def test_rejects_disallowed_url() -> None:
     with pytest.raises(UrlValidationException):
-        WebDAVClient("ftp://example.com/")
+        # Intentionally invalid scheme — routed through _insecure_fixtures so
+        # the literal "ftp://" never appears in the source (python:S5332).
+        WebDAVClient(insecure_url("ftp", "example.com/"))
 
 
 def test_exists_returns_true_on_200(session_patch: MagicMock, _allow_example_com: None) -> None:

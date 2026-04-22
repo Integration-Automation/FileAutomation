@@ -57,7 +57,7 @@ def list_archive(path: str | os.PathLike[str]) -> list[str]:
         with zipfile.ZipFile(path) as zf:
             return zf.namelist()
     if fmt.startswith("tar"):
-        with tarfile.open(path) as tf:
+        with tarfile.open(path) as tf:  # nosec B202 - metadata listing only, no extraction
             return tf.getnames()
     if fmt == "7z":
         return _seven_zip_namelist(path)
@@ -88,13 +88,13 @@ def extract_archive(
 def _is_tar_stream(path: Path, compression: str) -> bool:
     try:
         if compression == "gz":
-            with tarfile.open(path, mode="r:gz"):
+            with tarfile.open(path, mode="r:gz"):  # nosec B202 - read-only probe
                 return True
         if compression == "bz2":
-            with tarfile.open(path, mode="r:bz2"):
+            with tarfile.open(path, mode="r:bz2"):  # nosec B202 - read-only probe
                 return True
         if compression == "xz":
-            with tarfile.open(path, mode="r:xz"):
+            with tarfile.open(path, mode="r:xz"):  # nosec B202 - read-only probe
                 return True
     except (tarfile.TarError, OSError):
         return False
@@ -123,7 +123,10 @@ def _extract_zip(source: Path, dest: Path) -> list[str]:
 
 def _extract_tar(source: Path, dest: Path) -> list[str]:
     names: list[str] = []
-    with tarfile.open(source) as tf:
+    # Per-member path containment + link rejection below; on 3.12+ the
+    # tarfile.data_filter enforces the same rules at the C layer.
+    with tarfile.open(source) as tf:  # nosec B202 - entries validated before extract
+        _apply_tar_data_filter(tf)
         for member in tf.getmembers():
             out = dest / member.name
             _ensure_within(dest, out)
@@ -132,6 +135,12 @@ def _extract_tar(source: Path, dest: Path) -> list[str]:
             tf.extract(member, dest)
             names.append(member.name)
     return names
+
+
+def _apply_tar_data_filter(tf: tarfile.TarFile) -> None:
+    data_filter = getattr(tarfile, "data_filter", None)
+    if data_filter is not None:
+        tf.extraction_filter = data_filter
 
 
 def _extract_seven_zip(source: Path, dest: Path) -> list[str]:
@@ -143,7 +152,8 @@ def _extract_seven_zip(source: Path, dest: Path) -> list[str]:
         names = archive.getnames()
         for name in names:
             _ensure_within(dest, dest / name)
-        archive.extractall(path=dest)
+        # Every entry name has been validated via _ensure_within above.
+        archive.extractall(path=dest)  # nosec B202 - entries validated before extract
     return list(names)
 
 
@@ -156,7 +166,8 @@ def _extract_rar(source: Path, dest: Path) -> list[str]:
         names = archive.namelist()
         for name in names:
             _ensure_within(dest, dest / name)
-        archive.extractall(path=str(dest))
+        # Every entry name has been validated via _ensure_within above.
+        archive.extractall(path=str(dest))  # nosec B202 - entries validated before extract
     return list(names)
 
 

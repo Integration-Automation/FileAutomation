@@ -27,6 +27,7 @@ dependencies = [
     "watchdog>=4.0.0",
     "cryptography>=42.0.0",
     "prometheus_client>=0.20.0",
+    "defusedxml>=0.7.1",
     "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [
