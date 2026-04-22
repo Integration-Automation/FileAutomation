@@ -27,7 +27,7 @@ from automation_file.remote.fsspec_bridge import (  # noqa: E402
 def _purge_memory_fs() -> None:
     fs = fsspec.filesystem("memory")
     # list() snapshot required — fs.rm() mutates fs.store during iteration.
-    for path in list(fs.store):  # NOSONAR(python:S7504)
+    for path in list(fs.store):  # NOSONAR snapshot required — fs.rm mutates fs.store
         with contextlib.suppress(FileNotFoundError):
             fs.rm(path)
 
