@@ -73,6 +73,12 @@ from automation_file.core.secrets import (
 )
 from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.local.archive_ops import (
+    detect_archive_format,
+    extract_archive,
+    list_archive,
+    supported_formats,
+)
 from automation_file.local.conditional import if_exists, if_newer, if_size_gt
 from automation_file.local.diff_ops import (
     DirDiff,
@@ -276,12 +282,15 @@ __all__ = [
     "apply_dir_diff",
     "copy_dir",
     "create_dir",
+    "detect_archive_format",
     "detect_from_bytes",
     "detect_mime",
     "diff_dirs",
     "diff_text_files",
     "empty_trash",
+    "extract_archive",
     "iter_dir_diff",
+    "list_archive",
     "list_trash",
     "remove_dir_tree",
     "rename_dir",
@@ -289,6 +298,7 @@ __all__ = [
     "render_string",
     "restore_from_trash",
     "send_to_trash",
+    "supported_formats",
     "sync_dir",
     "SyncException",
     "create_tar",
