@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import IO
 
@@ -48,36 +48,28 @@ class ContentStore:
             raise CASException(f"source is not a file: {src}")
         digest = self._hash_file(src)
         target = self.path_for(digest)
-        if target.exists():
-            return digest
-        target.parent.mkdir(parents=True, exist_ok=True)
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        try:
-            shutil.copyfile(src, tmp)
-            os.replace(tmp, target)
-        except OSError as error:
-            if tmp.exists():
-                tmp.unlink(missing_ok=True)
-            raise CASException(f"failed to ingest {src}: {error}") from error
+        if not target.exists():
+            self._write_atomic(target, lambda tmp: _copyfile(src, tmp))
         return digest
 
     def put_bytes(self, data: bytes) -> str:
         """Ingest raw bytes and return the hex digest."""
         digest = hashlib.new(_HASH, data).hexdigest()
         target = self.path_for(digest)
-        if target.exists():
-            return digest
+        if not target.exists():
+            self._write_atomic(target, lambda tmp: _write_bytes(tmp, data))
+        return digest
+
+    def _write_atomic(self, target: Path, writer: Callable[[Path], None]) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_suffix(target.suffix + ".tmp")
         try:
-            with open(tmp, "wb") as fh:
-                fh.write(data)
+            writer(tmp)
             os.replace(tmp, target)
         except OSError as error:
             if tmp.exists():
                 tmp.unlink(missing_ok=True)
             raise CASException(f"failed to store blob: {error}") from error
-        return digest
 
     def open(self, digest: str) -> IO[bytes]:
         """Open the stored blob for binary read."""
@@ -125,3 +117,12 @@ class ContentStore:
             for chunk in iter(lambda: fh.read(_CHUNK), b""):
                 hasher.update(chunk)
         return hasher.hexdigest()
+
+
+def _write_bytes(target: Path, data: bytes) -> None:
+    with open(target, "wb") as fh:
+        fh.write(data)
+
+
+def _copyfile(src: Path, dst: Path) -> None:
+    shutil.copyfile(src, dst)

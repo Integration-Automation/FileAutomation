@@ -20,8 +20,18 @@ _GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
 def compute_accept_key(sec_websocket_key: str) -> str:
-    """Return the ``Sec-WebSocket-Accept`` value for ``sec_websocket_key``."""
-    digest = hashlib.sha1((sec_websocket_key + _GUID).encode("ascii")).digest()
+    """Return the ``Sec-WebSocket-Accept`` value for ``sec_websocket_key``.
+
+    RFC 6455 mandates SHA-1 + a fixed GUID for the opening handshake — the
+    digest only proves the server understood the handshake, it is not a
+    security primitive. ``usedforsecurity=False`` tells static analysers to
+    skip the standard SHA-1 "insecure hash" warning.
+    """
+    # nosec B303 B324 - RFC 6455 handshake, not a security primitive.
+    digest = hashlib.sha1(
+        (sec_websocket_key + _GUID).encode("ascii"),
+        usedforsecurity=False,
+    ).digest()
     return base64.b64encode(digest).decode("ascii")
 
 
