@@ -36,7 +36,7 @@ class PackageLoader:
             # `package` is a trusted caller-supplied name (see PackageLoader docstring and
             # the CLAUDE.md security note on plugin loading); it is not untrusted input.
             module = import_module(spec.name)
-        except (ImportError, ModuleNotFoundError) as error:
+        except ImportError as error:
             file_automation_logger.error("PackageLoader import error: %r", error)
             return None
         self._cache[package] = module

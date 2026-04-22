@@ -23,6 +23,7 @@ from automation_file.remote.url_validator import validate_http_url
 LEVELS = frozenset({"info", "warning", "error"})
 _DEFAULT_TIMEOUT = 10.0
 _MAX_BODY_BYTES = 64 * 1024
+_JSON_HEADERS: dict[str, str] = {"Content-Type": "application/json"}
 
 
 class NotificationException(FileAutomationException):
@@ -72,7 +73,7 @@ class WebhookSink(NotificationSink):
     def send(self, subject: str, body: str, level: str = "info") -> None:
         self._check_level(level)
         payload = {"subject": subject, "body": self._truncate(body), "level": level}
-        headers = {"Content-Type": "application/json"}
+        headers = dict(_JSON_HEADERS)
         headers.update(self.extra_headers)
         try:
             response = requests.post(
@@ -125,7 +126,7 @@ class SlackSink(NotificationSink):
             response = requests.post(
                 self._url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=_JSON_HEADERS,
                 timeout=self.timeout,
                 allow_redirects=False,
             )
@@ -236,7 +237,7 @@ class TelegramSink(NotificationSink):
             response = requests.post(
                 self._url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=_JSON_HEADERS,
                 timeout=self.timeout,
                 allow_redirects=False,
             )
@@ -284,7 +285,7 @@ class DiscordSink(NotificationSink):
             response = requests.post(
                 self._url,
                 data=json.dumps({"content": content}).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=_JSON_HEADERS,
                 timeout=self.timeout,
                 allow_redirects=False,
             )
@@ -331,7 +332,7 @@ class TeamsSink(NotificationSink):
             response = requests.post(
                 self._url,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=_JSON_HEADERS,
                 timeout=self.timeout,
                 allow_redirects=False,
             )
@@ -391,7 +392,7 @@ class PagerDutySink(NotificationSink):
             response = requests.post(
                 self._ENQUEUE_URL,
                 data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=_JSON_HEADERS,
                 timeout=self.timeout,
                 allow_redirects=False,
             )

@@ -96,21 +96,25 @@ def extract_tar(source: str, target_dir: str) -> list[str]:
     return extracted
 
 
+def _verify_member_link(member: tarfile.TarInfo, dest_resolved: Path) -> None:
+    if not (member.issym() or member.islnk()):
+        return
+    link = member.linkname
+    link_path_source = Path(link)
+    link_path = (
+        link_path_source.resolve()
+        if link_path_source.is_absolute()
+        else (dest_resolved / link).resolve()
+    )
+    if not is_within(str(dest_resolved), str(link_path)):
+        kind = "symlink" if member.issym() else "hardlink"
+        raise PathTraversalException(f"tar {kind} escapes target: {member.name} -> {link}")
+
+
 def _verify_members(archive: tarfile.TarFile, dest: Path) -> None:
     dest_resolved = dest.resolve()
     for member in archive.getmembers():
         candidate = (dest_resolved / member.name).resolve()
         if not is_within(str(dest_resolved), str(candidate)):
             raise PathTraversalException(f"tar member escapes target: {member.name}")
-        if member.issym() or member.islnk():
-            link = member.linkname
-            link_path = (
-                (dest_resolved / link).resolve()
-                if not Path(link).is_absolute()
-                else Path(link).resolve()
-            )
-            if not is_within(str(dest_resolved), str(link_path)):
-                raise PathTraversalException(
-                    f"tar {('symlink' if member.issym() else 'hardlink')} escapes target: "
-                    f"{member.name} -> {link}"
-                )
+        _verify_member_link(member, dest_resolved)

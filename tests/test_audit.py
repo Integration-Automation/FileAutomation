@@ -27,7 +27,7 @@ def test_record_and_recent_roundtrip(tmp_path: Path) -> None:
     assert row["payload"] == {"src": "a", "dst": "b"}
     assert row["result"] == {"ok": True}
     assert row["error"] is None
-    assert row["duration_ms"] == 12.5
+    assert row["duration_ms"] == pytest.approx(12.5)
 
 
 def test_record_error_stores_repr(tmp_path: Path) -> None:

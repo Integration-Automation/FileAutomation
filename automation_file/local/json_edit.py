@@ -114,59 +114,76 @@ def _child(container: Any, segment: str) -> Any:
     raise TypeError(f"cannot index {type(container).__name__} by {segment!r}")
 
 
+def _is_int_segment(segment: str) -> bool:
+    return segment.lstrip("-").isdigit()
+
+
+def _descend_for_set(container: Any, segment: str) -> Any:
+    if isinstance(container, MutableMapping):
+        if segment not in container or not isinstance(
+            container[segment], (MutableMapping, MutableSequence)
+        ):
+            container[segment] = {}
+        return container[segment]
+    if isinstance(container, MutableSequence) and _is_int_segment(segment):
+        return container[int(segment)]
+    raise JsonEditException(f"cannot traverse into {segment!r}")
+
+
+def _assign_into_sequence(container: MutableSequence[Any], last: str, value: Any) -> None:
+    idx = int(last)
+    if -len(container) <= idx < len(container):
+        container[idx] = value
+        return
+    if idx == len(container):
+        container.append(value)
+        return
+    raise JsonEditException(f"list index out of range: {idx}")
+
+
 def _set_in(data: Any, segments: list[str], value: Any) -> None:
     container = data
     for segment in segments[:-1]:
-        if isinstance(container, MutableMapping):
-            if segment not in container or not isinstance(
-                container[segment], (MutableMapping, MutableSequence)
-            ):
-                container[segment] = {}
-            container = container[segment]
-        elif isinstance(container, MutableSequence) and segment.lstrip("-").isdigit():
-            container = container[int(segment)]
-        else:
-            raise JsonEditException(f"cannot traverse into {segment!r}")
+        container = _descend_for_set(container, segment)
     last = segments[-1]
     if isinstance(container, MutableMapping):
         container[last] = value
         return
-    if isinstance(container, MutableSequence) and last.lstrip("-").isdigit():
-        idx = int(last)
-        if -len(container) <= idx < len(container):
-            container[idx] = value
-            return
-        if idx == len(container):
-            container.append(value)
-            return
-        raise JsonEditException(f"list index out of range: {idx}")
+    if isinstance(container, MutableSequence) and _is_int_segment(last):
+        _assign_into_sequence(container, last, value)
+        return
     raise JsonEditException(f"cannot set into {type(container).__name__}")
 
 
-def _delete_in(data: Any, segments: list[str]) -> bool:
-    container = data
-    for segment in segments[:-1]:
-        if isinstance(container, MutableMapping):
-            if segment not in container:
-                return False
-            container = container[segment]
-        elif isinstance(container, MutableSequence) and segment.lstrip("-").isdigit():
-            idx = int(segment)
-            if not -len(container) <= idx < len(container):
-                return False
-            container = container[idx]
-        else:
-            return False
-    last = segments[-1]
+def _descend_for_delete(container: Any, segment: str) -> Any:
+    if isinstance(container, MutableMapping):
+        return container.get(segment, _MISSING)
+    if isinstance(container, MutableSequence) and _is_int_segment(segment):
+        idx = int(segment)
+        if -len(container) <= idx < len(container):
+            return container[idx]
+    return _MISSING
+
+
+def _remove_last(container: Any, last: str) -> bool:
     if isinstance(container, MutableMapping):
         if last not in container:
             return False
         del container[last]
         return True
-    if isinstance(container, MutableSequence) and last.lstrip("-").isdigit():
+    if isinstance(container, MutableSequence) and _is_int_segment(last):
         idx = int(last)
         if not -len(container) <= idx < len(container):
             return False
         del container[idx]
         return True
     return False
+
+
+def _delete_in(data: Any, segments: list[str]) -> bool:
+    container = data
+    for segment in segments[:-1]:
+        container = _descend_for_delete(container, segment)
+        if container is _MISSING:
+            return False
+    return _remove_last(container, segments[-1])

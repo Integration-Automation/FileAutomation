@@ -92,6 +92,22 @@ def fast_find(
     return list(scandir_find(root_path, pattern, limit=limit, files_only=files_only))
 
 
+def _iter_directory(current: str) -> Iterator[os.DirEntry[str]]:
+    try:
+        iterator = os.scandir(current)
+    except OSError:
+        return
+    with iterator as entries:
+        yield from entries
+
+
+def _entry_is_dir(entry: os.DirEntry[str]) -> bool | None:
+    try:
+        return entry.is_dir(follow_symlinks=False)
+    except OSError:
+        return None
+
+
 def scandir_find(
     root: str | os.PathLike[str],
     pattern: str = _DEFAULT_PATTERN,
@@ -115,25 +131,19 @@ def scandir_find(
     lowered_pattern = pattern.lower()
     while stack:
         current = stack.pop()
-        try:
-            iterator = os.scandir(current)
-        except (PermissionError, FileNotFoundError, OSError):
-            continue
-        with iterator as entries:
-            for entry in entries:
-                try:
-                    is_dir = entry.is_dir(follow_symlinks=False)
-                except OSError:
+        for entry in _iter_directory(current):
+            is_dir = _entry_is_dir(entry)
+            if is_dir is None:
+                continue
+            if is_dir:
+                stack.append(entry.path)
+                if files_only:
                     continue
-                if is_dir:
-                    stack.append(entry.path)
-                    if files_only:
-                        continue
-                if _matches(entry.name, lowered_pattern):
-                    yield os.path.abspath(entry.path)
-                    yielded += 1
-                    if limit is not None and yielded >= limit:
-                        return
+            if _matches(entry.name, lowered_pattern):
+                yield os.path.abspath(entry.path)
+                yielded += 1
+                if limit is not None and yielded >= limit:
+                    return
 
 
 def _matches(name: str, lowered_pattern: str) -> bool:

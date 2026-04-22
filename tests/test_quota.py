@@ -25,7 +25,7 @@ def test_check_size_zero_disables_cap() -> None:
 
 def test_time_budget_passes_fast_block() -> None:
     with Quota(max_seconds=1.0).time_budget("fast"):
-        pass
+        _ = 1 + 1  # no-op — this test only asserts the context manager doesn't raise
 
 
 def test_time_budget_fails_slow_block() -> None:

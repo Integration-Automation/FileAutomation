@@ -25,6 +25,43 @@ class ShellException(FileAutomationException):
     """Raised when a shell command fails (non-zero exit, timeout, or bad argv)."""
 
 
+def _validate_argv(argv: Sequence[str], timeout: float) -> list[str]:
+    if isinstance(argv, str) or not isinstance(argv, Sequence):
+        raise ShellException("argv must be a list of strings, not a single string")
+    argv_list = list(argv)
+    if not argv_list or not all(isinstance(part, str) for part in argv_list):
+        raise ShellException("argv must be a non-empty list of strings")
+    if timeout <= 0:
+        raise ShellException("timeout must be positive")
+    return argv_list
+
+
+def _run_subprocess(
+    argv_list: list[str],
+    timeout: float,
+    cwd_path: str | None,
+    env_dict: dict[str, str] | None,
+    capture_output: bool,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            argv_list,
+            timeout=timeout,
+            cwd=cwd_path,
+            env=env_dict,
+            capture_output=capture_output,
+            text=True,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as err:
+        file_automation_logger.error("run_shell: timeout after %.1fs: %s", timeout, argv_list[0])
+        raise ShellException(f"timeout after {timeout:.1f}s: {argv_list[0]}") from err
+    except FileNotFoundError as err:
+        raise ShellException(f"executable not found: {argv_list[0]}") from err
+    except OSError as err:
+        raise ShellException(f"subprocess failed: {err!r}") from err
+
+
 def run_shell(
     argv: Sequence[str],
     *,
@@ -46,34 +83,10 @@ def run_shell(
     Raises :class:`ShellException` when ``check=True`` and the process
     returns a non-zero exit code or times out.
     """
-    if isinstance(argv, str) or not isinstance(argv, Sequence):
-        raise ShellException("argv must be a list of strings, not a single string")
-    argv_list = list(argv)
-    if not argv_list or not all(isinstance(part, str) for part in argv_list):
-        raise ShellException("argv must be a non-empty list of strings")
-    if timeout <= 0:
-        raise ShellException("timeout must be positive")
-
+    argv_list = _validate_argv(argv, timeout)
     cwd_path = str(Path(cwd)) if cwd else None
     env_dict = dict(env) if env is not None else None
-
-    try:
-        completed = subprocess.run(
-            argv_list,
-            timeout=timeout,
-            cwd=cwd_path,
-            env=env_dict,
-            capture_output=capture_output,
-            text=True,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as err:
-        file_automation_logger.error("run_shell: timeout after %.1fs: %s", timeout, argv_list[0])
-        raise ShellException(f"timeout after {timeout:.1f}s: {argv_list[0]}") from err
-    except FileNotFoundError as err:
-        raise ShellException(f"executable not found: {argv_list[0]}") from err
-    except OSError as err:
-        raise ShellException(f"subprocess failed: {err!r}") from err
+    completed = _run_subprocess(argv_list, timeout, cwd_path, env_dict, capture_output)
 
     result: dict[str, object] = {
         "returncode": completed.returncode,

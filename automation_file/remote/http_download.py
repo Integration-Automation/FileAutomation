@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 from pathlib import Path
+from typing import Any
 
 import requests
 from tqdm import tqdm
@@ -49,6 +50,81 @@ def _open_stream(
     return response
 
 
+def _resume_layout(target: Path, resume: bool) -> tuple[Path, int, str]:
+    part_path = target.with_suffix(target.suffix + ".part") if resume else target
+    start_byte = part_path.stat().st_size if resume and part_path.exists() else 0
+    write_mode = "ab" if start_byte > 0 else "wb"
+    return part_path, start_byte, write_mode
+
+
+def _open_stream_logged(file_url: str, timeout: int, start_byte: int) -> requests.Response | None:
+    try:
+        return _open_stream(file_url, timeout, start_byte=start_byte)
+    except RetryExhaustedException as error:
+        file_automation_logger.error("download_file retries exhausted: %r", error)
+    except requests.exceptions.HTTPError as error:
+        file_automation_logger.error("download_file HTTP error: %r", error)
+    except requests.exceptions.RequestException as error:
+        file_automation_logger.error("download_file request error: %r", error)
+    return None
+
+
+def _stream_to_disk(
+    response: requests.Response,
+    part_path: Path,
+    target: Path,
+    *,
+    write_mode: str,
+    chunk_size: int,
+    start_byte: int,
+    total_size: int,
+    max_bytes: int,
+    reporter: ProgressReporter | None,
+    token: Any,
+) -> int | None:
+    """Stream ``response`` into ``part_path``. Returns bytes written, or None on failure."""
+    written = start_byte
+    with (
+        open(part_path, write_mode) as output,
+        _progress(total_size, str(target)) as progress,
+    ):
+        if start_byte > 0:
+            progress.update(start_byte)
+        for chunk in response.iter_content(chunk_size=chunk_size):
+            if token is not None:
+                token.raise_if_cancelled()
+            if not chunk:
+                continue
+            written += len(chunk)
+            if written > max_bytes:
+                file_automation_logger.error(
+                    "download_file aborted: stream exceeded %d bytes", max_bytes
+                )
+                return None
+            output.write(chunk)
+            progress.update(len(chunk))
+            if reporter is not None:
+                reporter.update(len(chunk))
+    return written
+
+
+def _verify_and_finalize(
+    target: Path,
+    expected_sha256: str | None,
+    reporter: ProgressReporter | None,
+) -> bool:
+    if expected_sha256 and not verify_checksum(target, expected_sha256):
+        file_automation_logger.error("download_file checksum mismatch for %s; removing", target)
+        with contextlib.suppress(OSError):
+            target.unlink()
+        if reporter is not None:
+            reporter.finish(status="checksum_failed")
+        return False
+    if reporter is not None:
+        reporter.finish(status="done")
+    return True
+
+
 def download_file(
     file_url: str,
     file_name: str,
@@ -82,24 +158,13 @@ def download_file(
         return False
 
     target = Path(file_name)
-    part_path = target.with_suffix(target.suffix + ".part") if resume else target
-    start_byte = part_path.stat().st_size if resume and part_path.exists() else 0
-    write_mode = "ab" if start_byte > 0 else "wb"
+    part_path, start_byte, write_mode = _resume_layout(target, resume)
 
-    try:
-        response = _open_stream(file_url, timeout, start_byte=start_byte)
-    except RetryExhaustedException as error:
-        file_automation_logger.error("download_file retries exhausted: %r", error)
-        return False
-    except requests.exceptions.HTTPError as error:
-        file_automation_logger.error("download_file HTTP error: %r", error)
-        return False
-    except requests.exceptions.RequestException as error:
-        file_automation_logger.error("download_file request error: %r", error)
+    response = _open_stream_logged(file_url, timeout, start_byte)
+    if response is None:
         return False
 
-    remaining = int(response.headers.get("content-length", 0))
-    total_size = start_byte + remaining
+    total_size = start_byte + int(response.headers.get("content-length", 0))
     if total_size > max_bytes:
         file_automation_logger.error(
             "download_file rejected: content-length %d > %d", total_size, max_bytes
@@ -113,31 +178,19 @@ def download_file(
         if start_byte > 0:
             reporter.update(start_byte)
 
-    written = start_byte
     try:
-        with (
-            open(part_path, write_mode) as output,
-            _progress(total_size, str(target)) as progress,
-        ):
-            if start_byte > 0:
-                progress.update(start_byte)
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if token is not None:
-                    token.raise_if_cancelled()
-                if not chunk:
-                    continue
-                written += len(chunk)
-                if written > max_bytes:
-                    file_automation_logger.error(
-                        "download_file aborted: stream exceeded %d bytes", max_bytes
-                    )
-                    if reporter is not None:
-                        reporter.finish(status="aborted")
-                    return False
-                output.write(chunk)
-                progress.update(len(chunk))
-                if reporter is not None:
-                    reporter.update(len(chunk))
+        written = _stream_to_disk(
+            response,
+            part_path,
+            target,
+            write_mode=write_mode,
+            chunk_size=chunk_size,
+            start_byte=start_byte,
+            total_size=total_size,
+            max_bytes=max_bytes,
+            reporter=reporter,
+            token=token,
+        )
     except CancelledException:
         file_automation_logger.warning("download_file cancelled: %s", progress_name)
         if reporter is not None:
@@ -149,19 +202,17 @@ def download_file(
             reporter.finish(status="error")
         return False
 
+    if written is None:
+        if reporter is not None:
+            reporter.finish(status="aborted")
+        return False
+
     if resume and part_path != target:
         os.replace(part_path, target)
 
-    if expected_sha256 and not verify_checksum(target, expected_sha256):
-        file_automation_logger.error("download_file checksum mismatch for %s; removing", target)
-        with contextlib.suppress(OSError):
-            target.unlink()
-        if reporter is not None:
-            reporter.finish(status="checksum_failed")
+    if not _verify_and_finalize(target, expected_sha256, reporter):
         return False
 
-    if reporter is not None:
-        reporter.finish(status="done")
     file_automation_logger.info("download_file: %s -> %s (%d bytes)", file_url, target, written)
     return True
 

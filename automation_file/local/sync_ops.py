@@ -72,7 +72,7 @@ def sync_dir(
         _process_source_entry(source, destination, rel, compare, dry_run, summary)
 
     if delete:
-        _delete_extras(source, destination, src_entries, dry_run, summary)
+        _delete_extras(destination, src_entries, dry_run, summary)
 
     file_automation_logger.info(
         "sync_dir %s -> %s: copied=%d skipped=%d deleted=%d errors=%d (dry_run=%s)",
@@ -149,7 +149,6 @@ def _copy_one(src: Path, dst: Path) -> None:
 
 
 def _delete_extras(
-    source: Path,
     destination: Path,
     src_entries: list[Path],
     dry_run: bool,
