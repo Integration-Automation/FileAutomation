@@ -1,0 +1,7 @@
+---
+exclude_paths:
+  - 'docs/**'
+  - 'docs/requirements.txt'
+  - '**/source.zh-TW/conf.py'
+  - '**/source/conf.py'
+  - 'examples/**'

@@ -88,13 +88,13 @@ def extract_archive(
 def _is_tar_stream(path: Path, compression: str) -> bool:
     try:
         if compression == "gz":
-            with tarfile.open(path, mode="r:gz"):  # nosec B202  # NOSONAR read-only probe, no extraction
+            with tarfile.open(path, mode="r:gz"):  # nosec  # NOSONAR read-only probe
                 return True
         if compression == "bz2":
-            with tarfile.open(path, mode="r:bz2"):  # nosec B202  # NOSONAR read-only probe, no extraction
+            with tarfile.open(path, mode="r:bz2"):  # nosec  # NOSONAR read-only probe
                 return True
         if compression == "xz":
-            with tarfile.open(path, mode="r:xz"):  # nosec B202  # NOSONAR read-only probe, no extraction
+            with tarfile.open(path, mode="r:xz"):  # nosec  # NOSONAR read-only probe
                 return True
     except (tarfile.TarError, OSError):
         return False

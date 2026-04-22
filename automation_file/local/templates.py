@@ -102,12 +102,10 @@ def _render_with_jinja(
     if autoescape:
         env = Environment(autoescape=True, undefined=StrictUndefined)
     else:
-        env = Environment(  # nosec B701  # NOSONAR caller opted out for non-HTML output
-            autoescape=False, undefined=StrictUndefined
-        )
+        env = Environment(autoescape=False, undefined=StrictUndefined)  # nosec B701 NOSONAR
     try:
-        # NOSONAR autoescape state enforced at the Environment above
-        return env.from_string(template).render(**context)
+        # NOSONAR autoescape enforced at Environment above
+        return env.from_string(template).render(**context)  # NOSONAR
     except JinjaTemplateError as error:
         raise TemplateException(f"jinja render failed: {error}") from error
 
