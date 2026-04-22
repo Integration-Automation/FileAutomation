@@ -38,6 +38,7 @@ from automation_file.core.crypto import (
     key_from_password,
 )
 from automation_file.core.dag_executor import execute_action_dag
+from automation_file.core.file_lock import FileLock
 from automation_file.core.fim import IntegrityMonitor
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
@@ -218,6 +219,7 @@ __all__ = [
     "ActionRegistry",
     "CallbackExecutor",
     "CircuitBreaker",
+    "FileLock",
     "PackageLoader",
     "Quota",
     "RateLimiter",
