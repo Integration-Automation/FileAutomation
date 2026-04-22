@@ -51,10 +51,19 @@ class _DagRun:
         self.pool = pool
         self.fail_fast = fail_fast
 
+    def _mark_skipped(self, dependent: str, reason_id: str) -> None:
+        with self.lock:
+            if dependent in self.results:
+                return
+            self.results[dependent] = f"skipped: dep {reason_id!r} failed"
+        for grandchild in self.graph.get(dependent, ()):
+            self.indegree[grandchild] -= 1
+            self._mark_skipped(grandchild, dependent)
+
     def _skip_dependents(self, node_id: str) -> None:
         for dependent in self.graph.get(node_id, ()):
             self.indegree[dependent] -= 1
-            _mark_skipped(dependent, node_id, self.graph, self.indegree, self.results, self.lock)
+            self._mark_skipped(dependent, node_id)
 
     def submit(self, node_id: str) -> None:
         action = self.node_map[node_id].get("action")
@@ -74,9 +83,7 @@ class _DagRun:
         for dependent in self.graph.get(node_id, ()):
             self.indegree[dependent] -= 1
             if failed and self.fail_fast:
-                _mark_skipped(
-                    dependent, node_id, self.graph, self.indegree, self.results, self.lock
-                )
+                self._mark_skipped(dependent, node_id)
             elif self.indegree[dependent] == 0 and dependent not in self.results:
                 self.ready.append(dependent)
 
@@ -179,20 +186,3 @@ def _detect_cycle(
                 queue.append(dependent)
     if visited != len(ids):
         raise DagException("cycle detected in DAG")
-
-
-def _mark_skipped(
-    dependent: str,
-    reason_id: str,
-    graph: dict[str, list[str]],
-    indegree: dict[str, int],
-    results: dict[str, Any],
-    lock: threading.Lock,
-) -> None:
-    with lock:
-        if dependent in results:
-            return
-        results[dependent] = f"skipped: dep {reason_id!r} failed"
-    for grandchild in graph.get(dependent, ()):
-        indegree[grandchild] -= 1
-        _mark_skipped(grandchild, dependent, graph, indegree, results, lock)

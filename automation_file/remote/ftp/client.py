@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from ftplib import FTP, FTP_TLS  # nosec B321 - plaintext FTP is opt-in via tls=False
+from ftplib import FTP, FTP_TLS  # nosec B321,B402 - plaintext FTP is opt-in via tls=False
 from typing import Any
 
 from automation_file.exceptions import FileAutomationException

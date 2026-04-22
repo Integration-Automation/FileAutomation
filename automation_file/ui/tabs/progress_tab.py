@@ -102,15 +102,15 @@ class ProgressTab(BaseTab):
             self._set_cell(row, 4, _format_bytes(total) if total else "unknown")
 
     def _progress_widget(self, data: dict[str, Any]) -> QProgressBar:
-        bar = QProgressBar()
+        progress_bar = QProgressBar()
         total = data["total"]
         transferred = data["transferred"]
         if total and total > 0:
-            bar.setRange(0, int(total))
-            bar.setValue(min(int(transferred), int(total)))
+            progress_bar.setRange(0, int(total))
+            progress_bar.setValue(min(int(transferred), int(total)))
         else:
-            bar.setRange(0, 0)  # busy indicator
-        return bar
+            progress_bar.setRange(0, 0)  # busy indicator
+        return progress_bar
 
     def _set_cell(self, row: int, col: int, text: str) -> None:
         self._table.setItem(row, col, QTableWidgetItem(text))

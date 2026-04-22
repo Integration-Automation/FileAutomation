@@ -236,9 +236,7 @@ from automation_file.utils.grep import GrepException, grep_files, iter_grep
 from automation_file.utils.rotate import RotateException, rotate_backups
 
 if TYPE_CHECKING:
-    from automation_file.ui.launcher import (
-        launch_ui as launch_ui,  # pylint: disable=useless-import-alias
-    )
+    from automation_file.ui.launcher import launch_ui
 
 # Shared callback executor + package loader wired to the shared registry.
 callback_executor: CallbackExecutor = CallbackExecutor(executor.registry)

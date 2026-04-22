@@ -69,7 +69,7 @@ def sync_dir(
 
     src_entries = _walk_relative(source)
     for rel in src_entries:
-        _process_source_entry(source, destination, rel, compare, dry_run, summary)
+        _process_source_entry(source, destination, rel, compare, dry_run=dry_run, summary=summary)
 
     if delete:
         _delete_extras(destination, src_entries, dry_run, summary)
@@ -103,6 +103,7 @@ def _process_source_entry(
     destination: Path,
     rel: Path,
     compare: str,
+    *,
     dry_run: bool,
     summary: dict[str, Any],
 ) -> None:

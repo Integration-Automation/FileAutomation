@@ -145,6 +145,7 @@ class EmailSink(NotificationSink):
     held as an instance attribute and used once per ``send``.
     """
 
+    # pylint: disable-next=too-many-arguments
     def __init__(
         self,
         *,

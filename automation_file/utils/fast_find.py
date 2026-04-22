@@ -21,7 +21,7 @@ import fnmatch
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 — invoked only with fixed-name OS indexers (mdfind/locate) via argv
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
@@ -167,7 +167,7 @@ def _run_indexer(
 
 
 def _capture(argv: list[str]) -> list[str]:
-    completed = subprocess.run(
+    completed = subprocess.run(  # nosec B603 nosemgrep — argv[0] is a fixed-name indexer; shell=False
         argv,
         capture_output=True,
         timeout=_INDEX_TIMEOUT_SECONDS,

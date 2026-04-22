@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from automation_file.core.progress import (
@@ -29,15 +30,19 @@ def s3_upload_file(
     if not path.is_file():
         raise FileNotExistsException(str(path))
     client = s3_instance.require_client()
-    callback = None
+    callback: Callable[[int], None] | None = None
     reporter = None
     token = None
     if progress_name:
         reporter, token = progress_registry.create(progress_name, total=path.stat().st_size)
+        _reporter = reporter
+        _token = token
 
-        def callback(bytes_transferred: int) -> None:
-            token.raise_if_cancelled()
-            reporter.update(bytes_transferred)
+        def _progress_callback(bytes_transferred: int) -> None:
+            _token.raise_if_cancelled()
+            _reporter.update(bytes_transferred)
+
+        callback = _progress_callback
 
     try:
         client.upload_file(str(path), bucket, key, Callback=callback)

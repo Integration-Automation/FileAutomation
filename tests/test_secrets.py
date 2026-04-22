@@ -62,9 +62,9 @@ def test_resolve_secret_refs_walks_nested_containers(
         {
             "notify": {
                 "sinks": [
-                    {  # NOSONAR test fixture — values are env-ref placeholders, not real creds
+                    {
                         "username": "${env:U}",
-                        "password": "${env:P}",
+                        "password": "${env:P}",  # NOSONAR test fixture — env-ref placeholder, not a real credential
                         "port": 587,
                     },
                 ]

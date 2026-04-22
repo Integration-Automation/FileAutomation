@@ -87,8 +87,6 @@ def extract_tar(source: str, target_dir: str) -> list[str]:
                 else:
                     archive.extract(member, str(dest))
                 extracted.append(member.name)
-    except PathTraversalException:
-        raise
     except (OSError, tarfile.TarError) as err:
         raise TarException(f"extract_tar failed: {err}") from err
 

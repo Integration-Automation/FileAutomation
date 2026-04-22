@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404 — used only via _run_subprocess with argv list + shell=False
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -44,7 +44,7 @@ def _run_subprocess(
     capture_output: bool,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 nosemgrep — argv_list validated; shell=False by default
             argv_list,
             timeout=timeout,
             cwd=cwd_path,

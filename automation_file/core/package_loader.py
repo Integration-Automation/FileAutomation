@@ -32,10 +32,10 @@ class PackageLoader:
             file_automation_logger.error("PackageLoader: cannot find %s", package)
             return None
         try:
-            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
             # `package` is a trusted caller-supplied name (see PackageLoader docstring and
             # the CLAUDE.md security note on plugin loading); it is not untrusted input.
-            module = import_module(spec.name)
+            name = spec.name
+            module = import_module(name)  # nosemgrep
         except ImportError as error:
             file_automation_logger.error("PackageLoader import error: %r", error)
             return None

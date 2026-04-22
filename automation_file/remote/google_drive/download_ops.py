@@ -48,7 +48,7 @@ def drive_download_file_from_folder(folder_name: str) -> dict[str, str] | None:
     try:
         folders = (
             service.files()
-            .list(q=(f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}'"))
+            .list(q=f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}'")
             .execute()
         )
         folder_list = folders.get("files", [])

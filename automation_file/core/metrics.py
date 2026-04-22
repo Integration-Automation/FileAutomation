@@ -56,7 +56,7 @@ def record_action(action: str, duration_seconds: float, ok: bool) -> None:
     try:
         ACTION_COUNT.labels(action=action, status=status).inc()
         ACTION_DURATION.labels(action=action).observe(max(0.0, float(duration_seconds)))
-    except Exception as err:  # pragma: no cover - defensive
+    except Exception as err:  # pylint: disable=broad-except  # pragma: no cover - defensive
         file_automation_logger.error("metrics.record_action failed: %r", err)
 
 

@@ -125,6 +125,71 @@ def _verify_and_finalize(
     return True
 
 
+def _reject_oversize(total_size: int, max_bytes: int) -> bool:
+    if total_size > max_bytes:
+        file_automation_logger.error(
+            "download_file rejected: content-length %d > %d", total_size, max_bytes
+        )
+        return True
+    return False
+
+
+def _make_reporter(
+    progress_name: str | None,
+    total_size: int,
+    start_byte: int,
+) -> tuple[ProgressReporter | None, Any]:
+    if not progress_name:
+        return None, None
+    reporter, token = progress_registry.create(progress_name, total=total_size or None)
+    if start_byte > 0:
+        reporter.update(start_byte)
+    return reporter, token
+
+
+def _run_stream(
+    response: requests.Response,
+    part_path: Path,
+    target: Path,
+    *,
+    write_mode: str,
+    chunk_size: int,
+    start_byte: int,
+    total_size: int,
+    max_bytes: int,
+    reporter: ProgressReporter | None,
+    token: Any,
+    progress_name: str | None,
+) -> int | None:
+    try:
+        written = _stream_to_disk(
+            response,
+            part_path,
+            target,
+            write_mode=write_mode,
+            chunk_size=chunk_size,
+            start_byte=start_byte,
+            total_size=total_size,
+            max_bytes=max_bytes,
+            reporter=reporter,
+            token=token,
+        )
+    except CancelledException:
+        file_automation_logger.warning("download_file cancelled: %s", progress_name)
+        if reporter is not None:
+            reporter.finish(status="cancelled")
+        return None
+    except OSError as error:
+        file_automation_logger.error("download_file write error: %r", error)
+        if reporter is not None:
+            reporter.finish(status="error")
+        return None
+    if written is None and reporter is not None:
+        reporter.finish(status="aborted")
+    return written
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-return-statements
 def download_file(
     file_url: str,
     file_name: str,
@@ -165,46 +230,25 @@ def download_file(
         return False
 
     total_size = start_byte + int(response.headers.get("content-length", 0))
-    if total_size > max_bytes:
-        file_automation_logger.error(
-            "download_file rejected: content-length %d > %d", total_size, max_bytes
-        )
+    if _reject_oversize(total_size, max_bytes):
         return False
 
-    reporter: ProgressReporter | None = None
-    token = None
-    if progress_name:
-        reporter, token = progress_registry.create(progress_name, total=total_size or None)
-        if start_byte > 0:
-            reporter.update(start_byte)
+    reporter, token = _make_reporter(progress_name, total_size, start_byte)
 
-    try:
-        written = _stream_to_disk(
-            response,
-            part_path,
-            target,
-            write_mode=write_mode,
-            chunk_size=chunk_size,
-            start_byte=start_byte,
-            total_size=total_size,
-            max_bytes=max_bytes,
-            reporter=reporter,
-            token=token,
-        )
-    except CancelledException:
-        file_automation_logger.warning("download_file cancelled: %s", progress_name)
-        if reporter is not None:
-            reporter.finish(status="cancelled")
-        return False
-    except OSError as error:
-        file_automation_logger.error("download_file write error: %r", error)
-        if reporter is not None:
-            reporter.finish(status="error")
-        return False
-
+    written = _run_stream(
+        response,
+        part_path,
+        target,
+        write_mode=write_mode,
+        chunk_size=chunk_size,
+        start_byte=start_byte,
+        total_size=total_size,
+        max_bytes=max_bytes,
+        reporter=reporter,
+        token=token,
+        progress_name=progress_name,
+    )
     if written is None:
-        if reporter is not None:
-            reporter.finish(status="aborted")
         return False
 
     if resume and part_path != target:
