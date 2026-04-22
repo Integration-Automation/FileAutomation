@@ -69,6 +69,7 @@ from automation_file.core.secrets import (
     default_provider,
     resolve_secret_refs,
 )
+from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
 from automation_file.local.conditional import if_exists, if_newer, if_size_gt
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
@@ -223,6 +224,7 @@ __all__ = [
     "PackageLoader",
     "Quota",
     "RateLimiter",
+    "SQLiteLock",
     "build_default_registry",
     "execute_action",
     "execute_action_parallel",
