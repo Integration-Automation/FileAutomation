@@ -19,10 +19,11 @@ exception string.
 
 from __future__ import annotations
 
+import argparse
 import inspect
 import json
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, TextIO
 
 from automation_file.core.action_executor import executor
@@ -232,3 +233,61 @@ def tools_from_registry(registry: ActionRegistry) -> Iterable[dict[str, Any]]:
     """
     server = MCPServer(registry)
     yield from server._handle_tools_list()["tools"]
+
+
+def _filtered_registry(source: ActionRegistry, allowed: Sequence[str]) -> ActionRegistry:
+    filtered = ActionRegistry()
+    missing: list[str] = []
+    for name in allowed:
+        command = source.resolve(name)
+        if command is None:
+            missing.append(name)
+            continue
+        filtered.register(name, command)
+    if missing:
+        raise MCPServerException("unknown action(s) in allow list: " + ", ".join(sorted(missing)))
+    return filtered
+
+
+def _build_cli_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="automation_file_mcp",
+        description="Expose the automation_file action registry as an MCP server over stdio.",
+    )
+    parser.add_argument(
+        "--name", default="automation_file", help="serverInfo.name reported at handshake"
+    )
+    parser.add_argument(
+        "--version", default="1.0.0", help="serverInfo.version reported at handshake"
+    )
+    parser.add_argument(
+        "--allowed-actions",
+        default=None,
+        help=(
+            "comma-separated allow list of action names (e.g. "
+            "'FA_list_dir,FA_file_checksum'); defaults to every registered action"
+        ),
+    )
+    return parser
+
+
+def _cli(argv: Sequence[str] | None = None) -> int:
+    """Console-script entry point for the MCP stdio server."""
+    args = _build_cli_parser().parse_args(argv)
+    registry = executor.registry
+    if args.allowed_actions:
+        names = [name.strip() for name in args.allowed_actions.split(",") if name.strip()]
+        registry = _filtered_registry(registry, names)
+    server = MCPServer(registry, name=args.name, version=args.version)
+    file_automation_logger.info(
+        "mcp_server: serving %d tools over stdio (name=%s version=%s)",
+        len(registry.event_dict),
+        args.name,
+        args.version,
+    )
+    server.serve_stdio()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_cli())

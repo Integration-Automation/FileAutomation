@@ -104,6 +104,15 @@ def _cmd_ui(_args: argparse.Namespace) -> int:
     return launch_ui()
 
 
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    from automation_file.server.mcp_server import _cli as mcp_cli
+
+    forwarded: list[str] = ["--name", args.name, "--version", args.version]
+    if args.allowed_actions:
+        forwarded.extend(["--allowed-actions", args.allowed_actions])
+    return mcp_cli(forwarded)
+
+
 def _cmd_drive_upload(args: argparse.Namespace) -> int:
     from automation_file.remote.google_drive.client import driver_instance
     from automation_file.remote.google_drive.upload_ops import (
@@ -176,6 +185,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
     ui_parser = subparsers.add_parser("ui", help="launch the PySide6 GUI")
     ui_parser.set_defaults(handler=_cmd_ui)
+
+    mcp_parser = subparsers.add_parser(
+        "mcp", help="serve the action registry as an MCP server over stdio"
+    )
+    mcp_parser.add_argument("--name", default="automation_file")
+    mcp_parser.add_argument("--version", default="1.0.0")
+    mcp_parser.add_argument(
+        "--allowed-actions",
+        default=None,
+        help="comma-separated allow list (default: expose every registered action)",
+    )
+    mcp_parser.set_defaults(handler=_cmd_mcp)
 
     drive_parser = subparsers.add_parser("drive-upload", help="upload a file to Google Drive")
     drive_parser.add_argument("file")

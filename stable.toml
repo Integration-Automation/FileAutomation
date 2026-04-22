@@ -49,6 +49,9 @@ dev = [
     "twine>=5.1.0"
 ]
 
+[project.scripts]
+automation_file_mcp = "automation_file.server.mcp_server:_cli"
+
 [project.urls]
 "Homepage" = "https://github.com/JE-Chen/Integration-testing-environment"
 

@@ -5,8 +5,16 @@ from __future__ import annotations
 import io
 import json
 
+import pytest
+
 from automation_file.core.action_registry import ActionRegistry
-from automation_file.server.mcp_server import MCPServer, tools_from_registry
+from automation_file.exceptions import MCPServerException
+from automation_file.server.mcp_server import (
+    MCPServer,
+    _cli,
+    _filtered_registry,
+    tools_from_registry,
+)
 
 
 def _make_registry() -> ActionRegistry:
@@ -151,3 +159,37 @@ def test_serve_stdio_handles_malformed_json() -> None:
     server.serve_stdio(stdin=stdin, stdout=stdout)
     reply = json.loads(stdout.getvalue().strip())
     assert reply["error"]["code"] == -32700
+
+
+def test_filtered_registry_keeps_only_allowed_actions() -> None:
+    filtered = _filtered_registry(_make_registry(), ["add"])
+    assert set(filtered.event_dict.keys()) == {"add"}
+
+
+def test_filtered_registry_raises_on_unknown_name() -> None:
+    with pytest.raises(MCPServerException, match="unknown action"):
+        _filtered_registry(_make_registry(), ["add", "does_not_exist"])
+
+
+def test_cli_serves_whitelisted_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeServer:
+        def __init__(self, registry: ActionRegistry, *, name: str, version: str) -> None:
+            captured["tools"] = set(registry.event_dict.keys())
+            captured["name"] = name
+            captured["version"] = version
+
+        def serve_stdio(self) -> None:
+            captured["served"] = True
+
+    stub_registry = _make_registry()
+    monkeypatch.setattr("automation_file.server.mcp_server.executor.registry", stub_registry)
+    monkeypatch.setattr("automation_file.server.mcp_server.MCPServer", _FakeServer)
+
+    rc = _cli(["--allowed-actions", "echo", "--name", "t", "--version", "2.0.0"])
+    assert rc == 0
+    assert captured["tools"] == {"echo"}
+    assert captured["name"] == "t"
+    assert captured["version"] == "2.0.0"
+    assert captured["served"] is True
