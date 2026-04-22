@@ -1,6 +1,8 @@
 automation_file
 ===============
 
+Languages: **English** | `繁體中文 <../html-zh-TW/index.html>`_ | `简体中文 <../html-zh-CN/index.html>`_
+
 Automation-first Python library for local file / directory / zip operations,
 HTTP downloads, and remote storage (Google Drive, S3, Azure Blob, Dropbox,
 SFTP). Ships with a PySide6 GUI that surfaces every feature through tabs.

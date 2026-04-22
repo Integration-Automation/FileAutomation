@@ -138,6 +138,36 @@ Supports plain FTP and explicit FTPS (via ``FTP_TLS`` + ``auth()``).
 .. automodule:: automation_file.remote.ftp.list_ops
    :members:
 
+WebDAV
+------
+
+HTTP-based remote storage client. Uses PROPFIND for directory listings and
+rejects private/loopback targets unless ``allow_private_hosts=True``.
+
+.. automodule:: automation_file.remote.webdav.client
+   :members:
+
+SMB / CIFS
+----------
+
+Built on the high-level :mod:`smbclient` API from ``smbprotocol``. Uses UNC
+paths (``\\\\server\\share\\path``) under the hood and defaults to
+encrypted sessions.
+
+.. automodule:: automation_file.remote.smb.client
+   :members:
+
+fsspec bridge
+-------------
+
+Thin wrapper over `fsspec <https://filesystem-spec.readthedocs.io/>`_ so any
+filesystem it knows about (memory, local, s3, gcs, abfs, …) can be driven
+through the action registry. No SSRF guard — treat as a developer helper,
+not a remote-ingestion surface.
+
+.. automodule:: automation_file.remote.fsspec_bridge
+   :members:
+
 Cross-backend
 -------------
 

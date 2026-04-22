@@ -1,34 +1,52 @@
 """HTTP action server (stdlib only).
 
-Listens for ``POST /actions`` requests whose body is a JSON action list; the
-response body is a JSON object mirroring :func:`execute_action`'s return
-value. Bound to loopback by default with the same opt-in semantics as
-:mod:`tcp_server`. When ``shared_secret`` is supplied clients must send
-``Authorization: Bearer <secret>`` — useful when placing the server behind a
-reverse proxy.
+Accepts ``POST /actions`` whose body is a JSON action list; the response is
+a JSON object mirroring :func:`execute_action`'s return value. Additional
+observability endpoints:
+
+* ``GET /healthz``      — liveness (always 200 while the process is alive)
+* ``GET /readyz``       — readiness (registry resolves + ACL intact)
+* ``GET /openapi.json`` — OpenAPI 3.0 description of the above
+* ``GET /progress``     — WebSocket stream of progress registry snapshots
+
+Bound to loopback by default with the same opt-in semantics as
+:mod:`tcp_server`. When ``shared_secret`` is supplied ``POST /actions`` and
+``/progress`` require ``Authorization: Bearer <secret>`` — useful when
+placing the server behind a reverse proxy.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hmac
 import json
 import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from automation_file.core.action_executor import execute_action
+from automation_file.core.action_executor import execute_action, executor
+from automation_file.core.progress import progress_registry
 from automation_file.exceptions import TCPAuthException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server._websocket import (
+    compute_accept_key,
+    send_close,
+    send_text,
+)
 from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.network_guards import ensure_loopback
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 9944
 _MAX_CONTENT_BYTES = 1 * 1024 * 1024
+_PROGRESS_POLL_SECONDS = 1.0
+_PROGRESS_MAX_FRAMES = 10_000
+_BEARER_PREFIX = "Bearer "
 
 
 class _HTTPActionHandler(BaseHTTPRequestHandler):
-    """POST /actions -> JSON results."""
+    """Routes: POST /actions, GET /{healthz,readyz,openapi.json,progress}."""
 
     def log_message(  # pylint: disable=arguments-differ
         self, format_str: str, *args: object
@@ -65,13 +83,30 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
             return
         self._send_json(HTTPStatus.OK, results)
 
+    def do_GET(self) -> None:  # pylint: disable=invalid-name — BaseHTTPRequestHandler API
+        if self.path == "/healthz":
+            self._send_json(HTTPStatus.OK, {"status": "ok"})
+            return
+        if self.path == "/readyz":
+            ready, reason = _readiness()
+            status = HTTPStatus.OK if ready else HTTPStatus.SERVICE_UNAVAILABLE
+            self._send_json(status, {"status": "ready" if ready else "not_ready", "reason": reason})
+            return
+        if self.path == "/openapi.json":
+            self._send_json(HTTPStatus.OK, _openapi_spec())
+            return
+        if self.path == "/progress":
+            self._handle_progress_ws()
+            return
+        self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
     def _read_payload(self) -> list:
         secret: str | None = getattr(self.server, "shared_secret", None)
         if secret:
             header = self.headers.get("Authorization", "")
-            if not header.startswith("Bearer "):
+            if not header.startswith(_BEARER_PREFIX):
                 raise TCPAuthException("missing bearer token")
-            if not hmac.compare_digest(header[len("Bearer ") :], secret):
+            if not hmac.compare_digest(header[len(_BEARER_PREFIX) :], secret):
                 raise TCPAuthException("bad shared secret")
 
         try:
@@ -96,6 +131,120 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def _handle_progress_ws(self) -> None:
+        upgrade = self.headers.get("Upgrade", "").lower()
+        connection = self.headers.get("Connection", "").lower()
+        ws_key = self.headers.get("Sec-WebSocket-Key")
+        if upgrade != "websocket" or "upgrade" not in connection or not ws_key:
+            self._send_json(HTTPStatus.UPGRADE_REQUIRED, {"error": "websocket upgrade required"})
+            return
+
+        secret: str | None = getattr(self.server, "shared_secret", None)
+        if secret:
+            header = self.headers.get("Authorization", "")
+            token_ok = header.startswith(_BEARER_PREFIX) and hmac.compare_digest(
+                header[len(_BEARER_PREFIX) :], secret
+            )
+            if not token_ok:
+                self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "bad shared secret"})
+                return
+
+        accept = compute_accept_key(ws_key)
+        self.send_response(HTTPStatus.SWITCHING_PROTOCOLS)
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", accept)
+        self.end_headers()
+        self._stream_progress_frames()
+
+    def _stream_progress_frames(self) -> None:
+        frames_sent = 0
+        try:
+            while frames_sent < _PROGRESS_MAX_FRAMES:
+                snapshot = progress_registry.list()
+                send_text(self.wfile, json.dumps({"progress": snapshot}, default=repr))
+                frames_sent += 1
+                time.sleep(_PROGRESS_POLL_SECONDS)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception as error:  # pylint: disable=broad-except
+            file_automation_logger.warning("http_server progress: %r", error)
+        finally:
+            with contextlib.suppress(OSError):
+                send_close(self.wfile)
+
+
+def _readiness() -> tuple[bool, str]:
+    try:
+        if not executor.registry.event_dict:
+            return False, "registry empty"
+    except Exception as error:  # pylint: disable=broad-except
+        return False, f"registry error: {error!r}"
+    return True, "ok"
+
+
+def _openapi_spec() -> dict[str, object]:
+    return {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "automation_file HTTP action server",
+            "version": "1.0.0",
+            "description": (
+                "Executes JSON action lists and exposes health / readiness / progress endpoints."
+            ),
+        },
+        "paths": {
+            "/actions": {
+                "post": {
+                    "summary": "Execute a JSON action list.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"type": "array"},
+                                }
+                            }
+                        },
+                    },
+                    "responses": {
+                        "200": {"description": "Action results as a JSON object."},
+                        "400": {"description": "Malformed JSON body."},
+                        "401": {"description": "Missing or invalid shared-secret token."},
+                        "403": {"description": "Action denied by ACL."},
+                        "500": {"description": "Server error while dispatching."},
+                    },
+                }
+            },
+            "/healthz": {
+                "get": {
+                    "summary": "Liveness probe.",
+                    "responses": {"200": {"description": "Server process alive."}},
+                }
+            },
+            "/readyz": {
+                "get": {
+                    "summary": "Readiness probe.",
+                    "responses": {
+                        "200": {"description": "Registry populated and accepting actions."},
+                        "503": {"description": "Not ready."},
+                    },
+                }
+            },
+            "/progress": {
+                "get": {
+                    "summary": "WebSocket stream of progress registry snapshots.",
+                    "responses": {
+                        "101": {"description": "Switching protocols to WebSocket."},
+                        "401": {"description": "Missing or invalid shared-secret token."},
+                        "426": {"description": "WebSocket upgrade required."},
+                    },
+                }
+            },
+        },
+    }
 
 
 class HTTPActionServer(ThreadingHTTPServer):

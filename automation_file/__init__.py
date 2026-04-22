@@ -19,6 +19,7 @@ from automation_file.core.action_executor import (
     executor,
     validate_action,
 )
+from automation_file.core.action_queue import ActionQueue, QueueItem
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.audit import AuditException, AuditLog
 from automation_file.core.callback_executor import CallbackExecutor
@@ -27,8 +28,10 @@ from automation_file.core.checksum import (
     file_checksum,
     verify_checksum,
 )
+from automation_file.core.circuit_breaker import CircuitBreaker
 from automation_file.core.config import AutomationConfig, ConfigException
 from automation_file.core.config_watcher import ConfigWatcher
+from automation_file.core.content_store import ContentStore
 from automation_file.core.crypto import (
     CryptoException,
     decrypt_file,
@@ -37,6 +40,7 @@ from automation_file.core.crypto import (
     key_from_password,
 )
 from automation_file.core.dag_executor import execute_action_dag
+from automation_file.core.file_lock import FileLock
 from automation_file.core.fim import IntegrityMonitor
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
@@ -55,6 +59,7 @@ from automation_file.core.progress import (
     register_progress_ops,
 )
 from automation_file.core.quota import Quota
+from automation_file.core.rate_limit import RateLimiter
 from automation_file.core.retry import retry_on_transient
 from automation_file.core.secrets import (
     ChainedSecretProvider,
@@ -66,8 +71,22 @@ from automation_file.core.secrets import (
     default_provider,
     resolve_secret_refs,
 )
+from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.local.archive_ops import (
+    detect_archive_format,
+    extract_archive,
+    list_archive,
+    supported_formats,
+)
 from automation_file.local.conditional import if_exists, if_newer, if_size_gt
+from automation_file.local.diff_ops import (
+    DirDiff,
+    apply_dir_diff,
+    diff_dirs,
+    diff_text_files,
+    iter_dir_diff,
+)
 from automation_file.local.dir_ops import copy_dir, create_dir, remove_dir_tree, rename_dir
 from automation_file.local.file_ops import (
     copy_all_file_to_dir,
@@ -83,10 +102,20 @@ from automation_file.local.json_edit import (
     json_get,
     json_set,
 )
+from automation_file.local.mime import detect_from_bytes, detect_mime
 from automation_file.local.safe_paths import is_within, safe_join
 from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.tar_ops import TarException, create_tar, extract_tar
+from automation_file.local.templates import render_file, render_string
+from automation_file.local.trash import (
+    TrashEntry,
+    empty_trash,
+    list_trash,
+    restore_from_trash,
+    send_to_trash,
+)
+from automation_file.local.versioning import FileVersioner, VersionEntry
 from automation_file.local.zip_ops import (
     read_zip_file,
     set_zip_password,
@@ -124,6 +153,16 @@ from automation_file.remote.dropbox_api import (
     dropbox_instance,
     register_dropbox_ops,
 )
+from automation_file.remote.fsspec_bridge import (
+    FsspecEntry,
+    fsspec_delete,
+    fsspec_download,
+    fsspec_exists,
+    fsspec_list_dir,
+    fsspec_mkdir,
+    fsspec_upload,
+    get_fs,
+)
 from automation_file.remote.ftp import (
     FTPClient,
     FTPConnectOptions,
@@ -157,7 +196,9 @@ from automation_file.remote.google_drive.upload_ops import (
 from automation_file.remote.http_download import download_file
 from automation_file.remote.s3 import S3Client, register_s3_ops, s3_instance
 from automation_file.remote.sftp import SFTPClient, register_sftp_ops, sftp_instance
+from automation_file.remote.smb import SMBClient, SMBEntry
 from automation_file.remote.url_validator import validate_http_url
+from automation_file.remote.webdav import WebDAVClient, WebDAVEntry
 from automation_file.scheduler import (
     CronExpression,
     ScheduledJob,
@@ -171,11 +212,13 @@ from automation_file.scheduler import (
 )
 from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.http_server import HTTPActionServer, start_http_action_server
+from automation_file.server.mcp_server import MCPServer, tools_from_registry
 from automation_file.server.metrics_server import MetricsServer, start_metrics_server
 from automation_file.server.tcp_server import (
     TCPActionServer,
     start_autocontrol_socket_server,
 )
+from automation_file.server.web_ui import WebUIServer, start_web_ui
 from automation_file.trigger import (
     FileWatcher,
     TriggerManager,
@@ -213,10 +256,17 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     # Core
     "ActionExecutor",
+    "ActionQueue",
     "ActionRegistry",
     "CallbackExecutor",
+    "CircuitBreaker",
+    "ContentStore",
+    "FileLock",
     "PackageLoader",
     "Quota",
+    "QueueItem",
+    "RateLimiter",
+    "SQLiteLock",
     "build_default_registry",
     "execute_action",
     "execute_action_parallel",
@@ -239,10 +289,30 @@ __all__ = [
     "copy_all_file_to_dir",
     "copy_specify_extension_file",
     "create_file",
+    "DirDiff",
+    "FileVersioner",
+    "TrashEntry",
+    "VersionEntry",
+    "apply_dir_diff",
     "copy_dir",
     "create_dir",
+    "detect_archive_format",
+    "detect_from_bytes",
+    "detect_mime",
+    "diff_dirs",
+    "diff_text_files",
+    "empty_trash",
+    "extract_archive",
+    "iter_dir_diff",
+    "list_archive",
+    "list_trash",
     "remove_dir_tree",
     "rename_dir",
+    "render_file",
+    "render_string",
+    "restore_from_trash",
+    "send_to_trash",
+    "supported_formats",
     "sync_dir",
     "SyncException",
     "create_tar",
@@ -305,6 +375,18 @@ __all__ = [
     "register_ftp_ops",
     "CrossBackendException",
     "copy_between",
+    "WebDAVClient",
+    "WebDAVEntry",
+    "SMBClient",
+    "SMBEntry",
+    "FsspecEntry",
+    "fsspec_delete",
+    "fsspec_download",
+    "fsspec_exists",
+    "fsspec_list_dir",
+    "fsspec_mkdir",
+    "fsspec_upload",
+    "get_fs",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",
@@ -346,6 +428,10 @@ __all__ = [
     "render_metrics",
     "MetricsServer",
     "start_metrics_server",
+    "WebUIServer",
+    "start_web_ui",
+    "MCPServer",
+    "tools_from_registry",
     # Triggers
     "FileWatcher",
     "TriggerManager",

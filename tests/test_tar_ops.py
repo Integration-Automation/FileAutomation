@@ -39,7 +39,8 @@ def test_create_and_extract_gz(sample_dir: Path, tmp_path: Path) -> None:
 def test_create_uncompressed(sample_dir: Path, tmp_path: Path) -> None:
     archive = tmp_path / "plain.tar"
     create_tar(str(sample_dir), str(archive), compression=None)
-    with tarfile.open(str(archive), "r") as tf:
+    # Reading an archive we just wrote in this test — not untrusted input.
+    with tarfile.open(str(archive), "r") as tf:  # NOSONAR python:S5042
         assert any(name.endswith("a.txt") for name in tf.getnames())
 
 
@@ -72,7 +73,8 @@ def test_extract_missing_archive_raises(tmp_path: Path) -> None:
 
 def test_extract_rejects_path_traversal(tmp_path: Path) -> None:
     archive = tmp_path / "evil.tar"
-    with tarfile.open(str(archive), "w") as tf:
+    # Write mode; fixture builds a malicious archive to exercise the guard.
+    with tarfile.open(str(archive), "w") as tf:  # NOSONAR python:S5042
         info = tarfile.TarInfo(name="../escape.txt")
         info.size = 0
         tf.addfile(info, None)
@@ -83,7 +85,8 @@ def test_extract_rejects_path_traversal(tmp_path: Path) -> None:
 
 def test_extract_rejects_absolute_symlink(tmp_path: Path) -> None:
     archive = tmp_path / "evil.tar"
-    with tarfile.open(str(archive), "w") as tf:
+    # Write mode; fixture builds a malicious archive to exercise the guard.
+    with tarfile.open(str(archive), "w") as tf:  # NOSONAR python:S5042
         info = tarfile.TarInfo(name="link")
         info.type = tarfile.SYMTYPE
         info.linkname = "/etc/passwd"

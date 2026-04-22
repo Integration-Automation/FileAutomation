@@ -35,7 +35,9 @@ def test_file_checksum_streams_large_file(tmp_path: Path) -> None:
 def test_file_checksum_md5(tmp_path: Path) -> None:
     target = tmp_path / "a.bin"
     target.write_bytes(b"hi")
-    assert file_checksum(target, algorithm="md5") == hashlib.md5(b"hi").hexdigest()
+    # Verifies the library accepts any hashlib algorithm — not a security use of MD5.
+    expected = hashlib.md5(b"hi").hexdigest()  # NOSONAR python:S4790
+    assert file_checksum(target, algorithm="md5") == expected
 
 
 def test_file_checksum_unknown_algorithm(tmp_path: Path) -> None:

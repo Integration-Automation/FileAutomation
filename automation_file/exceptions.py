@@ -71,6 +71,58 @@ class DagException(FileAutomationException):
     """Raised when a DAG action list has a cycle, unknown dep, or duplicate id."""
 
 
+class RateLimitExceededException(FileAutomationException):
+    """Raised when a rate-limited call cannot acquire a token in the allotted wait."""
+
+
+class CircuitOpenException(FileAutomationException):
+    """Raised when a circuit breaker is open and short-circuits the protected call."""
+
+
+class LockTimeoutException(FileAutomationException):
+    """Raised when a lock acquire waits past its timeout."""
+
+
+class QueueException(FileAutomationException):
+    """Raised by the persistent action queue on storage / dispatch errors."""
+
+
+class CASException(FileAutomationException):
+    """Raised by the content-addressable store on integrity / I/O failures."""
+
+
+class TemplateException(FileAutomationException):
+    """Raised when template rendering fails (missing engine, syntax, I/O)."""
+
+
+class DiffException(FileAutomationException):
+    """Raised when diff computation or patch application fails."""
+
+
+class VersioningException(FileAutomationException):
+    """Raised by the versioning helpers on retention / I/O failures."""
+
+
+class ArchiveException(FileAutomationException):
+    """Raised when an archive format is unsupported or extraction fails."""
+
+
+class WebDAVException(FileAutomationException):
+    """Raised by the WebDAV client on transport / protocol failures."""
+
+
+class SMBException(FileAutomationException):
+    """Raised by the SMB/CIFS client on connection / protocol failures."""
+
+
+class MCPServerException(FileAutomationException):
+    """Raised by the MCP server bridge when a tool invocation fails."""
+
+
+class FsspecException(FileAutomationException):
+    """Raised by the fsspec bridge on missing dependency or backend failures."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"

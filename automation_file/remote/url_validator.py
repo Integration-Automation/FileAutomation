@@ -47,14 +47,22 @@ def _is_disallowed_ip(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> 
     )
 
 
-def validate_http_url(url: str) -> str:
-    """Return ``url`` if safe; raise :class:`UrlValidationException` otherwise."""
+def validate_http_url(url: str, *, allow_private: bool = False) -> str:
+    """Return ``url`` if safe; raise :class:`UrlValidationException` otherwise.
+
+    ``allow_private=True`` relaxes the private/loopback/link-local checks for
+    callers that need to reach LAN services (e.g. on-prem WebDAV). Scheme and
+    host checks still apply. Callers must opt in explicitly — the default
+    remains strict SSRF blocking.
+    """
     host = _require_host(url)
     for ip_str in _resolve_ips(host):
         try:
             ip_obj = ipaddress.ip_address(ip_str)
         except ValueError as error:
             raise UrlValidationException(f"cannot parse resolved ip: {ip_str}") from error
-        if _is_disallowed_ip(ip_obj):
+        if not allow_private and _is_disallowed_ip(ip_obj):
             raise UrlValidationException(f"disallowed ip: {ip_str}")
+        if allow_private and (ip_obj.is_multicast or ip_obj.is_unspecified):
+            raise UrlValidationException(f"disallowed ip even in permissive mode: {ip_str}")
     return url

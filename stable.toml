@@ -25,8 +25,9 @@ dependencies = [
     "paramiko>=3.4.0",
     "PySide6>=6.6.0",
     "watchdog>=4.0.0",
-    "cryptography>=42.0.0",
-    "prometheus_client>=0.20.0",
+    "cryptography>=46.0.7",
+    "prometheus_client>=0.25.0",
+    "defusedxml>=0.7.1",
     "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [
@@ -48,6 +49,9 @@ dev = [
     "build>=1.2.0",
     "twine>=5.1.0"
 ]
+
+[project.scripts]
+automation_file_mcp = "automation_file.server.mcp_server:_cli"
 
 [project.urls]
 "Homepage" = "https://github.com/JE-Chen/Integration-testing-environment"
