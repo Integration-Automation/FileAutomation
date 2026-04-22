@@ -43,7 +43,7 @@ def _import_smbclient() -> Any:
 class SMBClient:
     """Minimal SMB client scoped to the operations used by this project."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         server: str,
         share: str,

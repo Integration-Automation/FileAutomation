@@ -50,6 +50,7 @@ class FileLock:
             if self._owned:
                 raise LockTimeoutException(f"lock {self._path} already held by this instance")
             self._path.parent.mkdir(parents=True, exist_ok=True)
+            # pylint: disable=consider-using-with
             fh = open(self._path, "a+b")  # noqa: SIM115 — held across acquire/release
             try:
                 self._acquire_os_lock(fh)

@@ -88,7 +88,7 @@ class MCPServer:
                 return _error_response(msg_id, _METHOD_NOT_FOUND, f"unknown method: {method}")
         except MCPServerException as error:
             return _error_response(msg_id, _INVALID_PARAMS, str(error))
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught
             file_automation_logger.warning("mcp_server: internal error: %r", error)
             return _error_response(msg_id, _INTERNAL_ERROR, f"{type(error).__name__}: {error}")
 
@@ -125,16 +125,7 @@ class MCPServer:
         }
 
     def _handle_tools_list(self) -> dict[str, Any]:
-        tools = []
-        for name, command in sorted(self._registry.event_dict.items()):
-            tools.append(
-                {
-                    "name": name,
-                    "description": _describe(command),
-                    "inputSchema": _schema_for(command),
-                }
-            )
-        return {"tools": tools}
+        return {"tools": list(_catalogue(self._registry))}
 
     def _handle_tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
@@ -231,8 +222,16 @@ def tools_from_registry(registry: ActionRegistry) -> Iterable[dict[str, Any]]:
     Exposed separately so GUIs and tests can render the same catalogue
     without instantiating :class:`MCPServer`.
     """
-    server = MCPServer(registry)
-    yield from server._handle_tools_list()["tools"]
+    yield from _catalogue(registry)
+
+
+def _catalogue(registry: ActionRegistry) -> Iterable[dict[str, Any]]:
+    for name, command in sorted(registry.event_dict.items()):
+        yield {
+            "name": name,
+            "description": _describe(command),
+            "inputSchema": _schema_for(command),
+        }
 
 
 def _filtered_registry(source: ActionRegistry, allowed: Sequence[str]) -> ActionRegistry:
