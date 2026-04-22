@@ -153,6 +153,16 @@ from automation_file.remote.dropbox_api import (
     dropbox_instance,
     register_dropbox_ops,
 )
+from automation_file.remote.fsspec_bridge import (
+    FsspecEntry,
+    fsspec_delete,
+    fsspec_download,
+    fsspec_exists,
+    fsspec_list_dir,
+    fsspec_mkdir,
+    fsspec_upload,
+    get_fs,
+)
 from automation_file.remote.ftp import (
     FTPClient,
     FTPConnectOptions,
@@ -367,6 +377,14 @@ __all__ = [
     "WebDAVEntry",
     "SMBClient",
     "SMBEntry",
+    "FsspecEntry",
+    "fsspec_delete",
+    "fsspec_download",
+    "fsspec_exists",
+    "fsspec_list_dir",
+    "fsspec_mkdir",
+    "fsspec_upload",
+    "get_fs",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",

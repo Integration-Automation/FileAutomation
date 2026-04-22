@@ -119,6 +119,10 @@ class MCPServerException(FileAutomationException):
     """Raised by the MCP server bridge when a tool invocation fails."""
 
 
+class FsspecException(FileAutomationException):
+    """Raised by the fsspec bridge on missing dependency or backend failures."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"
