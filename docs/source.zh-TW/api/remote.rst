@@ -138,6 +138,34 @@ FTP / FTPS
 .. automodule:: automation_file.remote.ftp.list_ops
    :members:
 
+WebDAV
+------
+
+以 HTTP 為基礎的遠端儲存客戶端。使用 PROPFIND 取得目錄列表；除非明確傳入
+``allow_private_hosts=True``，否則拒絕連往私有 / loopback 目標。
+
+.. automodule:: automation_file.remote.webdav.client
+   :members:
+
+SMB / CIFS
+----------
+
+建構於 ``smbprotocol`` 套件的高階 :mod:`smbclient` API 之上。底層採用 UNC
+路徑（``\\\\server\\share\\path``），預設啟用加密連線。
+
+.. automodule:: automation_file.remote.smb.client
+   :members:
+
+fsspec 橋接
+-----------
+
+以 `fsspec <https://filesystem-spec.readthedocs.io/>`_ 為基礎的薄包裝層，
+讓其支援的任何檔案系統（memory、local、s3、gcs、abfs、…）皆可透過動作
+登錄表驅動。未提供 SSRF 防護——僅建議作為開發輔助工具，切勿當作遠端接入介面。
+
+.. automodule:: automation_file.remote.fsspec_bridge
+   :members:
+
 跨後端
 ------
 

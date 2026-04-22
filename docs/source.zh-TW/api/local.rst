@@ -27,3 +27,21 @@
 
 .. automodule:: automation_file.local.conditional
    :members:
+
+.. automodule:: automation_file.local.archive_ops
+   :members:
+
+.. automodule:: automation_file.local.diff_ops
+   :members:
+
+.. automodule:: automation_file.local.mime
+   :members:
+
+.. automodule:: automation_file.local.templates
+   :members:
+
+.. automodule:: automation_file.local.trash
+   :members:
+
+.. automodule:: automation_file.local.versioning
+   :members:

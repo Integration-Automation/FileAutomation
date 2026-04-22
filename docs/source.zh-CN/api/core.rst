@@ -25,6 +25,27 @@ Core
 .. automodule:: automation_file.core.quota
    :members:
 
+.. automodule:: automation_file.core.rate_limit
+   :members:
+
+.. automodule:: automation_file.core.circuit_breaker
+   :members:
+
+.. automodule:: automation_file.core.file_lock
+   :members:
+
+.. automodule:: automation_file.core.sqlite_lock
+   :members:
+
+.. automodule:: automation_file.core.action_queue
+   :members:
+
+.. automodule:: automation_file.core.content_store
+   :members:
+
+.. automodule:: automation_file.core.progress
+   :members:
+
 .. automodule:: automation_file.core.checksum
    :members:
 
