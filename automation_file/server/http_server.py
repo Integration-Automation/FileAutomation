@@ -42,6 +42,7 @@ _DEFAULT_PORT = 9944
 _MAX_CONTENT_BYTES = 1 * 1024 * 1024
 _PROGRESS_POLL_SECONDS = 1.0
 _PROGRESS_MAX_FRAMES = 10_000
+_BEARER_PREFIX = "Bearer "
 
 
 class _HTTPActionHandler(BaseHTTPRequestHandler):
@@ -103,9 +104,9 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
         secret: str | None = getattr(self.server, "shared_secret", None)
         if secret:
             header = self.headers.get("Authorization", "")
-            if not header.startswith("Bearer "):
+            if not header.startswith(_BEARER_PREFIX):
                 raise TCPAuthException("missing bearer token")
-            if not hmac.compare_digest(header[len("Bearer ") :], secret):
+            if not hmac.compare_digest(header[len(_BEARER_PREFIX) :], secret):
                 raise TCPAuthException("bad shared secret")
 
         try:
@@ -142,8 +143,8 @@ class _HTTPActionHandler(BaseHTTPRequestHandler):
         secret: str | None = getattr(self.server, "shared_secret", None)
         if secret:
             header = self.headers.get("Authorization", "")
-            token_ok = header.startswith("Bearer ") and hmac.compare_digest(
-                header[len("Bearer ") :], secret
+            token_ok = header.startswith(_BEARER_PREFIX) and hmac.compare_digest(
+                header[len(_BEARER_PREFIX) :], secret
             )
             if not token_ok:
                 self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "bad shared secret"})

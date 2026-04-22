@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 _SNIFF_LEN = 16
+_OCTET_STREAM = "application/octet-stream"
 _SIGNATURES: tuple[tuple[bytes, str], ...] = (
     (b"\x89PNG\r\n\x1a\n", "image/png"),
     (b"\xff\xd8\xff", "image/jpeg"),
@@ -25,7 +26,7 @@ _SIGNATURES: tuple[tuple[bytes, str], ...] = (
     (b"7z\xbc\xaf\x27\x1c", "application/x-7z-compressed"),
     (b"Rar!\x1a\x07\x00", "application/vnd.rar"),
     (b"Rar!\x1a\x07\x01\x00", "application/vnd.rar"),
-    (b"RIFF", "application/octet-stream"),  # overridden below for wav/webp
+    (b"RIFF", _OCTET_STREAM),  # overridden below for wav/webp
     (b"\x00\x00\x00 ftyp", "video/mp4"),
     (b"OggS", "application/ogg"),
     (b"ID3", "audio/mpeg"),
@@ -46,13 +47,13 @@ def detect_mime(path: str | os.PathLike[str]) -> str:
     if guessed:
         return guessed
     sniffed = _sniff(p)
-    return sniffed or "application/octet-stream"
+    return sniffed or _OCTET_STREAM
 
 
 def detect_from_bytes(data: bytes) -> str:
     """MIME type of a byte blob using magic-byte sniffing."""
     mime = _match_signatures(data)
-    return mime or "application/octet-stream"
+    return mime or _OCTET_STREAM
 
 
 def _sniff(path: Path) -> str | None:
