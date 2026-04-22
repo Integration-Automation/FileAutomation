@@ -217,6 +217,7 @@ from automation_file.server.tcp_server import (
     TCPActionServer,
     start_autocontrol_socket_server,
 )
+from automation_file.server.web_ui import WebUIServer, start_web_ui
 from automation_file.trigger import (
     FileWatcher,
     TriggerManager,
@@ -426,6 +427,8 @@ __all__ = [
     "render_metrics",
     "MetricsServer",
     "start_metrics_server",
+    "WebUIServer",
+    "start_web_ui",
     # Triggers
     "FileWatcher",
     "TriggerManager",
