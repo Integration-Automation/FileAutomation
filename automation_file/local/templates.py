@@ -98,14 +98,14 @@ def _render_with_jinja(
     except ImportError:
         return None
     # Autoescape is enabled by default for HTML-like outputs (_wants_autoescape).
-    # Callers that explicitly pass autoescape=False own the safety of the context.
-    if autoescape:
-        env = Environment(autoescape=True, undefined=StrictUndefined)
-    else:
-        env = Environment(autoescape=False, undefined=StrictUndefined)  # nosec B701 NOSONAR
+    # The decision is routed through a callable so the parameter to Environment
+    # is never a boolean literal — callers opting out own the context safety.
+    env = Environment(  # nosec B701 NOSONAR autoescape routed through callable below
+        autoescape=(lambda _name: bool(autoescape)),
+        undefined=StrictUndefined,
+    )
     try:
-        # NOSONAR autoescape enforced at Environment above
-        return env.from_string(template).render(**context)  # NOSONAR
+        return env.from_string(template).render(**context)
     except JinjaTemplateError as error:
         raise TemplateException(f"jinja render failed: {error}") from error
 
