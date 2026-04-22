@@ -102,6 +102,14 @@ from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.tar_ops import TarException, create_tar, extract_tar
 from automation_file.local.templates import render_file, render_string
+from automation_file.local.trash import (
+    TrashEntry,
+    empty_trash,
+    list_trash,
+    restore_from_trash,
+    send_to_trash,
+)
+from automation_file.local.versioning import FileVersioner, VersionEntry
 from automation_file.local.zip_ops import (
     read_zip_file,
     set_zip_password,
@@ -262,6 +270,9 @@ __all__ = [
     "copy_specify_extension_file",
     "create_file",
     "DirDiff",
+    "FileVersioner",
+    "TrashEntry",
+    "VersionEntry",
     "apply_dir_diff",
     "copy_dir",
     "create_dir",
@@ -269,11 +280,15 @@ __all__ = [
     "detect_mime",
     "diff_dirs",
     "diff_text_files",
+    "empty_trash",
     "iter_dir_diff",
+    "list_trash",
     "remove_dir_tree",
     "rename_dir",
     "render_file",
     "render_string",
+    "restore_from_trash",
+    "send_to_trash",
     "sync_dir",
     "SyncException",
     "create_tar",
