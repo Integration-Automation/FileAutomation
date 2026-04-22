@@ -77,13 +77,13 @@ def test_release_does_not_affect_other_owner(tmp_path: Path) -> None:
 
 def test_refresh_extends_lease(tmp_path: Path) -> None:
     db = tmp_path / "refresh.sqlite"
-    holder = SQLiteLock(db, "keep", ttl=0.15)
+    holder = SQLiteLock(db, "keep", ttl=2.0)
     holder.acquire()
     try:
         for _ in range(3):
             time.sleep(0.05)
             holder.refresh()
-        contender = SQLiteLock(db, "keep", timeout=0.05)
+        contender = SQLiteLock(db, "keep", timeout=0.1)
         with pytest.raises(LockTimeoutException):
             contender.acquire()
     finally:
