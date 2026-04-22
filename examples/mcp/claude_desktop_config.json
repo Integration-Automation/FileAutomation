@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "automation_file": {
+      "command": "automation_file_mcp",
+      "args": [
+        "--allowed-actions",
+        "FA_file_checksum,FA_verify_checksum,FA_fast_find,FA_sync_dir"
+      ]
+    },
+    "automation_file_full": {
+      "command": "python",
+      "args": [
+        "-m",
+        "automation_file",
+        "mcp"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+    "automation_file_script": {
+      "command": "python",
+      "args": [
+        "C:/absolute/path/to/examples/mcp/run_mcp.py"
+      ]
+    }
+  }
+}
