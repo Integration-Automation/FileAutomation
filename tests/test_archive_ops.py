@@ -25,7 +25,9 @@ def _make_zip(path: Path, entries: dict[str, bytes]) -> None:
 
 
 def _make_tar(path: Path, entries: dict[str, bytes], mode: str = "w") -> None:
-    with tarfile.open(path, mode) as tf:
+    with tarfile.open(
+        path, mode
+    ) as tf:  # NOSONAR(python:S5042) test fixture writes a known archive
         for name, data in entries.items():
             info = tarfile.TarInfo(name)
             info.size = len(data)

@@ -27,8 +27,7 @@ def compute_accept_key(sec_websocket_key: str) -> str:
     security primitive. ``usedforsecurity=False`` tells static analysers to
     skip the standard SHA-1 "insecure hash" warning.
     """
-    # nosec B303 B324 - RFC 6455 handshake, not a security primitive.
-    digest = hashlib.sha1(
+    digest = hashlib.sha1(  # nosec B303 B324  # nosemgrep: python.lang.security.audit.hashlib-insecure-functions # NOSONAR(python:S4790) RFC 6455 handshake, not a security primitive
         (sec_websocket_key + _GUID).encode("ascii"),
         usedforsecurity=False,
     ).digest()

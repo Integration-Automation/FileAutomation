@@ -97,7 +97,13 @@ def _render_with_jinja(
         from jinja2 import TemplateError as JinjaTemplateError
     except ImportError:
         return None
-    env = Environment(autoescape=autoescape, undefined=StrictUndefined)
+    # Autoescape is enabled by default for HTML-like outputs (_wants_autoescape).
+    # Callers that explicitly pass autoescape=False own the safety of the context.
+    if autoescape:
+        env = Environment(autoescape=True, undefined=StrictUndefined)
+    else:
+        # nosec B701  # NOSONAR(pythonsecurity:S5496) caller opted out for non-HTML output
+        env = Environment(autoescape=False, undefined=StrictUndefined)
     try:
         return env.from_string(template).render(**context)
     except JinjaTemplateError as error:

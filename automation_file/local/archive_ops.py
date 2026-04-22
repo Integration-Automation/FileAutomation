@@ -57,7 +57,7 @@ def list_archive(path: str | os.PathLike[str]) -> list[str]:
         with zipfile.ZipFile(path) as zf:
             return zf.namelist()
     if fmt.startswith("tar"):
-        with tarfile.open(path) as tf:  # nosec B202 - metadata listing only, no extraction
+        with tarfile.open(path) as tf:  # nosec B202  # NOSONAR(python:S5042) metadata listing only, no extraction
             return tf.getnames()
     if fmt == "7z":
         return _seven_zip_namelist(path)
@@ -88,13 +88,13 @@ def extract_archive(
 def _is_tar_stream(path: Path, compression: str) -> bool:
     try:
         if compression == "gz":
-            with tarfile.open(path, mode="r:gz"):  # nosec B202 - read-only probe
+            with tarfile.open(path, mode="r:gz"):  # nosec B202  # NOSONAR(python:S5042) read-only probe, no extraction
                 return True
         if compression == "bz2":
-            with tarfile.open(path, mode="r:bz2"):  # nosec B202 - read-only probe
+            with tarfile.open(path, mode="r:bz2"):  # nosec B202  # NOSONAR(python:S5042) read-only probe, no extraction
                 return True
         if compression == "xz":
-            with tarfile.open(path, mode="r:xz"):  # nosec B202 - read-only probe
+            with tarfile.open(path, mode="r:xz"):  # nosec B202  # NOSONAR(python:S5042) read-only probe, no extraction
                 return True
     except (tarfile.TarError, OSError):
         return False
@@ -125,7 +125,7 @@ def _extract_tar(source: Path, dest: Path) -> list[str]:
     names: list[str] = []
     # Per-member path containment + link rejection below; on 3.12+ the
     # tarfile.data_filter enforces the same rules at the C layer.
-    with tarfile.open(source) as tf:  # nosec B202 - entries validated before extract
+    with tarfile.open(source) as tf:  # nosec B202  # NOSONAR(python:S5042) entries validated before extract
         _apply_tar_data_filter(tf)
         for member in tf.getmembers():
             out = dest / member.name

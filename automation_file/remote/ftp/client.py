@@ -47,7 +47,7 @@ class FTPClient:
             ftp: FTP = FTP_TLS(timeout=opts.timeout)
         else:
             # Plaintext FTP only when caller opts in via tls=False.
-            ftp = FTP(timeout=opts.timeout)  # nosec B321 NOSONAR python:S5332
+            ftp = FTP(timeout=opts.timeout)  # nosec B321  # NOSONAR(python:S4423) plaintext FTP is opt-in via tls=False
         try:
             ftp.connect(opts.host, opts.port, timeout=opts.timeout)
             if opts.tls and isinstance(ftp, FTP_TLS):

@@ -100,7 +100,10 @@ def test_upload_streams_file(smbclient_module: ModuleType, tmp_path: Path) -> No
     assert call_kwargs["mode"] == "wb"
 
 
-def test_upload_rejects_missing_local(smbclient_module: ModuleType, tmp_path: Path) -> None:
+def test_upload_rejects_missing_local(
+    smbclient_module: ModuleType,  # pylint: disable=unused-argument  # fixture triggers the smbprotocol patch
+    tmp_path: Path,
+) -> None:
     client = SMBClient("fs", "pub")
     with pytest.raises(SMBException):
         client.upload(tmp_path / "absent", "remote/data.bin")

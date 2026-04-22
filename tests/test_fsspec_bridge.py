@@ -10,6 +10,7 @@ import pytest
 
 fsspec = pytest.importorskip("fsspec")
 
+# pylint: disable=wrong-import-position  # importorskip must precede these imports
 from automation_file.exceptions import FsspecException  # noqa: E402
 from automation_file.remote.fsspec_bridge import (  # noqa: E402
     FsspecEntry,
@@ -25,7 +26,8 @@ from automation_file.remote.fsspec_bridge import (  # noqa: E402
 
 def _purge_memory_fs() -> None:
     fs = fsspec.filesystem("memory")
-    for path in list(fs.store):
+    # list() snapshot required — fs.rm() mutates fs.store during iteration.
+    for path in list(fs.store):  # NOSONAR(python:S7504)
         with contextlib.suppress(FileNotFoundError):
             fs.rm(path)
 
