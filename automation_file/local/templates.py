@@ -93,16 +93,19 @@ def _render_with_jinja(
     autoescape: bool,
 ) -> str | None:
     try:
-        from jinja2 import Environment, StrictUndefined
+        from jinja2 import StrictUndefined
         from jinja2 import TemplateError as JinjaTemplateError
+        from jinja2.sandbox import ImmutableSandboxedEnvironment
         from markupsafe import Markup
     except ImportError:
         return None
-    # The Environment always runs with autoescape=True so that HTML output is
-    # safe by default. Callers that explicitly opt out (autoescape=False) get
-    # that effect by having their string values wrapped in markupsafe.Markup,
-    # which Jinja treats as already-escaped and passes through verbatim.
-    env = Environment(autoescape=True, undefined=StrictUndefined)
+    # ImmutableSandboxedEnvironment blocks access to Python internals
+    # (__class__, __globals__, __mro__, mutation of passed collections, …) so
+    # that a caller passing a user-supplied template cannot escape the sandbox
+    # — the standard Jinja2 mitigation for server-side template injection.
+    # autoescape=True is kept unconditional; callers opt out by pre-wrapping
+    # their string values in markupsafe.Markup, which Jinja renders verbatim.
+    env = ImmutableSandboxedEnvironment(autoescape=True, undefined=StrictUndefined)
     if not autoescape:
         context = {
             key: Markup(value) if isinstance(value, str) else value
