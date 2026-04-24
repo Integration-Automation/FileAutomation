@@ -1,5 +1,7 @@
 """Tests for the Prometheus metrics exporter."""
 
+# pylint: disable=protected-access  # prometheus_client exposes counter state via ._value
+
 from __future__ import annotations
 
 import urllib.request
@@ -82,8 +84,12 @@ def test_metrics_server_returns_404_for_other_paths() -> None:
     host, port = server.server_address
     try:
         url = insecure_url("http", f"{host}:{port}/other")
-        with pytest.raises(urllib.error.HTTPError) as info:
-            urllib.request.urlopen(url, timeout=3)  # nosec B310 - loopback test server
+        with (
+            pytest.raises(urllib.error.HTTPError) as info,
+            # nosec B310 - loopback test server
+            urllib.request.urlopen(url, timeout=3),  # nosec B310
+        ):
+            pass
         assert info.value.code == 404
     finally:
         server.shutdown()

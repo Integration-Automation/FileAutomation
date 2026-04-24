@@ -4,6 +4,8 @@ Network-backed backends aren't exercised — these tests verify URI parsing,
 local-to-local round trips, and error paths.
 """
 
+# pylint: disable=protected-access  # tests deliberately probe _split / _split_bucket
+
 from __future__ import annotations
 
 from pathlib import Path

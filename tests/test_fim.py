@@ -80,7 +80,7 @@ def test_extras_ignored_by_default(tmp_path: Path) -> None:
     summary = monitor.check_once()
     assert "new.txt" in summary["extra"]
     assert summary["ok"] is True
-    assert recorder.messages == []
+    assert not recorder.messages
 
 
 def test_alert_on_extra_flag(tmp_path: Path) -> None:

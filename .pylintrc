@@ -11,6 +11,15 @@ ignore-paths=docs/requirements\.txt
 #   C0114/C0115/C0116 — docstring requirements are enforced by review, not lint.
 #   C0415              — ``import-outside-toplevel`` is used deliberately for
 #                        lazy imports of heavy / optional modules (see CLAUDE.md).
+#   R0401              — ``cyclic-import``; the cloud-backend packages depend on
+#                        ``core.action_registry`` for the ``ActionRegistry`` type
+#                        while the registry lazy-imports the backend packages
+#                        inside ``_register_cloud_backends``. The runtime flow is
+#                        sound; pylint's static analysis flags it as a cycle.
+#   R0801              — ``duplicate-code``; the remote backend client wrappers
+#                        (S3 / Azure / Dropbox / FTP / SFTP) intentionally share
+#                        the "lazy ``later_init`` + ``require_client``" skeleton.
+#                        A shared base class would add indirection without value.
 #   R0903              — too-few-public-methods; dataclasses and frozen option
 #                        objects are allowed to have no methods.
 #   W0511              — TODO/FIXME markers; tracked via issues, not lint.
@@ -19,6 +28,8 @@ disable=
     C0115,
     C0116,
     C0415,
+    R0401,
+    R0801,
     R0903,
     W0511
 

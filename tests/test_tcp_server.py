@@ -33,8 +33,8 @@ def _recv_until_marker(sock: socket.socket, timeout: float = 5.0) -> bytes:
     return bytes(buffer)
 
 
-@pytest.fixture
-def server():
+@pytest.fixture(name="server")
+def _server():
     port = _free_port()
     srv = start_autocontrol_socket_server(host=_HOST, port=port)
     try:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 import uuid
-from pathlib import Path
 
 import pytest
 
@@ -39,7 +38,7 @@ def test_substitute_cwd() -> None:
     assert substitute("${cwd}") == os.getcwd()
 
 
-def test_substitute_nested_structures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_substitute_nested_structures(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FA_NESTED", "nested-value")
     payload = [
         ["FA_create_file", {"file_path": "${env:FA_NESTED}"}],

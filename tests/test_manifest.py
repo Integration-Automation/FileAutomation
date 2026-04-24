@@ -35,8 +35,8 @@ def test_write_and_verify_round_trip(tmp_path: Path) -> None:
     result = verify_manifest(root, manifest_path)
     assert result["ok"] is True
     assert set(result["matched"]) == {"a.txt", "nested/b.txt"}
-    assert result["missing"] == []
-    assert result["modified"] == []
+    assert not result["missing"]
+    assert not result["modified"]
 
 
 def test_verify_detects_modified_file(tmp_path: Path) -> None:

@@ -14,8 +14,8 @@ from automation_file import (
 from automation_file.exceptions import PathTraversalException
 
 
-@pytest.fixture
-def sample_dir(tmp_path: Path) -> Path:
+@pytest.fixture(name="sample_dir")
+def _sample_dir(tmp_path: Path) -> Path:
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.txt").write_text("hello\n", encoding="utf-8")

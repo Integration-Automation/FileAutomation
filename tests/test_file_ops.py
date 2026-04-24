@@ -53,7 +53,7 @@ def test_copy_all_file_to_dir_missing(tmp_path: Path) -> None:
         file_ops.copy_all_file_to_dir(str(tmp_path / "missing"), str(tmp_path))
 
 
-def test_rename_file_unique_names(tmp_path: Path, sample_dir: Path) -> None:
+def test_rename_file_unique_names(sample_dir: Path) -> None:
     """Regression: original impl renamed every match to the same name, overwriting."""
     assert file_ops.rename_file(str(sample_dir), "renamed", file_extension="txt") is True
     root_names = sorted(p.name for p in sample_dir.iterdir() if p.is_file())
