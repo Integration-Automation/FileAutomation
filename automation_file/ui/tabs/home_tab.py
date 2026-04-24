@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
 )
 
 from automation_file.remote.azure_blob.client import azure_blob_instance
+from automation_file.remote.box.client import box_instance
 from automation_file.remote.dropbox_api.client import dropbox_instance
 from automation_file.remote.google_drive.client import driver_instance
+from automation_file.remote.onedrive.client import onedrive_instance
 from automation_file.remote.s3.client import s3_instance
 from automation_file.remote.sftp.client import sftp_instance
 from automation_file.ui.log_widget import LogPanel
@@ -36,6 +38,8 @@ _BACKENDS: tuple[_BackendProbe, ...] = (
     _BackendProbe("Azure Blob", lambda: azure_blob_instance.service is not None),
     _BackendProbe("Dropbox", lambda: dropbox_instance.client is not None),
     _BackendProbe("SFTP", lambda: getattr(sftp_instance, "_sftp", None) is not None),
+    _BackendProbe("OneDrive", lambda: getattr(onedrive_instance, "_session", None) is not None),
+    _BackendProbe("Box", lambda: box_instance.client is not None),
 )
 
 

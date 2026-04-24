@@ -22,9 +22,11 @@ from PySide6.QtWidgets import (
 from automation_file.ui.log_widget import LogPanel
 from automation_file.ui.tabs.azure_tab import AzureBlobTab
 from automation_file.ui.tabs.base import BaseTab
+from automation_file.ui.tabs.box_tab import BoxTab
 from automation_file.ui.tabs.drive_tab import GoogleDriveTab
 from automation_file.ui.tabs.dropbox_tab import DropboxTab
 from automation_file.ui.tabs.http_tab import HTTPDownloadTab
+from automation_file.ui.tabs.onedrive_tab import OneDriveTab
 from automation_file.ui.tabs.s3_tab import S3Tab
 from automation_file.ui.tabs.sftp_tab import SFTPTab
 
@@ -41,6 +43,8 @@ _BACKENDS: tuple[_BackendEntry, ...] = (
     _BackendEntry("Azure Blob", AzureBlobTab),
     _BackendEntry("Dropbox", DropboxTab),
     _BackendEntry("SFTP", SFTPTab),
+    _BackendEntry("OneDrive", OneDriveTab),
+    _BackendEntry("Box", BoxTab),
 )
 
 

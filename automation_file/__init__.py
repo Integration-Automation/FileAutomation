@@ -75,8 +75,10 @@ from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
 from automation_file.core.tracing import action_span, init_tracing
 from automation_file.exceptions import (
+    BoxException,
     DataOpsException,
     DiffException,
+    OneDriveException,
     TextOpsException,
     TracingException,
 )
@@ -175,6 +177,7 @@ from automation_file.remote.azure_blob import (
     azure_blob_instance,
     register_azure_blob_ops,
 )
+from automation_file.remote.box import BoxClient, box_instance, register_box_ops
 from automation_file.remote.cross_backend import CrossBackendException, copy_between
 from automation_file.remote.dropbox_api import (
     DropboxClient,
@@ -222,6 +225,11 @@ from automation_file.remote.google_drive.upload_ops import (
     drive_upload_to_folder,
 )
 from automation_file.remote.http_download import download_file
+from automation_file.remote.onedrive import (
+    OneDriveClient,
+    onedrive_instance,
+    register_onedrive_ops,
+)
 from automation_file.remote.s3 import S3Client, register_s3_ops, s3_instance
 from automation_file.remote.sftp import SFTPClient, register_sftp_ops, sftp_instance
 from automation_file.remote.smb import SMBClient, SMBEntry
@@ -422,6 +430,14 @@ __all__ = [
     "FTPException",
     "ftp_instance",
     "register_ftp_ops",
+    "OneDriveClient",
+    "onedrive_instance",
+    "register_onedrive_ops",
+    "OneDriveException",
+    "BoxClient",
+    "box_instance",
+    "register_box_ops",
+    "BoxException",
     "CrossBackendException",
     "copy_between",
     "WebDAVClient",

@@ -52,6 +52,8 @@ def test_main_window_constructs(qt_app) -> None:
         "AzureBlobTab",
         "DropboxTab",
         "SFTPTab",
+        "OneDriveTab",
+        "BoxTab",
         "JSONEditorTab",
         "ServerTab",
         "TransferTab",

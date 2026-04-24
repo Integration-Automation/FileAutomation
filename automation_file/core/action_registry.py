@@ -213,8 +213,10 @@ def _lazy_execute_action_dag(
 
 def _register_cloud_backends(registry: ActionRegistry) -> None:
     from automation_file.remote.azure_blob import register_azure_blob_ops
+    from automation_file.remote.box import register_box_ops
     from automation_file.remote.dropbox_api import register_dropbox_ops
     from automation_file.remote.ftp import register_ftp_ops
+    from automation_file.remote.onedrive import register_onedrive_ops
     from automation_file.remote.s3 import register_s3_ops
     from automation_file.remote.sftp import register_sftp_ops
 
@@ -223,6 +225,8 @@ def _register_cloud_backends(registry: ActionRegistry) -> None:
     register_dropbox_ops(registry)
     register_sftp_ops(registry)
     register_ftp_ops(registry)
+    register_onedrive_ops(registry)
+    register_box_ops(registry)
 
 
 def _register_trigger_ops(registry: ActionRegistry) -> None:
