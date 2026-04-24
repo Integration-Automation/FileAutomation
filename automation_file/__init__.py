@@ -73,6 +73,11 @@ from automation_file.core.secrets import (
 )
 from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.exceptions import (
+    DataOpsException,
+    DiffException,
+    TextOpsException,
+)
 from automation_file.local.archive_ops import (
     detect_archive_format,
     extract_archive,
@@ -80,10 +85,18 @@ from automation_file.local.archive_ops import (
     supported_formats,
 )
 from automation_file.local.conditional import if_exists, if_newer, if_size_gt
+from automation_file.local.data_ops import (
+    csv_filter,
+    csv_to_jsonl,
+    jsonl_append,
+    jsonl_iter,
+)
 from automation_file.local.diff_ops import (
     DirDiff,
     apply_dir_diff,
+    apply_text_patch,
     diff_dirs,
+    diff_dirs_summary,
     diff_text_files,
     iter_dir_diff,
 )
@@ -108,6 +121,13 @@ from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.tar_ops import TarException, create_tar, extract_tar
 from automation_file.local.templates import render_file, render_string
+from automation_file.local.text_ops import (
+    encoding_convert,
+    file_merge,
+    file_split,
+    line_count,
+    sed_replace,
+)
 from automation_file.local.trash import (
     TrashEntry,
     empty_trash,
@@ -297,9 +317,16 @@ __all__ = [
     "detect_archive_format",
     "detect_from_bytes",
     "detect_mime",
+    "apply_text_patch",
+    "csv_filter",
+    "csv_to_jsonl",
     "diff_dirs",
+    "diff_dirs_summary",
     "diff_text_files",
     "empty_trash",
+    "encoding_convert",
+    "file_merge",
+    "file_split",
     "extract_archive",
     "iter_dir_diff",
     "list_archive",
@@ -321,7 +348,14 @@ __all__ = [
     "json_get",
     "json_set",
     "json_delete",
+    "jsonl_append",
+    "jsonl_iter",
     "JsonEditException",
+    "line_count",
+    "sed_replace",
+    "DataOpsException",
+    "DiffException",
+    "TextOpsException",
     "zip_dir",
     "zip_file",
     "zip_info",

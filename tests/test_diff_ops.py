@@ -6,11 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from automation_file import build_default_registry
 from automation_file.exceptions import DiffException, PathTraversalException
 from automation_file.local.diff_ops import (
     DirDiff,
     apply_dir_diff,
+    apply_text_patch,
     diff_dirs,
+    diff_dirs_summary,
     diff_text_files,
     iter_dir_diff,
 )
@@ -87,3 +90,42 @@ def test_iter_dir_diff_labels_entries() -> None:
     assert ("added", "a") in entries
     assert ("removed", "b") in entries
     assert ("changed", "c") in entries
+
+
+def test_diff_dirs_summary_returns_plain_dict(tmp_path: Path) -> None:
+    left = tmp_path / "a"
+    right = tmp_path / "b"
+    _populate(left, {"keep.txt": "same", "remove.txt": "bye"})
+    _populate(right, {"keep.txt": "same", "add.txt": "hi"})
+    summary = diff_dirs_summary(str(left), str(right))
+    assert summary == {"added": ["add.txt"], "removed": ["remove.txt"], "changed": []}
+
+
+def test_apply_text_patch_roundtrip(tmp_path: Path) -> None:
+    before = tmp_path / "before.txt"
+    after = tmp_path / "after.txt"
+    target = tmp_path / "live.txt"
+    before.write_text("one\ntwo\nthree\n", encoding="utf-8")
+    after.write_text("one\nTWO\nthree\nfour\n", encoding="utf-8")
+    target.write_text(before.read_text(encoding="utf-8"), encoding="utf-8")
+    patch = diff_text_files(before, after)
+    apply_text_patch(str(target), patch)
+    assert target.read_text(encoding="utf-8") == after.read_text(encoding="utf-8")
+
+
+def test_apply_text_patch_detects_mismatch(tmp_path: Path) -> None:
+    before = tmp_path / "before.txt"
+    after = tmp_path / "after.txt"
+    target = tmp_path / "live.txt"
+    before.write_text("one\ntwo\n", encoding="utf-8")
+    after.write_text("one\ntwo\nthree\n", encoding="utf-8")
+    target.write_text("one\nDIVERGED\n", encoding="utf-8")
+    patch = diff_text_files(before, after)
+    with pytest.raises(DiffException):
+        apply_text_patch(str(target), patch)
+
+
+def test_diff_ops_registered() -> None:
+    registry = build_default_registry()
+    for name in ("FA_diff_files", "FA_diff_dirs", "FA_apply_patch"):
+        assert name in registry

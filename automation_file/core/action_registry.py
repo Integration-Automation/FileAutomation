@@ -68,12 +68,15 @@ class ActionRegistry:
 def _local_commands() -> dict[str, Command]:
     from automation_file.local import (
         conditional,
+        data_ops,
+        diff_ops,
         dir_ops,
         file_ops,
         json_edit,
         shell_ops,
         sync_ops,
         tar_ops,
+        text_ops,
         zip_ops,
     )
 
@@ -113,6 +116,21 @@ def _local_commands() -> dict[str, Command]:
         "FA_if_exists": conditional.if_exists,
         "FA_if_newer": conditional.if_newer,
         "FA_if_size_gt": conditional.if_size_gt,
+        # Text / binary
+        "FA_file_split": text_ops.file_split,
+        "FA_file_merge": text_ops.file_merge,
+        "FA_encoding_convert": text_ops.encoding_convert,
+        "FA_line_count": text_ops.line_count,
+        "FA_sed_replace": text_ops.sed_replace,
+        # Diff / patch
+        "FA_diff_files": diff_ops.diff_text_files,
+        "FA_diff_dirs": diff_ops.diff_dirs_summary,
+        "FA_apply_patch": diff_ops.apply_text_patch,
+        # Structured data (CSV / JSONL)
+        "FA_csv_filter": data_ops.csv_filter,
+        "FA_csv_to_jsonl": data_ops.csv_to_jsonl,
+        "FA_jsonl_iter": data_ops.jsonl_iter,
+        "FA_jsonl_append": data_ops.jsonl_append,
     }
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import difflib
 import hashlib
 import os
+import re
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -113,6 +114,98 @@ def diff_text_files(
     return "".join(diff_lines)
 
 
+def apply_text_patch(target: str | os.PathLike[str], patch: str) -> bool:
+    """Apply a unified-diff ``patch`` to ``target`` in place; return True on success.
+
+    The patch must have been produced against the current contents of
+    ``target`` (for example by :func:`diff_text_files`). Hunk headers are
+    verified against the live file before any write; if a hunk's context
+    lines don't match, no change is applied and :class:`DiffException` is
+    raised so the caller sees the mismatch instead of a corrupt file.
+    """
+    target_path = Path(target)
+    try:
+        original = target_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    except OSError as error:
+        raise DiffException(f"cannot read patch target: {error}") from error
+    patched = _apply_unified_patch(original, patch)
+    target_path.write_text("".join(patched), encoding="utf-8")
+    return True
+
+
+def _apply_unified_patch(lines: list[str], patch: str) -> list[str]:
+    result: list[str] = []
+    cursor = 0
+    for hunk in _iter_hunks(patch):
+        while cursor < hunk.start:
+            result.append(lines[cursor])
+            cursor += 1
+        for op, payload in hunk.ops:
+            if op == " ":
+                if cursor >= len(lines) or lines[cursor] != payload:
+                    raise DiffException(
+                        f"patch context mismatch at line {cursor + 1}: "
+                        f"expected {payload!r}, got "
+                        f"{lines[cursor] if cursor < len(lines) else '<EOF>'!r}"
+                    )
+                result.append(payload)
+                cursor += 1
+            elif op == "-":
+                if cursor >= len(lines) or lines[cursor] != payload:
+                    raise DiffException(
+                        f"patch deletion mismatch at line {cursor + 1}: "
+                        f"expected {payload!r}, got "
+                        f"{lines[cursor] if cursor < len(lines) else '<EOF>'!r}"
+                    )
+                cursor += 1
+            elif op == "+":
+                result.append(payload)
+    result.extend(lines[cursor:])
+    return result
+
+
+@dataclass(frozen=True)
+class _Hunk:
+    start: int
+    ops: tuple[tuple[str, str], ...]
+
+
+def _iter_hunks(patch: str) -> Iterable[_Hunk]:
+    buffer: list[tuple[str, str]] = []
+    start = 0
+    in_hunk = False
+    for raw_line in patch.splitlines(keepends=True):
+        if raw_line.startswith("@@"):
+            if in_hunk and buffer:
+                yield _Hunk(start=start, ops=tuple(buffer))
+            start = _parse_hunk_header(raw_line)
+            buffer = []
+            in_hunk = True
+            continue
+        if raw_line.startswith(("---", "+++")):
+            continue
+        if not in_hunk:
+            continue
+        if not raw_line:
+            continue
+        prefix, payload = raw_line[0], raw_line[1:]
+        if prefix in {" ", "+", "-"}:
+            buffer.append((prefix, payload))
+    if in_hunk and buffer:
+        yield _Hunk(start=start, ops=tuple(buffer))
+
+
+_HUNK_HEADER = re.compile(r"^@@\s+-(\d+)(?:,\d+)?\s+\+\d+(?:,\d+)?\s+@@")
+
+
+def _parse_hunk_header(line: str) -> int:
+    match = _HUNK_HEADER.match(line)
+    if not match:
+        raise DiffException(f"malformed hunk header: {line.rstrip()!r}")
+    # Unified-diff line numbers are 1-based; convert to 0-based index.
+    return max(int(match.group(1)) - 1, 0)
+
+
 def _relative_files(root: Path) -> set[str]:
     collected: set[str] = set()
     for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
@@ -138,3 +231,16 @@ def iter_dir_diff(diff: DirDiff) -> Iterable[tuple[str, str]]:
         yield "removed", rel
     for rel in diff.changed:
         yield "changed", rel
+
+
+def diff_dirs_summary(
+    left: str | os.PathLike[str],
+    right: str | os.PathLike[str],
+) -> dict[str, list[str]]:
+    """JSON-friendly wrapper around :func:`diff_dirs` — returns plain lists."""
+    diff = diff_dirs(left, right)
+    return {
+        "added": list(diff.added),
+        "removed": list(diff.removed),
+        "changed": list(diff.changed),
+    }
