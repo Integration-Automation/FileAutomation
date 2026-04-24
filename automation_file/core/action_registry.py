@@ -68,12 +68,15 @@ class ActionRegistry:
 def _local_commands() -> dict[str, Command]:
     from automation_file.local import (
         conditional,
+        data_ops,
+        diff_ops,
         dir_ops,
         file_ops,
         json_edit,
         shell_ops,
         sync_ops,
         tar_ops,
+        text_ops,
         zip_ops,
     )
 
@@ -113,6 +116,29 @@ def _local_commands() -> dict[str, Command]:
         "FA_if_exists": conditional.if_exists,
         "FA_if_newer": conditional.if_newer,
         "FA_if_size_gt": conditional.if_size_gt,
+        # Text / binary
+        "FA_file_split": text_ops.file_split,
+        "FA_file_merge": text_ops.file_merge,
+        "FA_encoding_convert": text_ops.encoding_convert,
+        "FA_line_count": text_ops.line_count,
+        "FA_sed_replace": text_ops.sed_replace,
+        # Diff / patch
+        "FA_diff_files": diff_ops.diff_text_files,
+        "FA_diff_dirs": diff_ops.diff_dirs_summary,
+        "FA_apply_patch": diff_ops.apply_text_patch,
+        # Structured data (CSV / JSONL)
+        "FA_csv_filter": data_ops.csv_filter,
+        "FA_csv_to_jsonl": data_ops.csv_to_jsonl,
+        "FA_jsonl_iter": data_ops.jsonl_iter,
+        "FA_jsonl_append": data_ops.jsonl_append,
+        # Structured data (YAML)
+        "FA_yaml_get": data_ops.yaml_get,
+        "FA_yaml_set": data_ops.yaml_set,
+        "FA_yaml_delete": data_ops.yaml_delete,
+        # Structured data (Parquet)
+        "FA_parquet_read": data_ops.parquet_read,
+        "FA_parquet_write": data_ops.parquet_write,
+        "FA_csv_to_parquet": data_ops.csv_to_parquet,
     }
 
 
@@ -153,7 +179,7 @@ def _http_commands() -> dict[str, Command]:
 
 
 def _utils_commands() -> dict[str, Command]:
-    from automation_file.core import checksum, crypto, manifest
+    from automation_file.core import checksum, crypto, manifest, tracing
     from automation_file.remote import cross_backend
     from automation_file.utils import deduplicate, fast_find, grep, rotate
 
@@ -170,6 +196,7 @@ def _utils_commands() -> dict[str, Command]:
         "FA_copy_between": cross_backend.copy_between,
         "FA_encrypt_file": crypto.encrypt_file,
         "FA_decrypt_file": crypto.decrypt_file,
+        "FA_tracing_init": tracing.init_tracing,
     }
 
 
@@ -186,8 +213,10 @@ def _lazy_execute_action_dag(
 
 def _register_cloud_backends(registry: ActionRegistry) -> None:
     from automation_file.remote.azure_blob import register_azure_blob_ops
+    from automation_file.remote.box import register_box_ops
     from automation_file.remote.dropbox_api import register_dropbox_ops
     from automation_file.remote.ftp import register_ftp_ops
+    from automation_file.remote.onedrive import register_onedrive_ops
     from automation_file.remote.s3 import register_s3_ops
     from automation_file.remote.sftp import register_sftp_ops
 
@@ -196,6 +225,8 @@ def _register_cloud_backends(registry: ActionRegistry) -> None:
     register_dropbox_ops(registry)
     register_sftp_ops(registry)
     register_ftp_ops(registry)
+    register_onedrive_ops(registry)
+    register_box_ops(registry)
 
 
 def _register_trigger_ops(registry: ActionRegistry) -> None:

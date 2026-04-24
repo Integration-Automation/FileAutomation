@@ -123,6 +123,26 @@ class FsspecException(FileAutomationException):
     """Raised by the fsspec bridge on missing dependency or backend failures."""
 
 
+class TextOpsException(FileAutomationException):
+    """Raised by text / binary file helpers (split, merge, sed, encoding_convert)."""
+
+
+class DataOpsException(FileAutomationException):
+    """Raised by CSV / JSONL / YAML / Parquet helpers."""
+
+
+class OneDriveException(FileAutomationException):
+    """Raised by the OneDrive (Microsoft Graph) backend."""
+
+
+class BoxException(FileAutomationException):
+    """Raised by the Box backend."""
+
+
+class TracingException(FileAutomationException):
+    """Raised when OpenTelemetry tracing setup cannot be completed."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"
