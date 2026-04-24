@@ -3,6 +3,249 @@
 
 ``automation_file`` 採用分層架構，核心由五種設計模式組成：
 
+系統總覽
+--------
+
+下圖展示完整的派送表面：任何呼叫端——CLI、GUI、HTTP/MCP 客戶端、進入點外掛
+——最終都會落到由 ``build_default_registry()`` 填充的共用 ``ActionRegistry``，
+再從 registry 向本地 ops、遠端後端、可靠性 / 安全 / 可觀測性輔助工具、通知、
+以及事件驅動的觸發器與 cron 排程器扇出。
+
+.. mermaid::
+
+   flowchart TD
+       CLI["<b>CLI / JSON 批次</b><br/>python -m automation_file"]
+       GUIUser["<b>PySide6 GUI</b><br/>launch_ui"]
+       ClientSDK["<b>HTTPActionClient SDK</b>"]
+       MCPHost["<b>MCP 主機</b><br/>Claude Desktop · MCP CLIs"]
+       Plugins["<b>進入點外掛</b><br/>automation_file.actions"]
+
+       subgraph Facade["<b>automation_file &mdash; 門面 (__init__.py)</b>"]
+           PublicAPI["<b>Public API</b><br/>execute_action · execute_action_parallel · execute_action_dag<br/>validate_action · driver_instance · s3_instance · azure_blob_instance<br/>dropbox_instance · sftp_instance · ftp_instance · onedrive_instance · box_instance<br/>start_autocontrol_socket_server · start_http_action_server<br/>start_metrics_server · start_web_ui · MCPServer<br/>notification_manager · scheduler · trigger_manager<br/>AutomationConfig · progress_registry · Quota · retry_on_transient"]
+       end
+
+       subgraph Core["<b>core 核心</b>"]
+           Registry[("<b>ActionRegistry</b><br/>FA_* 指令")]
+           Executor["<b>ActionExecutor</b><br/>序列 · 並行 · dry-run · validate-first"]
+           DAG["<b>dag_executor</b><br/>拓樸排程 fan-out"]
+           Callback["<b>CallbackExecutor</b>"]
+           Loader["<b>PackageLoader</b><br/>+ 進入點外掛"]
+           Queue["<b>ActionQueue</b>"]
+           Json["<b>json_store</b>"]
+           Sub["<b>substitution</b><br/>${env:} ${date:} ${uuid}"]
+       end
+
+       subgraph Reliability["<b>可靠性</b>"]
+           Retry["<b>retry</b><br/>@retry_on_transient"]
+           QuotaMod["<b>Quota</b><br/>位元組 + 時間配額"]
+           Breaker["<b>CircuitBreaker</b>"]
+           RL["<b>RateLimiter</b>"]
+           Locks["<b>FileLock</b> · <b>SQLiteLock</b>"]
+       end
+
+       subgraph Observability["<b>可觀測性</b>"]
+           Progress["<b>progress</b><br/>CancellationToken · Reporter"]
+           Metrics["<b>metrics</b><br/>Prometheus counters + histograms"]
+           Audit["<b>AuditLog</b><br/>SQLite 稽核紀錄"]
+           Tracing["<b>tracing</b><br/>OpenTelemetry spans"]
+           FIM["<b>IntegrityMonitor</b>"]
+       end
+
+       subgraph Security["<b>安全 &amp; 設定</b>"]
+           Secrets["<b>Secret providers</b><br/>Env · File · Chained"]
+           Config["<b>AutomationConfig</b><br/>TOML 載入器"]
+           ConfW["<b>ConfigWatcher</b><br/>熱重載"]
+           Crypto["<b>crypto</b><br/>AES-256-GCM"]
+           Check["<b>checksum</b> / <b>manifest</b>"]
+           SafeP["<b>safe_paths</b><br/>safe_join · is_within"]
+           ACL["<b>ActionACL</b>"]
+       end
+
+       subgraph Events["<b>事件驅動</b>"]
+           Trigger["<b>TriggerManager</b><br/>watchdog 檔案監聽"]
+           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+       end
+
+       subgraph Servers["<b>伺服器</b>"]
+           TCP["<b>TCPActionServer</b><br/>loopback · AUTH secret"]
+           HTTPS["<b>HTTPActionServer</b><br/>POST /actions · Bearer<br/>/healthz /readyz /progress /openapi.json"]
+           MCP["<b>MCPServer</b><br/>JSON-RPC 2.0 (stdio)"]
+           MetSrv["<b>MetricsServer</b><br/>/metrics"]
+           WebUI["<b>WebUIServer</b><br/>HTMX dashboard"]
+       end
+
+       subgraph UI["<b>ui (PySide6)</b>"]
+           MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+           Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
+       end
+
+       subgraph Local["<b>本地 ops</b>"]
+           FileOps["<b>file_ops</b> · <b>dir_ops</b>"]
+           Archives["<b>zip_ops</b> · <b>tar_ops</b> · <b>archive_ops</b>"]
+           DataOps["<b>data_ops</b><br/>csv · jsonl · parquet · yaml"]
+           TextOps["<b>text_ops</b> · <b>diff_ops</b><br/><b>json_edit</b> · <b>templates</b>"]
+           Misc["<b>shell_ops</b> · <b>sync_ops</b> · <b>trash</b><br/><b>versioning</b> · <b>conditional</b> · <b>mime</b>"]
+       end
+
+       subgraph Remote["<b>遠端後端</b>"]
+           UrlVal["<b>url_validator</b><br/>SSRF 防護"]
+           Http["<b>http_download</b><br/>retry · resume · SHA-256"]
+           Drive["<b>google_drive</b>"]
+           S3M["<b>s3</b>"]
+           Azure["<b>azure_blob</b>"]
+           Dropbox["<b>dropbox_api</b>"]
+           SFTP["<b>sftp</b> (RejectPolicy)"]
+           FTP["<b>ftp / FTPS</b>"]
+           OneD["<b>onedrive</b>"]
+           Box["<b>box</b>"]
+           WebDAV["<b>webdav</b>"]
+           SMB["<b>smb / cifs</b>"]
+           Fsspec["<b>fsspec_bridge</b>"]
+           Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+       end
+
+       subgraph Notify["<b>通知</b>"]
+           NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
+           Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
+       end
+
+       subgraph Utils["<b>工具 / 專案</b>"]
+           Fast["<b>fast_find</b><br/>mdfind / locate / es.exe"]
+           Dedup["<b>find_duplicates</b>"]
+           Grep["<b>grep_files</b>"]
+           Rotate["<b>rotate_backups</b>"]
+           Discovery["<b>file_discovery</b>"]
+           Builder["<b>ProjectBuilder</b> + templates"]
+       end
+
+       CLI ==> PublicAPI
+       GUIUser ==> MainWin
+       ClientSDK ==> HTTPS
+       MCPHost ==> MCP
+       Plugins ==> Loader
+
+       MainWin ==> Worker
+       Worker ==> PublicAPI
+
+       PublicAPI ==> Executor
+       PublicAPI ==> DAG
+       PublicAPI ==> Callback
+       PublicAPI ==> Queue
+       PublicAPI ==> Config
+       PublicAPI ==> NM
+       PublicAPI ==> Trigger
+       PublicAPI ==> Sched
+
+       TCP ==> Executor
+       HTTPS ==> Executor
+       MCP ==> Registry
+       MetSrv ==> Metrics
+       WebUI ==> Registry
+       ACL ==> TCP
+       ACL ==> HTTPS
+
+       Executor ==> Registry
+       Executor ==> Sub
+       Executor ==> Retry
+       Executor ==> QuotaMod
+       Executor ==> Metrics
+       Executor ==> Audit
+       Executor ==> Tracing
+       Executor ==> Json
+       DAG ==> Executor
+       Callback ==> Registry
+       Loader ==> Registry
+
+       Trigger ==> Executor
+       Sched ==> Executor
+       Trigger -. 失敗時 .-> NM
+       Sched -. 失敗時 .-> NM
+       FIM -. 偵測到異動 .-> NM
+       ConfW ==> Config
+       Config ==> Secrets
+       Config ==> NM
+
+       Registry ==> FileOps
+       Registry ==> Archives
+       Registry ==> DataOps
+       Registry ==> TextOps
+       Registry ==> Misc
+       Registry ==> Http
+       Registry ==> Drive
+       Registry ==> S3M
+       Registry ==> Azure
+       Registry ==> Dropbox
+       Registry ==> SFTP
+       Registry ==> FTP
+       Registry ==> OneD
+       Registry ==> Box
+       Registry ==> WebDAV
+       Registry ==> SMB
+       Registry ==> Fsspec
+       Registry ==> Cross
+       Registry ==> Crypto
+       Registry ==> Check
+       Registry ==> Fast
+       Registry ==> Dedup
+       Registry ==> Grep
+       Registry ==> Rotate
+       Registry ==> Discovery
+       Registry ==> Builder
+       Registry ==> Progress
+
+       FileOps ==> SafeP
+       Archives ==> SafeP
+       Misc ==> SafeP
+
+       Http ==> UrlVal
+       Http ==> Retry
+       Http ==> Progress
+       Http ==> Check
+       S3M ==> Progress
+       WebDAV ==> UrlVal
+       NM ==> UrlVal
+       NM ==> Sinks
+
+       Cross ==> Drive
+       Cross ==> S3M
+       Cross ==> Azure
+       Cross ==> Dropbox
+       Cross ==> SFTP
+       Cross ==> FTP
+
+       classDef entry fill:#FDEDEC,stroke:#641E16,stroke-width:3px,color:#000,font-weight:bold;
+       classDef facade fill:#D6EAF8,stroke:#154360,stroke-width:4px,color:#000,font-weight:bold;
+       classDef core fill:#FEF9E7,stroke:#1F3A93,stroke-width:3px,color:#000,font-weight:bold;
+       classDef rel fill:#D1F2EB,stroke:#0B5345,stroke-width:3px,color:#000,font-weight:bold;
+       classDef obs fill:#FDEBD0,stroke:#9C640C,stroke-width:3px,color:#000,font-weight:bold;
+       classDef sec fill:#F5B7B1,stroke:#78281F,stroke-width:3px,color:#000,font-weight:bold;
+       classDef event fill:#FCF3CF,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
+       classDef server fill:#FADBD8,stroke:#922B21,stroke-width:3px,color:#000,font-weight:bold;
+       classDef ui fill:#AED6F1,stroke:#1B4F72,stroke-width:3px,color:#000,font-weight:bold;
+       classDef localOps fill:#E8DAEF,stroke:#512E5F,stroke-width:3px,color:#000,font-weight:bold;
+       classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
+       classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
+       classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+
+       class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
+       class PublicAPI facade;
+       class Registry,Executor,DAG,Callback,Loader,Queue,Json,Sub core;
+       class Retry,QuotaMod,Breaker,RL,Locks rel;
+       class Progress,Metrics,Audit,Tracing,FIM obs;
+       class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
+       class Trigger,Sched event;
+       class TCP,HTTPS,MCP,MetSrv,WebUI server;
+       class MainWin,Worker ui;
+       class FileOps,Archives,DataOps,TextOps,Misc localOps;
+       class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
+       class NM,Sinks notify;
+       class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+
+       linkStyle default stroke:#1F2A44,stroke-width:2.5px;
+
+設計模式
+--------
+
 **Facade（外觀）**
    :mod:`automation_file`（頂層 ``__init__``）是使用者唯一需要匯入的名稱。
    所有公開函式與單例都從這裡重新匯出。
