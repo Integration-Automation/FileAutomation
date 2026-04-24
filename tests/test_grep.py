@@ -7,8 +7,8 @@ import pytest
 from automation_file import GrepException, build_default_registry, grep_files, iter_grep
 
 
-@pytest.fixture
-def sample_tree(tmp_path: Path) -> Path:
+@pytest.fixture(name="sample_tree")
+def _sample_tree(tmp_path: Path) -> Path:
     (tmp_path / "a.txt").write_text("hello world\nfoo bar\nHELLO AGAIN\n", encoding="utf-8")
     (tmp_path / "b.log").write_text("nothing to see here\n", encoding="utf-8")
     sub = tmp_path / "sub"
@@ -46,7 +46,7 @@ def test_grep_invalid_regex_raises(sample_tree: Path) -> None:
 
 def test_grep_glob_filter(sample_tree: Path) -> None:
     hits = grep_files(str(sample_tree), "hello", glob="*.log")
-    assert hits == []
+    assert not hits
 
 
 def test_grep_empty_pattern_raises(sample_tree: Path) -> None:

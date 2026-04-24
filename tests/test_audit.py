@@ -80,7 +80,7 @@ def test_purge_removes_old_rows(tmp_path: Path) -> None:
     # Backdate the row so it's older than the cutoff.
     import sqlite3
 
-    with sqlite3.connect(log._db_path) as conn:
+    with sqlite3.connect(log._db_path) as conn:  # pylint: disable=protected-access
         conn.execute("UPDATE audit SET ts = ? WHERE action = 'old'", (time.time() - 3600,))
         conn.commit()
     log.record("fresh", {})

@@ -26,7 +26,7 @@ def test_sync_copies_new_files(tmp_path: Path) -> None:
     result = sync_dir(src, dst)
 
     assert set(result["copied"]) == {"a.txt", "nested/b.txt"}
-    assert result["skipped"] == []
+    assert not result["skipped"]
     assert (dst / "a.txt").read_text(encoding="utf-8") == "one"
     assert (dst / "nested" / "b.txt").read_text(encoding="utf-8") == "two"
 
@@ -39,7 +39,7 @@ def test_sync_skips_unchanged_files(tmp_path: Path) -> None:
     sync_dir(src, dst)
     # mtime tolerance means a second pass is a no-op.
     result = sync_dir(src, dst)
-    assert result["copied"] == []
+    assert not result["copied"]
     assert result["skipped"] == ["a.txt"]
 
 
@@ -68,7 +68,7 @@ def test_sync_detects_checksum_change_when_size_matches(tmp_path: Path) -> None:
     os.utime(src / "a.txt", (stat.st_atime, stat.st_mtime))
 
     size_result = sync_dir(src, dst, compare="size_mtime")
-    assert size_result["copied"] == []
+    assert not size_result["copied"]
 
     checksum_result = sync_dir(src, dst, compare="checksum")
     assert checksum_result["copied"] == ["a.txt"]
@@ -111,7 +111,7 @@ def test_sync_delete_disabled_by_default(tmp_path: Path) -> None:
     _touch(dst / "old.txt", "remove")
 
     result = sync_dir(src, dst)
-    assert result["deleted"] == []
+    assert not result["deleted"]
     assert (dst / "old.txt").exists()
 
 
@@ -140,7 +140,7 @@ def test_sync_mtime_tolerance_absorbs_small_drift(tmp_path: Path) -> None:
     stat = (src / "a.txt").stat()
     os.utime(src / "a.txt", (stat.st_atime, stat.st_mtime + 1.0))
     result = sync_dir(src, dst)
-    assert result["copied"] == []
+    assert not result["copied"]
 
 
 def test_sync_fa_action_registered() -> None:

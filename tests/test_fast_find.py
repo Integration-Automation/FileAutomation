@@ -69,7 +69,7 @@ def test_scandir_find_returns_absolute_paths(tmp_path: Path) -> None:
 
 
 def test_scandir_find_handles_missing_root(tmp_path: Path) -> None:
-    assert list(scandir_find(tmp_path / "does-not-exist")) == []
+    assert not list(scandir_find(tmp_path / "does-not-exist"))
 
 
 def test_fast_find_falls_back_to_scandir_when_index_disabled(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_fast_find_falls_back_to_scandir_when_index_disabled(tmp_path: Path) -> 
 
 
 def test_fast_find_returns_empty_for_missing_root(tmp_path: Path) -> None:
-    assert fast_find(tmp_path / "missing") == []
+    assert not fast_find(tmp_path / "missing")
 
 
 def test_fast_find_respects_limit(tmp_path: Path) -> None:
@@ -152,6 +152,7 @@ def test_run_indexer_dispatches(tmp_path: Path, monkeypatch, indexer: str) -> No
 
     (tmp_path / "a.log").write_text("a", encoding="utf-8")
     monkeypatch.setattr(ff, "_capture", fake_capture)
+    # pylint: disable-next=protected-access  # exercises the indexer fallback helper
     result = ff._run_indexer(indexer, tmp_path, "*.log", True, None)
     assert result == [str(tmp_path / "a.log")]
     assert captured["argv"][0] == indexer

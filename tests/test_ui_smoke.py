@@ -16,8 +16,8 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
-@pytest.fixture(scope="module")
-def qt_app():
+@pytest.fixture(name="qt_app", scope="module")
+def _qt_app():
     from PySide6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication([])
@@ -34,6 +34,7 @@ def test_launch_ui_is_lazy_facade_attr() -> None:
 def test_main_window_constructs(qt_app) -> None:
     from automation_file.ui.main_window import MainWindow
 
+    assert qt_app is not None
     window = MainWindow()
     try:
         assert window.windowTitle() == "automation_file"
@@ -66,6 +67,7 @@ def test_each_tab_constructs(qt_app, tab_name: str) -> None:
     from automation_file.ui import tabs
     from automation_file.ui.log_widget import LogPanel
 
+    assert qt_app is not None
     pool = QThreadPool.globalInstance()
     log = LogPanel()
     tab_cls = getattr(tabs, tab_name)

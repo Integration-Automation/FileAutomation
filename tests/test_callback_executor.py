@@ -16,6 +16,7 @@ def test_callback_runs_after_trigger() -> None:
 
     result = executor.callback_function(
         trigger_function_name="trigger",
+        # pylint: disable-next=unnecessary-lambda  # kwargs-style call; list.append rejects kwargs
         callback_function=lambda tag: seen.append(tag),
         callback_function_param={"tag": "done"},
         value="hi",

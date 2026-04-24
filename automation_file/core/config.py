@@ -38,11 +38,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised only on Python 3.10 runners
-    import tomli as tomllib
-
 from automation_file.core.secrets import (
     ChainedSecretProvider,
     default_provider,
@@ -57,6 +52,17 @@ from automation_file.notify.sinks import (
     SlackSink,
     WebhookSink,
 )
+
+
+def _load_tomllib() -> Any:
+    if sys.version_info >= (3, 11):
+        import tomllib
+
+        return tomllib
+    # pragma: no cover - exercised only on Python 3.10 runners
+    import tomli  # pylint: disable=import-error  # declared in *.toml for Python<3.11
+
+    return tomli
 
 
 class ConfigException(FileAutomationException):
@@ -81,6 +87,7 @@ class AutomationConfig:
         config_path = Path(path)
         if not config_path.is_file():
             raise ConfigException(f"config file not found: {config_path}")
+        tomllib = _load_tomllib()
         try:
             raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
         except (OSError, tomllib.TOMLDecodeError) as err:

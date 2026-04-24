@@ -129,6 +129,7 @@ def execute_action_dag(
 def _run_action(action: list) -> Any:
     # Use the single-action path so exceptions surface as real exceptions
     # rather than being swallowed by execute_action's per-action try/except.
+    # pylint: disable=protected-access  # intra-package call to the documented Template Method
     return default_executor._execute_event(action)
 
 
