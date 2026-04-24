@@ -46,7 +46,7 @@ def test_validate_first_aborts_before_execution() -> None:
             [["count"], ["count"], ["does_not_exist"]],
             validate_first=True,
         )
-    assert calls == []  # nothing ran because validation failed first
+    assert not calls  # nothing ran because validation failed first
 
 
 def test_dry_run_does_not_invoke_commands() -> None:
@@ -54,7 +54,7 @@ def test_dry_run_does_not_invoke_commands() -> None:
     calls: list[int] = []
     executor.registry.register("count", lambda: calls.append(1) or 1)
     results = executor.execute_action([["count"], ["count"]], dry_run=True)
-    assert calls == []
+    assert not calls
     assert all(value.startswith("dry_run:") for value in results.values())
 
 

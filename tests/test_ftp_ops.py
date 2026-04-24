@@ -49,8 +49,8 @@ class _FakeFTP:
         return self.listings.get(path, [])
 
 
-@pytest.fixture
-def fake_ftp(monkeypatch: pytest.MonkeyPatch) -> _FakeFTP:
+@pytest.fixture(name="fake_ftp")
+def _fake_ftp(monkeypatch: pytest.MonkeyPatch) -> _FakeFTP:
     fake = _FakeFTP()
     monkeypatch.setattr(ftp_instance, "_ftp", fake, raising=False)
     return fake
@@ -94,6 +94,7 @@ def test_upload_file_missing_source_raises(fake_ftp: _FakeFTP, tmp_path: Path) -
     missing = tmp_path / "nope.txt"
     with pytest.raises(FileNotExistsException):
         upload_ops.ftp_upload_file(str(missing), "remote/nope.txt")
+    assert not fake_ftp.stored
 
 
 def test_upload_file_stores_payload(fake_ftp: _FakeFTP, tmp_path: Path) -> None:
@@ -110,12 +111,17 @@ def test_upload_dir_uploads_all_files(fake_ftp: _FakeFTP, tmp_path: Path) -> Non
     (tmp_path / "sub" / "b.txt").write_bytes(b"B")
     uploaded = upload_ops.ftp_upload_dir(str(tmp_path), "root")
     assert sorted(uploaded) == ["root/a.txt", "root/sub/b.txt"]
+    assert {cmd for cmd, _ in fake_ftp.stored} == {
+        "STOR root/a.txt",
+        "STOR root/sub/b.txt",
+    }
 
 
 def test_download_file_writes_target(fake_ftp: _FakeFTP, tmp_path: Path) -> None:
     target = tmp_path / "out" / "file.bin"
     assert download_ops.ftp_download_file("remote/file.bin", str(target)) is True
     assert target.read_bytes() == b"payload"
+    assert fake_ftp.retrieved == ["RETR remote/file.bin"]
 
 
 def test_delete_path_calls_delete(fake_ftp: _FakeFTP) -> None:
@@ -124,7 +130,7 @@ def test_delete_path_calls_delete(fake_ftp: _FakeFTP) -> None:
 
 
 def test_list_dir_returns_names(fake_ftp: _FakeFTP) -> None:
-    assert list_ops.ftp_list_dir(".") == ["a.txt", "b.txt"]
+    assert list_ops.ftp_list_dir(".") == fake_ftp.listings["."]
 
 
 def test_close_on_fresh_client_is_noop() -> None:

@@ -45,7 +45,7 @@ def test_rename_dir_missing_source(tmp_path: Path) -> None:
         dir_ops.rename_dir(str(tmp_path / "missing"), str(tmp_path / "out"))
 
 
-def test_remove_dir_tree(tmp_path: Path, sample_dir: Path) -> None:
+def test_remove_dir_tree(sample_dir: Path) -> None:
     assert dir_ops.remove_dir_tree(str(sample_dir)) is True
     assert not sample_dir.exists()
 

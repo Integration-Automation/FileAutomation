@@ -14,8 +14,8 @@ from automation_file import (
 )
 
 
-@pytest.fixture
-def sample_json(tmp_path: Path) -> Path:
+@pytest.fixture(name="sample_json")
+def _sample_json(tmp_path: Path) -> Path:
     path = tmp_path / "config.json"
     path.write_text(
         json.dumps(

@@ -24,7 +24,8 @@ def _post(url: str, payload: object, headers: dict[str, str] | None = None) -> t
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers or {}, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=3) as resp:  # nosec B310 - URL built from a loopback test server address
+        # B310 suppressed: URL built from a loopback test server address.
+        with urllib.request.urlopen(request, timeout=3) as resp:  # nosec B310
             return resp.status, resp.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8")

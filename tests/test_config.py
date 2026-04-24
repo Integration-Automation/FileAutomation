@@ -151,7 +151,7 @@ def test_empty_config_yields_no_sinks(tmp_path: Path) -> None:
     path = tmp_path / "c.toml"
     _write_toml(path, "# nothing configured\n")
     config = AutomationConfig.load(path)
-    assert config.notification_sinks() == []
+    assert not config.notification_sinks()
 
 
 def test_file_secret_provider_resolved_from_config(tmp_path: Path) -> None:

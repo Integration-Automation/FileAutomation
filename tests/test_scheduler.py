@@ -175,6 +175,7 @@ def test_scheduler_skips_overlap_by_default() -> None:
         action_list=[["FA_schedule_list"]],
     )
     job.running = True  # pretend previous run is still in flight
+    # pylint: disable-next=protected-access  # exercises the overlap-guard path
     engine._dispatch(job, dt.datetime(2026, 4, 21, 12, 0))
     assert job.skipped == 1
     assert job.runs == 0
@@ -189,6 +190,7 @@ def test_scheduler_allows_overlap_when_opted_in() -> None:
         allow_overlap=True,
     )
     job.running = True
+    # pylint: disable-next=protected-access  # exercises the overlap-allow path
     engine._dispatch(job, dt.datetime(2026, 4, 21, 12, 0))
     assert job.runs == 1
     assert job.skipped == 0

@@ -15,8 +15,8 @@ def _make_file(path: Path, days_ago: int) -> None:
     os.utime(path, (when, when))
 
 
-@pytest.fixture
-def backup_dir(tmp_path: Path) -> Path:
+@pytest.fixture(name="backup_dir")
+def _backup_dir(tmp_path: Path) -> Path:
     # Create 30 daily backups
     for day in range(30):
         _make_file(tmp_path / f"backup-{day:02d}.zip", days_ago=day)
