@@ -45,11 +45,18 @@ def box_upload_dir(dir_path: str, parent_folder_id: str = "0") -> list[str]:
     the Box name. Folder hierarchy on Box is not mirrored; callers that
     need it should create folders first via the Box UI or SDK.
     """
+
+    def _upload_one(local: Path, flat_name: str) -> bool:
+        # ``walk_and_upload`` expects a bool callback; we always return True
+        # because box_upload_file raises on failure (never returns falsy).
+        box_upload_file(str(local), parent_folder_id, flat_name)
+        return True
+
     result = walk_and_upload(
         dir_path,
         "",
         lambda _prefix, rel: rel.replace("\\", "/"),
-        lambda local, flat_name: box_upload_file(str(local), parent_folder_id, flat_name),
+        _upload_one,
     )
     file_automation_logger.info(
         "box_upload_dir: %s -> folder %s (%d files)",

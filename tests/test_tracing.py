@@ -1,5 +1,7 @@
 """Tests for automation_file.core.tracing."""
 
+# pylint: disable=protected-access  # tests probe tracing._state / _shutdown_for_tests directly
+
 from __future__ import annotations
 
 from typing import Any
@@ -51,7 +53,7 @@ def _exporter() -> Any:
     provider = trace.get_tracer_provider()
     shutdown = getattr(provider, "shutdown", None)
     if callable(shutdown):
-        shutdown()
+        shutdown()  # pylint: disable=not-callable  # narrowed by callable() above
 
 
 def _flush() -> None:
@@ -59,7 +61,7 @@ def _flush() -> None:
     provider = trace.get_tracer_provider()
     force_flush = getattr(provider, "force_flush", None)
     if callable(force_flush):
-        force_flush()
+        force_flush()  # pylint: disable=not-callable  # narrowed by callable() above
 
 
 def test_is_initialised_true_after_fixture(exporter: _CapturingExporter) -> None:
@@ -70,7 +72,9 @@ def test_is_initialised_true_after_fixture(exporter: _CapturingExporter) -> None
 def test_action_span_records_attributes(exporter: _CapturingExporter) -> None:
     before = len(exporter.spans)
     with action_span("probe", {"answer": 42}):
-        pass
+        # Body is intentionally a trivial op — the test asserts on the span
+        # the context manager emits, not on any computation inside.
+        _ = trace.get_current_span()
     _flush()
     new_spans = exporter.spans[before:]
     assert any(s.name == "automation_file.action" for s in new_spans)
@@ -104,7 +108,9 @@ def test_action_span_noop_when_uninitialised() -> None:
     tracing._state["initialised"] = False
     try:
         with action_span("probe"):
-            pass  # must not raise
+            # Must not raise — the context manager has to stay a cheap no-op
+            # when tracing is switched off.
+            assert tracing.is_initialised() is False
         assert tracing.is_initialised() is False
     finally:
         tracing._state["initialised"] = previous

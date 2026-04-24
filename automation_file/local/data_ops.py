@@ -18,7 +18,7 @@ import csv
 import json
 import os
 import tempfile
-from collections.abc import MutableMapping, MutableSequence
+from collections.abc import MutableMapping, MutableSequence, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +55,24 @@ def csv_filter(
         raise DataOpsException("where_column and where_equals must be supplied together")
     dest = Path(target)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    written = 0
+    written = _stream_csv_filter(
+        source, dest, columns, where_column, where_equals, delimiter, encoding
+    )
+    file_automation_logger.info("csv_filter: %s -> %s (%d rows)", source, dest, written)
+    return written
+
+
+# pylint: disable-next=too-many-positional-arguments  # flat option bundle
+def _stream_csv_filter(
+    source: Path,
+    dest: Path,
+    columns: list[str] | None,
+    where_column: str | None,
+    where_equals: str | None,
+    delimiter: str,
+    encoding: str,
+) -> int:
+    """Do the actual streaming copy; separated so ``csv_filter`` stays simple."""
     tmp_name: str | None = None
     try:
         with (
@@ -70,23 +87,38 @@ def csv_filter(
             ) as writer,
         ):
             tmp_name = writer.name
-            parsed = csv.DictReader(reader, delimiter=delimiter)
-            fieldnames = _resolve_fieldnames(parsed.fieldnames, columns)
-            if where_column is not None and where_column not in (parsed.fieldnames or []):
-                raise DataOpsException(f"where_column {where_column!r} is not in CSV header")
-            output = csv.DictWriter(writer, fieldnames=fieldnames, delimiter=delimiter)
-            output.writeheader()
-            for row in parsed:
-                if where_column is not None and row.get(where_column) != where_equals:
-                    continue
-                output.writerow({name: row.get(name, "") for name in fieldnames})
-                written += 1
+            written = _write_filtered_rows(
+                reader, writer, columns, where_column, where_equals, delimiter
+            )
         os.replace(tmp_name, dest)
         tmp_name = None
+        return written
     finally:
         if tmp_name is not None:
             Path(tmp_name).unlink(missing_ok=True)
-    file_automation_logger.info("csv_filter: %s -> %s (%d rows)", source, dest, written)
+
+
+# pylint: disable-next=too-many-positional-arguments  # flat option bundle
+def _write_filtered_rows(
+    reader: Any,
+    writer: Any,
+    columns: list[str] | None,
+    where_column: str | None,
+    where_equals: str | None,
+    delimiter: str,
+) -> int:
+    parsed = csv.DictReader(reader, delimiter=delimiter)
+    fieldnames = _resolve_fieldnames(parsed.fieldnames, columns)
+    if where_column is not None and where_column not in (parsed.fieldnames or []):
+        raise DataOpsException(f"where_column {where_column!r} is not in CSV header")
+    output = csv.DictWriter(writer, fieldnames=fieldnames, delimiter=delimiter)
+    output.writeheader()
+    written = 0
+    for row in parsed:
+        if where_column is not None and row.get(where_column) != where_equals:
+            continue
+        output.writerow({name: row.get(name, "") for name in fieldnames})
+        written += 1
     return written
 
 
@@ -178,7 +210,7 @@ def jsonl_append(path: str, record: dict[str, Any], *, encoding: str = "utf-8") 
 
 
 def _resolve_fieldnames(
-    source_fields: list[str] | None,
+    source_fields: Sequence[str] | None,
     requested: list[str] | None,
 ) -> list[str]:
     if source_fields is None:

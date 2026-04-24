@@ -107,31 +107,22 @@ class OneDriveClient:
         method: str,
         path: str,
         *,
-        params: dict[str, Any] | None = None,
-        json_body: Any = None,
-        data: Any = None,
-        headers: dict[str, str] | None = None,
         timeout: float = 30.0,
+        **request_kwargs: Any,
     ) -> requests.Response:
         """Issue a Microsoft Graph API request against ``/me/drive`` (or a full URL).
 
         Paths starting with ``/`` are joined onto the base
         ``https://graph.microsoft.com/v1.0`` endpoint; absolute ``https://``
         URLs are used verbatim (handy for the ``@microsoft.graph.downloadUrl``
-        redirect Graph hands out for file contents).
+        redirect Graph hands out for file contents). ``request_kwargs`` is
+        forwarded to :meth:`requests.Session.request` — ``params``, ``json``,
+        ``data``, and ``headers`` are the common ones.
         """
         session = self.require_session()
         url = path if path.startswith("http") else f"{_GRAPH_BASE}{path}"
         try:
-            response = session.request(
-                method,
-                url,
-                params=params,
-                json=json_body,
-                data=data,
-                headers=headers,
-                timeout=timeout,
-            )
+            response = session.request(method, url, timeout=timeout, **request_kwargs)
         except requests.RequestException as error:
             raise OneDriveException(f"graph request failed: {error}") from error
         if not response.ok:

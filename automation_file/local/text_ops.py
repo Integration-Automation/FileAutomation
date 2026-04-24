@@ -71,7 +71,10 @@ def file_merge(parts: list[str], target_path: str) -> bool:
             tmp_name = writer.name
             for part in parts:
                 with open(part, "rb") as reader:
-                    for chunk in iter(lambda r=reader: r.read(_CHUNK_IO), b""):
+                    while True:
+                        chunk = reader.read(_CHUNK_IO)
+                        if not chunk:
+                            break
                         writer.write(chunk)
         os.replace(tmp_name, target)
         tmp_name = None

@@ -5,6 +5,8 @@ wiring, guard clauses, and that ``graph_request`` surfaces non-2xx
 responses as :class:`OneDriveException`.
 """
 
+# pylint: disable=protected-access  # fakes inject _session / _access_token directly
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -75,10 +77,12 @@ def _fake_client(monkeypatch: pytest.MonkeyPatch) -> OneDriveClient:
         return _FakeResponse(404)
 
     session = _FakeSession(responder)
-    client._session = session  # type: ignore[attr-defined]  # test injection
-    client._access_token = "fake-token"  # type: ignore[attr-defined]
+    # Not a credential — placeholder marker used only by the fake session.
+    fake_token = "fake-token"  # nosec B105
+    client._session = session  # test injection
+    client._access_token = fake_token
     monkeypatch.setattr(onedrive_instance, "_session", session, raising=False)
-    monkeypatch.setattr(onedrive_instance, "_access_token", "fake-token", raising=False)
+    monkeypatch.setattr(onedrive_instance, "_access_token", fake_token, raising=False)
     return client
 
 
@@ -133,7 +137,7 @@ def test_upload_roundtrip(tmp_path: Path, fake_client: OneDriveClient) -> None:
     src = tmp_path / "hello.txt"
     src.write_text("hi", encoding="utf-8")
     assert upload_ops.onedrive_upload_file(str(src), "dest/hello.txt") is True
-    last = fake_client._session.calls[-1]  # type: ignore[attr-defined]
+    last = fake_client._session.calls[-1]
     assert last["method"] == "PUT"
     assert last["data"] == b"hi"
 
@@ -153,7 +157,7 @@ def test_list_folder_returns_entries(fake_client: OneDriveClient) -> None:
 
 def test_delete_hits_graph(fake_client: OneDriveClient) -> None:
     assert delete_ops.onedrive_delete_item("dir/file.txt") is True
-    last = fake_client._session.calls[-1]  # type: ignore[attr-defined]
+    last = fake_client._session.calls[-1]
     assert last["method"] == "DELETE"
 
 
@@ -161,7 +165,7 @@ def test_graph_request_raises_on_http_error(fake_client: OneDriveClient) -> None
     del fake_client
     # Replace session with one that always returns 500.
     err_session = _FakeSession(lambda *_a, **_k: _FakeResponse(status=500))
-    onedrive_instance._session = err_session  # type: ignore[attr-defined]
+    onedrive_instance._session = err_session
     with pytest.raises(OneDriveException):
         onedrive_instance.graph_request("GET", "/me/drive/root")
 

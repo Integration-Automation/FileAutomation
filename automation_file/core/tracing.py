@@ -104,22 +104,22 @@ def _shutdown_for_tests() -> None:
     if callable(shutdown):
         # Exporter shutdown is best-effort when a test already tore it down.
         with contextlib.suppress(Exception):
-            shutdown()
+            shutdown()  # pylint: disable=not-callable  # narrowed by callable() above
     # pylint: disable=protected-access  # test-only reset of OTel's Once sentinel
-    once_cls = type(trace._TRACER_PROVIDER_SET_ONCE)  # type: ignore[attr-defined]
-    trace._TRACER_PROVIDER_SET_ONCE = once_cls()  # type: ignore[attr-defined]
-    trace._TRACER_PROVIDER = None  # type: ignore[attr-defined]
+    once_cls = type(trace._TRACER_PROVIDER_SET_ONCE)
+    trace._TRACER_PROVIDER_SET_ONCE = once_cls()
+    trace._TRACER_PROVIDER = None
     _state["initialised"] = False
 
 
 class _NullExporter(SpanExporter):
     """Default exporter: accept spans, discard them."""
 
-    def export(self, spans: Any) -> Any:  # type: ignore[override]
+    def export(self, spans: Any) -> Any:
         from opentelemetry.sdk.trace.export import SpanExportResult
 
         del spans
         return SpanExportResult.SUCCESS
 
-    def shutdown(self) -> None:  # type: ignore[override]
+    def shutdown(self) -> None:
         return None

@@ -122,6 +122,12 @@ def apply_text_patch(target: str | os.PathLike[str], patch: str) -> bool:
     verified against the live file before any write; if a hunk's context
     lines don't match, no change is applied and :class:`DiffException` is
     raised so the caller sees the mismatch instead of a corrupt file.
+
+    ``target`` is taken at face value — the caller is the trust boundary
+    for this path, exactly like :func:`pathlib.Path.write_text` or the
+    surrounding :func:`diff_text_files` helper. Upstream callers that
+    accept a user-controlled root should run the path through
+    :func:`automation_file.local.safe_paths.safe_join` themselves.
     """
     target_path = Path(target)
     try:
@@ -129,7 +135,7 @@ def apply_text_patch(target: str | os.PathLike[str], patch: str) -> bool:
     except OSError as error:
         raise DiffException(f"cannot read patch target: {error}") from error
     patched = _apply_unified_patch(original, patch)
-    target_path.write_text("".join(patched), encoding="utf-8")
+    target_path.write_text("".join(patched), encoding="utf-8")  # NOSONAR pythonsecurity:S2083
     return True
 
 
@@ -137,31 +143,44 @@ def _apply_unified_patch(lines: list[str], patch: str) -> list[str]:
     result: list[str] = []
     cursor = 0
     for hunk in _iter_hunks(patch):
-        while cursor < hunk.start:
-            result.append(lines[cursor])
-            cursor += 1
-        for op, payload in hunk.ops:
-            if op == " ":
-                if cursor >= len(lines) or lines[cursor] != payload:
-                    raise DiffException(
-                        f"patch context mismatch at line {cursor + 1}: "
-                        f"expected {payload!r}, got "
-                        f"{lines[cursor] if cursor < len(lines) else '<EOF>'!r}"
-                    )
-                result.append(payload)
-                cursor += 1
-            elif op == "-":
-                if cursor >= len(lines) or lines[cursor] != payload:
-                    raise DiffException(
-                        f"patch deletion mismatch at line {cursor + 1}: "
-                        f"expected {payload!r}, got "
-                        f"{lines[cursor] if cursor < len(lines) else '<EOF>'!r}"
-                    )
-                cursor += 1
-            elif op == "+":
-                result.append(payload)
+        cursor = _copy_up_to(lines, cursor, hunk.start, result)
+        cursor = _apply_hunk_ops(lines, cursor, hunk.ops, result)
     result.extend(lines[cursor:])
     return result
+
+
+def _copy_up_to(lines: list[str], cursor: int, stop: int, result: list[str]) -> int:
+    while cursor < stop:
+        result.append(lines[cursor])
+        cursor += 1
+    return cursor
+
+
+def _apply_hunk_ops(
+    lines: list[str],
+    cursor: int,
+    ops: tuple[tuple[str, str], ...],
+    result: list[str],
+) -> int:
+    for op, payload in ops:
+        if op == "+":
+            result.append(payload)
+            continue
+        # " " (context) and "-" (delete) both require a live-line match.
+        _verify_live_line(lines, cursor, payload, context=op == " ")
+        if op == " ":
+            result.append(payload)
+        cursor += 1
+    return cursor
+
+
+def _verify_live_line(lines: list[str], cursor: int, expected: str, *, context: bool) -> None:
+    got = lines[cursor] if cursor < len(lines) else "<EOF>"
+    if cursor >= len(lines) or lines[cursor] != expected:
+        kind = "context" if context else "deletion"
+        raise DiffException(
+            f"patch {kind} mismatch at line {cursor + 1}: expected {expected!r}, got {got!r}"
+        )
 
 
 @dataclass(frozen=True)
@@ -171,28 +190,39 @@ class _Hunk:
 
 
 def _iter_hunks(patch: str) -> Iterable[_Hunk]:
-    buffer: list[tuple[str, str]] = []
-    start = 0
-    in_hunk = False
+    state = _HunkParseState()
     for raw_line in patch.splitlines(keepends=True):
-        if raw_line.startswith("@@"):
-            if in_hunk and buffer:
-                yield _Hunk(start=start, ops=tuple(buffer))
-            start = _parse_hunk_header(raw_line)
-            buffer = []
-            in_hunk = True
-            continue
-        if raw_line.startswith(("---", "+++")):
-            continue
-        if not in_hunk:
-            continue
-        if not raw_line:
-            continue
-        prefix, payload = raw_line[0], raw_line[1:]
-        if prefix in {" ", "+", "-"}:
-            buffer.append((prefix, payload))
-    if in_hunk and buffer:
-        yield _Hunk(start=start, ops=tuple(buffer))
+        pending = _consume_patch_line(state, raw_line)
+        if pending is not None:
+            yield pending
+    if state.in_hunk and state.buffer:
+        yield _Hunk(start=state.start, ops=tuple(state.buffer))
+
+
+@dataclass
+class _HunkParseState:
+    buffer: list[tuple[str, str]] = field(default_factory=list)
+    start: int = 0
+    in_hunk: bool = False
+
+
+def _consume_patch_line(state: _HunkParseState, raw_line: str) -> _Hunk | None:
+    if raw_line.startswith("@@"):
+        pending = (
+            _Hunk(start=state.start, ops=tuple(state.buffer))
+            if state.in_hunk and state.buffer
+            else None
+        )
+        state.start = _parse_hunk_header(raw_line)
+        state.buffer = []
+        state.in_hunk = True
+        return pending
+    if raw_line.startswith(("---", "+++")) or not state.in_hunk or not raw_line:
+        return None
+    prefix, payload = raw_line[0], raw_line[1:]
+    if prefix in {" ", "+", "-"}:
+        state.buffer.append((prefix, payload))
+    return None
 
 
 _HUNK_HEADER = re.compile(r"^@@\s+-(\d+)(?:,\d+)?\s+\+\d+(?:,\d+)?\s+@@")
