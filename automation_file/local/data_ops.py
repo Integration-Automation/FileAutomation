@@ -18,11 +18,14 @@ import csv
 import json
 import os
 import tempfile
+from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path
 from typing import Any
 
 from automation_file.exceptions import DataOpsException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
+
+_MISSING = object()
 
 
 def csv_filter(
@@ -186,3 +189,228 @@ def _resolve_fieldnames(
     if missing:
         raise DataOpsException(f"column(s) not in CSV header: {', '.join(missing)}")
     return list(requested)
+
+
+def yaml_get(path: str, key_path: str, default: Any = None) -> Any:
+    """Return the value at dotted ``key_path`` in a YAML file, or ``default``."""
+    data = _yaml_load(path)
+    result = _walk(data, _split_key(key_path))
+    return default if result is _MISSING else result
+
+
+def yaml_set(path: str, key_path: str, value: Any) -> bool:
+    """Set the value at dotted ``key_path``. Creates intermediate dicts."""
+    segments = _split_key(key_path)
+    if not segments:
+        raise DataOpsException("key_path must not be empty")
+    data = _yaml_load(path)
+    _set_in(data, segments, value)
+    _yaml_dump(path, data)
+    file_automation_logger.info("yaml_set: %s %s", path, key_path)
+    return True
+
+
+def yaml_delete(path: str, key_path: str) -> bool:
+    """Delete the value at dotted ``key_path``; return True when a value was removed."""
+    segments = _split_key(key_path)
+    if not segments:
+        raise DataOpsException("key_path must not be empty")
+    data = _yaml_load(path)
+    removed = _delete_in(data, segments)
+    if removed:
+        _yaml_dump(path, data)
+        file_automation_logger.info("yaml_delete: %s %s", path, key_path)
+    return removed
+
+
+def parquet_read(
+    path: str,
+    *,
+    limit: int | None = None,
+    columns: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Read a Parquet file into a list of dicts.
+
+    ``columns`` projects the output schema (unknown column names raise).
+    ``limit`` caps the number of rows returned (reads the whole file but
+    slices before conversion — handy for previews of multi-GB files).
+    """
+    import pyarrow.parquet as pq
+
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotExistsException(str(source))
+    try:
+        table = pq.read_table(str(source), columns=columns)
+    except (OSError, ValueError) as err:
+        raise DataOpsException(f"cannot read parquet {source}: {err}") from err
+    if limit is not None:
+        table = table.slice(0, limit)
+    return table.to_pylist()
+
+
+def parquet_write(path: str, records: list[dict[str, Any]]) -> int:
+    """Write ``records`` (list of dicts) as a Parquet file; return the row count."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not isinstance(records, list):
+        raise DataOpsException("records must be a list of dicts")
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        table = pa.Table.from_pylist(records)
+    except (TypeError, pa.ArrowInvalid) as err:
+        raise DataOpsException(f"cannot build parquet table: {err}") from err
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=str(target.parent), delete=False, suffix=".tmp"
+        ) as writer:
+            tmp_name = writer.name
+        pq.write_table(table, tmp_name)
+        os.replace(tmp_name, target)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
+    file_automation_logger.info("parquet_write: %s (%d rows)", target, table.num_rows)
+    return table.num_rows
+
+
+def csv_to_parquet(
+    csv_path: str,
+    parquet_path: str,
+    *,
+    delimiter: str = ",",
+    encoding: str = "utf-8",
+) -> int:
+    """Convert a CSV file to Parquet; return the row count written."""
+    source = Path(csv_path)
+    if not source.is_file():
+        raise FileNotExistsException(str(source))
+    with open(source, encoding=encoding, newline="") as reader:
+        rows = list(csv.DictReader(reader, delimiter=delimiter))
+    return parquet_write(parquet_path, rows)
+
+
+def _yaml_load(path: str) -> Any:
+    import yaml
+
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotExistsException(str(source))
+    try:
+        return yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as err:
+        raise DataOpsException(f"cannot parse YAML {source}: {err}") from err
+
+
+def _yaml_dump(path: str, data: Any) -> None:
+    import yaml
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(target.parent),
+            delete=False,
+            suffix=".tmp",
+        ) as writer:
+            tmp_name = writer.name
+            yaml.safe_dump(data, writer, sort_keys=False, allow_unicode=True)
+        os.replace(tmp_name, target)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
+
+
+def _split_key(key_path: str) -> list[str]:
+    if not isinstance(key_path, str):
+        raise DataOpsException("key_path must be a string")
+    return [seg for seg in key_path.split(".") if seg != ""]
+
+
+def _walk(data: Any, segments: list[str]) -> Any:
+    current: Any = data
+    for segment in segments:
+        try:
+            current = _child(current, segment)
+        except (KeyError, IndexError, TypeError):
+            return _MISSING
+    return current
+
+
+def _child(container: Any, segment: str) -> Any:
+    if isinstance(container, MutableMapping):
+        return container[segment]
+    if isinstance(container, MutableSequence) and _is_int_segment(segment):
+        return container[int(segment)]
+    raise TypeError(f"cannot index {type(container).__name__} by {segment!r}")
+
+
+def _is_int_segment(segment: str) -> bool:
+    return segment.lstrip("-").isdigit()
+
+
+def _descend_for_set(container: Any, segment: str) -> Any:
+    if isinstance(container, MutableMapping):
+        if segment not in container or not isinstance(
+            container[segment], (MutableMapping, MutableSequence)
+        ):
+            container[segment] = {}
+        return container[segment]
+    if isinstance(container, MutableSequence) and _is_int_segment(segment):
+        return container[int(segment)]
+    raise DataOpsException(f"cannot traverse into {segment!r}")
+
+
+def _set_in(data: Any, segments: list[str], value: Any) -> None:
+    container = data
+    for segment in segments[:-1]:
+        container = _descend_for_set(container, segment)
+    last = segments[-1]
+    if isinstance(container, MutableMapping):
+        container[last] = value
+        return
+    if isinstance(container, MutableSequence) and _is_int_segment(last):
+        _assign_into_sequence(container, last, value)
+        return
+    raise DataOpsException(f"cannot set into {type(container).__name__}")
+
+
+def _assign_into_sequence(container: MutableSequence[Any], last: str, value: Any) -> None:
+    idx = int(last)
+    if -len(container) <= idx < len(container):
+        container[idx] = value
+        return
+    if idx == len(container):
+        container.append(value)
+        return
+    raise DataOpsException(f"list index out of range: {idx}")
+
+
+def _delete_in(data: Any, segments: list[str]) -> bool:
+    container = data
+    for segment in segments[:-1]:
+        try:
+            container = _child(container, segment)
+        except (KeyError, IndexError, TypeError):
+            return False
+    last = segments[-1]
+    if isinstance(container, MutableMapping):
+        if last not in container:
+            return False
+        del container[last]
+        return True
+    if isinstance(container, MutableSequence) and _is_int_segment(last):
+        idx = int(last)
+        if not -len(container) <= idx < len(container):
+            return False
+        del container[idx]
+        return True
+    return False

@@ -131,6 +131,14 @@ def _local_commands() -> dict[str, Command]:
         "FA_csv_to_jsonl": data_ops.csv_to_jsonl,
         "FA_jsonl_iter": data_ops.jsonl_iter,
         "FA_jsonl_append": data_ops.jsonl_append,
+        # Structured data (YAML)
+        "FA_yaml_get": data_ops.yaml_get,
+        "FA_yaml_set": data_ops.yaml_set,
+        "FA_yaml_delete": data_ops.yaml_delete,
+        # Structured data (Parquet)
+        "FA_parquet_read": data_ops.parquet_read,
+        "FA_parquet_write": data_ops.parquet_write,
+        "FA_csv_to_parquet": data_ops.csv_to_parquet,
     }
 
 
@@ -171,7 +179,7 @@ def _http_commands() -> dict[str, Command]:
 
 
 def _utils_commands() -> dict[str, Command]:
-    from automation_file.core import checksum, crypto, manifest
+    from automation_file.core import checksum, crypto, manifest, tracing
     from automation_file.remote import cross_backend
     from automation_file.utils import deduplicate, fast_find, grep, rotate
 
@@ -188,6 +196,7 @@ def _utils_commands() -> dict[str, Command]:
         "FA_copy_between": cross_backend.copy_between,
         "FA_encrypt_file": crypto.encrypt_file,
         "FA_decrypt_file": crypto.decrypt_file,
+        "FA_tracing_init": tracing.init_tracing,
     }
 
 

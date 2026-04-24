@@ -73,10 +73,12 @@ from automation_file.core.secrets import (
 )
 from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.core.tracing import action_span, init_tracing
 from automation_file.exceptions import (
     DataOpsException,
     DiffException,
     TextOpsException,
+    TracingException,
 )
 from automation_file.local.archive_ops import (
     detect_archive_format,
@@ -88,8 +90,14 @@ from automation_file.local.conditional import if_exists, if_newer, if_size_gt
 from automation_file.local.data_ops import (
     csv_filter,
     csv_to_jsonl,
+    csv_to_parquet,
     jsonl_append,
     jsonl_iter,
+    parquet_read,
+    parquet_write,
+    yaml_delete,
+    yaml_get,
+    yaml_set,
 )
 from automation_file.local.diff_ops import (
     DirDiff,
@@ -317,9 +325,11 @@ __all__ = [
     "detect_archive_format",
     "detect_from_bytes",
     "detect_mime",
+    "action_span",
     "apply_text_patch",
     "csv_filter",
     "csv_to_jsonl",
+    "csv_to_parquet",
     "diff_dirs",
     "diff_dirs_summary",
     "diff_text_files",
@@ -327,6 +337,7 @@ __all__ = [
     "encoding_convert",
     "file_merge",
     "file_split",
+    "init_tracing",
     "extract_archive",
     "iter_dir_diff",
     "list_archive",
@@ -352,10 +363,16 @@ __all__ = [
     "jsonl_iter",
     "JsonEditException",
     "line_count",
+    "parquet_read",
+    "parquet_write",
     "sed_replace",
+    "yaml_delete",
+    "yaml_get",
+    "yaml_set",
     "DataOpsException",
     "DiffException",
     "TextOpsException",
+    "TracingException",
     "zip_dir",
     "zip_file",
     "zip_info",

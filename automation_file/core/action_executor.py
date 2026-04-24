@@ -44,15 +44,18 @@ class ActionExecutor:
 
     # Template-method: single action ------------------------------------
     def _execute_event(self, action: list) -> Any:
+        from automation_file.core.tracing import action_span
+
         name, payload_kind, payload = self._parse_action(action)
         command = self.registry.resolve(name)
         if command is None:
             raise ExecuteActionException(f"unknown action: {name!r}")
-        if payload_kind == "none":
-            return command()
-        if payload_kind == "kwargs":
-            return command(**payload)
-        return command(*payload)
+        with action_span(name):
+            if payload_kind == "none":
+                return command()
+            if payload_kind == "kwargs":
+                return command(**payload)
+            return command(*payload)
 
     @staticmethod
     def _parse_action(action: list) -> tuple[str, str, Any]:
