@@ -55,105 +55,235 @@ facade.
 ## Architecture
 
 ```mermaid
-flowchart LR
-    User[User / CLI / JSON batch]
+flowchart TD
+    CLI["<b>CLI / JSON batch</b><br/>python -m automation_file"]
+    GUIUser["<b>PySide6 GUI</b><br/>launch_ui"]
+    ClientSDK["<b>HTTPActionClient SDK</b>"]
+    MCPHost["<b>MCP hosts</b><br/>Claude Desktop · MCP CLIs"]
+    Plugins["<b>Entry-point plugins</b><br/>automation_file.actions"]
 
-    subgraph Facade["automation_file (facade)"]
-        Public["Public API<br/>execute_action, execute_action_parallel,<br/>validate_action, driver_instance,<br/>start_autocontrol_socket_server,<br/>start_http_action_server, Quota,<br/>retry_on_transient, safe_join, ..."]
+    subgraph Facade["<b>automation_file &mdash; facade (__init__.py)</b>"]
+        PublicAPI["<b>Public API</b><br/>execute_action · execute_action_parallel · execute_action_dag<br/>validate_action · driver_instance · s3_instance · azure_blob_instance<br/>dropbox_instance · sftp_instance · ftp_instance · onedrive_instance · box_instance<br/>start_autocontrol_socket_server · start_http_action_server<br/>start_metrics_server · start_web_ui · MCPServer<br/>notification_manager · scheduler · trigger_manager<br/>AutomationConfig · progress_registry · Quota · retry_on_transient"]
     end
 
-    subgraph Core["core"]
-        Registry[(ActionRegistry<br/>FA_* commands)]
-        Executor[ActionExecutor]
-        Callback[CallbackExecutor]
-        Loader[PackageLoader]
-        Json[json_store]
-        Retry[retry]
-        QuotaMod[quota]
-        Progress[progress<br/>Token + Reporter]
+    subgraph Core["<b>core</b>"]
+        Registry[("<b>ActionRegistry</b><br/>FA_* commands")]
+        Executor["<b>ActionExecutor</b><br/>serial · parallel · dry-run · validate-first"]
+        DAG["<b>dag_executor</b><br/>topological fan-out"]
+        Callback["<b>CallbackExecutor</b>"]
+        Loader["<b>PackageLoader</b><br/>+ entry-point plugins"]
+        Queue["<b>ActionQueue</b>"]
+        Json["<b>json_store</b>"]
+        Sub["<b>substitution</b><br/>${env:} ${date:} ${uuid}"]
     end
 
-    subgraph Events["event-driven"]
-        TriggerMod["trigger<br/>watchdog file watcher"]
-        SchedulerMod["scheduler<br/>cron background thread"]
+    subgraph Reliability["<b>reliability</b>"]
+        Retry["<b>retry</b><br/>@retry_on_transient"]
+        QuotaMod["<b>Quota</b><br/>bytes + time budget"]
+        Breaker["<b>CircuitBreaker</b>"]
+        RL["<b>RateLimiter</b>"]
+        Locks["<b>FileLock</b> · <b>SQLiteLock</b>"]
     end
 
-    subgraph Local["local"]
-        FileOps[file_ops]
-        DirOps[dir_ops]
-        ZipOps[zip_ops]
-        Safe[safe_paths]
+    subgraph Observability["<b>observability</b>"]
+        Progress["<b>progress</b><br/>CancellationToken · Reporter"]
+        Metrics["<b>metrics</b><br/>Prometheus counters + histograms"]
+        Audit["<b>AuditLog</b><br/>SQLite"]
+        Tracing["<b>tracing</b><br/>OpenTelemetry spans"]
+        FIM["<b>IntegrityMonitor</b>"]
     end
 
-    subgraph Remote["remote"]
-        UrlVal[url_validator]
-        Http[http_download]
-        Drive["google_drive<br/>client + *_ops"]
-        S3["s3"]
-        Azure["azure_blob"]
-        Dropbox["dropbox_api"]
-        SFTP["sftp"]
+    subgraph Security["<b>security &amp; config</b>"]
+        Secrets["<b>Secret providers</b><br/>Env · File · Chained"]
+        Config["<b>AutomationConfig</b><br/>TOML loader"]
+        ConfW["<b>ConfigWatcher</b><br/>hot reload"]
+        Crypto["<b>crypto</b><br/>AES-256-GCM"]
+        Check["<b>checksum</b> / <b>manifest</b>"]
+        SafeP["<b>safe_paths</b><br/>safe_join · is_within"]
+        ACL["<b>ActionACL</b>"]
     end
 
-    subgraph Server["server"]
-        TCP[TCPActionServer]
-        HTTP[HTTPActionServer]
+    subgraph Events["<b>event-driven</b>"]
+        Trigger["<b>TriggerManager</b><br/>watchdog file watcher"]
+        Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
     end
 
-    subgraph UI["ui (PySide6)"]
-        Launcher[launch_ui]
-        MainWindow["MainWindow<br/>9-tab control surface"]
+    subgraph Servers["<b>servers</b>"]
+        TCP["<b>TCPActionServer</b><br/>loopback · AUTH secret"]
+        HTTPS["<b>HTTPActionServer</b><br/>POST /actions · Bearer<br/>/healthz /readyz /progress /openapi.json"]
+        MCP["<b>MCPServer</b><br/>JSON-RPC 2.0 (stdio)"]
+        MetSrv["<b>MetricsServer</b><br/>/metrics"]
+        WebUI["<b>WebUIServer</b><br/>HTMX dashboard"]
     end
 
-    subgraph Project["project / utils"]
-        Builder[ProjectBuilder]
-        Templates[templates]
-        Discovery[file_discovery]
+    subgraph UI["<b>ui (PySide6)</b>"]
+        MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+        Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
     end
 
-    User --> Public
-    User --> Launcher
-    Launcher --> MainWindow
-    MainWindow --> Public
-    Public --> Executor
-    Public --> Callback
-    Public --> Loader
-    Public --> TCP
-    Public --> HTTP
+    subgraph Local["<b>local ops</b>"]
+        FileOps["<b>file_ops</b> · <b>dir_ops</b>"]
+        Archives["<b>zip_ops</b> · <b>tar_ops</b> · <b>archive_ops</b>"]
+        DataOps["<b>data_ops</b><br/>csv · jsonl · parquet · yaml"]
+        TextOps["<b>text_ops</b> · <b>diff_ops</b><br/><b>json_edit</b> · <b>templates</b>"]
+        Misc["<b>shell_ops</b> · <b>sync_ops</b> · <b>trash</b><br/><b>versioning</b> · <b>conditional</b> · <b>mime</b>"]
+    end
 
-    Executor --> Registry
-    Executor --> Retry
-    Executor --> QuotaMod
-    Callback --> Registry
-    Loader --> Registry
-    TCP --> Executor
-    HTTP --> Executor
-    Executor --> Json
+    subgraph Remote["<b>remote backends</b>"]
+        UrlVal["<b>url_validator</b><br/>SSRF guard"]
+        Http["<b>http_download</b><br/>retry · resume · SHA-256"]
+        Drive["<b>google_drive</b>"]
+        S3M["<b>s3</b>"]
+        Azure["<b>azure_blob</b>"]
+        Dropbox["<b>dropbox_api</b>"]
+        SFTP["<b>sftp</b> (RejectPolicy)"]
+        FTP["<b>ftp / FTPS</b>"]
+        OneD["<b>onedrive</b>"]
+        Box["<b>box</b>"]
+        WebDAV["<b>webdav</b>"]
+        SMB["<b>smb / cifs</b>"]
+        Fsspec["<b>fsspec_bridge</b>"]
+        Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+    end
 
-    Registry --> FileOps
-    Registry --> DirOps
-    Registry --> ZipOps
-    Registry --> Safe
-    Registry --> Http
-    Registry --> Drive
-    Registry --> S3
-    Registry --> Azure
-    Registry --> Dropbox
-    Registry --> SFTP
-    Registry --> Builder
-    Registry --> TriggerMod
-    Registry --> SchedulerMod
-    Registry --> Progress
+    subgraph Notify["<b>notifications</b>"]
+        NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
+        Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
+    end
 
-    TriggerMod --> Executor
-    SchedulerMod --> Executor
-    Http --> Progress
-    S3 --> Progress
+    subgraph Utils["<b>utils / project</b>"]
+        Fast["<b>fast_find</b><br/>mdfind / locate / es.exe"]
+        Dedup["<b>find_duplicates</b>"]
+        Grep["<b>grep_files</b>"]
+        Rotate["<b>rotate_backups</b>"]
+        Discovery["<b>file_discovery</b>"]
+        Builder["<b>ProjectBuilder</b> + templates"]
+    end
 
-    Http --> UrlVal
-    Http --> Retry
-    Builder --> Templates
-    Builder --> Discovery
+    CLI ==> PublicAPI
+    GUIUser ==> MainWin
+    ClientSDK ==> HTTPS
+    MCPHost ==> MCP
+    Plugins ==> Loader
+
+    MainWin ==> Worker
+    Worker ==> PublicAPI
+
+    PublicAPI ==> Executor
+    PublicAPI ==> DAG
+    PublicAPI ==> Callback
+    PublicAPI ==> Queue
+    PublicAPI ==> Config
+    PublicAPI ==> NM
+    PublicAPI ==> Trigger
+    PublicAPI ==> Sched
+
+    TCP ==> Executor
+    HTTPS ==> Executor
+    MCP ==> Registry
+    MetSrv ==> Metrics
+    WebUI ==> Registry
+    ACL ==> TCP
+    ACL ==> HTTPS
+
+    Executor ==> Registry
+    Executor ==> Sub
+    Executor ==> Retry
+    Executor ==> QuotaMod
+    Executor ==> Metrics
+    Executor ==> Audit
+    Executor ==> Tracing
+    Executor ==> Json
+    DAG ==> Executor
+    Callback ==> Registry
+    Loader ==> Registry
+
+    Trigger ==> Executor
+    Sched ==> Executor
+    Trigger -. on failure .-> NM
+    Sched -. on failure .-> NM
+    FIM -. on drift .-> NM
+    ConfW ==> Config
+    Config ==> Secrets
+    Config ==> NM
+
+    Registry ==> FileOps
+    Registry ==> Archives
+    Registry ==> DataOps
+    Registry ==> TextOps
+    Registry ==> Misc
+    Registry ==> Http
+    Registry ==> Drive
+    Registry ==> S3M
+    Registry ==> Azure
+    Registry ==> Dropbox
+    Registry ==> SFTP
+    Registry ==> FTP
+    Registry ==> OneD
+    Registry ==> Box
+    Registry ==> WebDAV
+    Registry ==> SMB
+    Registry ==> Fsspec
+    Registry ==> Cross
+    Registry ==> Crypto
+    Registry ==> Check
+    Registry ==> Fast
+    Registry ==> Dedup
+    Registry ==> Grep
+    Registry ==> Rotate
+    Registry ==> Discovery
+    Registry ==> Builder
+    Registry ==> Progress
+
+    FileOps ==> SafeP
+    Archives ==> SafeP
+    Misc ==> SafeP
+
+    Http ==> UrlVal
+    Http ==> Retry
+    Http ==> Progress
+    Http ==> Check
+    S3M ==> Progress
+    WebDAV ==> UrlVal
+    NM ==> UrlVal
+    NM ==> Sinks
+
+    Cross ==> Drive
+    Cross ==> S3M
+    Cross ==> Azure
+    Cross ==> Dropbox
+    Cross ==> SFTP
+    Cross ==> FTP
+
+    classDef entry fill:#FDEDEC,stroke:#641E16,stroke-width:3px,color:#000,font-weight:bold;
+    classDef facade fill:#D6EAF8,stroke:#154360,stroke-width:4px,color:#000,font-weight:bold;
+    classDef core fill:#FEF9E7,stroke:#1F3A93,stroke-width:3px,color:#000,font-weight:bold;
+    classDef rel fill:#D1F2EB,stroke:#0B5345,stroke-width:3px,color:#000,font-weight:bold;
+    classDef obs fill:#FDEBD0,stroke:#9C640C,stroke-width:3px,color:#000,font-weight:bold;
+    classDef sec fill:#F5B7B1,stroke:#78281F,stroke-width:3px,color:#000,font-weight:bold;
+    classDef event fill:#FCF3CF,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
+    classDef server fill:#FADBD8,stroke:#922B21,stroke-width:3px,color:#000,font-weight:bold;
+    classDef ui fill:#AED6F1,stroke:#1B4F72,stroke-width:3px,color:#000,font-weight:bold;
+    classDef localOps fill:#E8DAEF,stroke:#512E5F,stroke-width:3px,color:#000,font-weight:bold;
+    classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
+    classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
+    classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+
+    class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
+    class PublicAPI facade;
+    class Registry,Executor,DAG,Callback,Loader,Queue,Json,Sub core;
+    class Retry,QuotaMod,Breaker,RL,Locks rel;
+    class Progress,Metrics,Audit,Tracing,FIM obs;
+    class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
+    class Trigger,Sched event;
+    class TCP,HTTPS,MCP,MetSrv,WebUI server;
+    class MainWin,Worker ui;
+    class FileOps,Archives,DataOps,TextOps,Misc localOps;
+    class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
+    class NM,Sinks notify;
+    class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+
+    linkStyle default stroke:#1F2A44,stroke-width:2.5px;
 ```
 
 The `ActionRegistry` built by `build_default_registry()` is the single source
