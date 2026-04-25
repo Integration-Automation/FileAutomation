@@ -112,20 +112,16 @@ def test_duplicate_actions_do_not_collide() -> None:
     assert list(results.values()) == ["first", "first"]
 
 
-def test_substitute_does_not_leak_into_result_key() -> None:
+def test_substitute_does_not_leak_into_result_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """``substitute=True`` must keep the un-expanded literal in result keys."""
-    import os
-
-    os.environ["FA_EXEC_SECRET"] = "TOP_SECRET"
-    try:
-        executor = _fresh_executor()
-        results = executor.execute_action(
-            [["echo", {"value": "${env:FA_EXEC_SECRET}"}]],
-            substitute=True,
-        )
-        [(key, value)] = results.items()
-        assert "TOP_SECRET" not in key
-        assert "${env:FA_EXEC_SECRET}" in key
-        assert value == "TOP_SECRET"
-    finally:
-        os.environ.pop("FA_EXEC_SECRET", None)
+    sentinel = "sentinel-must-not-appear-in-key"
+    monkeypatch.setenv("FA_EXEC_LEAK_PROBE", sentinel)
+    executor = _fresh_executor()
+    results = executor.execute_action(
+        [["echo", {"value": "${env:FA_EXEC_LEAK_PROBE}"}]],
+        substitute=True,
+    )
+    [(key, value)] = results.items()
+    assert sentinel not in key
+    assert "${env:FA_EXEC_LEAK_PROBE}" in key
+    assert value == sentinel
