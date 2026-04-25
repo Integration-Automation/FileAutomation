@@ -13,7 +13,7 @@ JSON 动作列表
    ["FA_name", ["positional", "args"]]
 
 动作列表是动作的数组。执行器按顺序执行并返回
-``"execute: <action>" -> result | repr(error)`` 的映射表。
+``"execute[<index>]: <action>" -> result | repr(error)`` 的映射表。
 
 .. code-block:: python
 

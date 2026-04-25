@@ -103,23 +103,26 @@ class ActionExecutor:
         validate_first: bool = False,
         substitute: bool = False,
     ) -> dict[str, Any]:
-        """Execute every action; return ``{"execute: <action>": result|repr(error)}``.
+        """Execute every action; return ``{"execute[<index>]: <action>": result|repr(error)}``.
 
         ``dry_run=True`` logs and records the resolved name without invoking the
         command. ``validate_first=True`` runs :meth:`validate` before touching
         any action so a typo aborts the whole batch up-front. ``substitute=True``
         expands ``${env:...}`` / ``${date:...}`` / ``${uuid}`` / ``${cwd}``
-        placeholders inside every string in the payload.
+        placeholders inside every string in the payload — the original
+        (un-substituted) action is used for log lines and result keys so
+        secrets pulled in via ``${env:...}`` never reach logs.
         """
         actions = self._coerce(action_list)
-        if substitute:
-            actions = substitute_payload(actions)  # type: ignore[assignment]
+        executed: list = (
+            substitute_payload(actions) if substitute else actions  # type: ignore[assignment]
+        )
         if validate_first:
-            self.validate(actions)
+            self.validate(executed)
         results: dict[str, Any] = {}
-        for action in actions:
-            key = f"execute: {action}"
-            results[key] = self._run_one(action, dry_run=dry_run)
+        for index, (display, action) in enumerate(zip(actions, executed, strict=True)):
+            key = f"execute[{index}]: {display}"
+            results[key] = self._run_one(action, dry_run=dry_run, display=display)
         return results
 
     def execute_action_parallel(
@@ -154,15 +157,16 @@ class ActionExecutor:
         self.registry.register_many(command_dict)
 
     # Internals ---------------------------------------------------------
-    def _run_one(self, action: list, dry_run: bool) -> Any:
+    def _run_one(self, action: list, dry_run: bool, display: list | None = None) -> Any:
+        display_action = action if display is None else display
         name = _safe_action_name(action)
         if dry_run:
-            return self._run_dry(action)
+            return self._run_dry(action, display=display_action)
         started = time.monotonic()
         ok = False
         try:
             value = self._execute_event(action)
-            file_automation_logger.info("execute_action: %s", action)
+            file_automation_logger.info("execute_action: %s", display_action)
             ok = True
             return value
         except ExecuteActionException as error:
@@ -174,19 +178,21 @@ class ActionExecutor:
         finally:
             record_action(name, time.monotonic() - started, ok)
 
-    def _run_dry(self, action: list) -> Any:
+    def _run_dry(self, action: list, display: list | None = None) -> Any:
+        display_action = action if display is None else display
         try:
-            name, kind, payload = self._parse_action(action)
+            name, _, _ = self._parse_action(action)
             if self.registry.resolve(name) is None:
                 raise ExecuteActionException(f"unknown action: {name!r}")
         except ExecuteActionException as error:
             file_automation_logger.error("execute_action malformed: %r", error)
             return repr(error)
+        _, display_kind, display_payload = self._parse_action(display_action)
         file_automation_logger.info(
             "dry_run: %s kind=%s payload=%r",
             name,
-            kind,
-            payload,
+            display_kind,
+            display_payload,
         )
         return f"dry_run:{name}"
 
