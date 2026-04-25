@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from automation_file.ui.tabs.azure_tab import AzureBlobTab
+from automation_file.ui.tabs.box_tab import BoxTab
 from automation_file.ui.tabs.drive_tab import GoogleDriveTab
 from automation_file.ui.tabs.dropbox_tab import DropboxTab
 from automation_file.ui.tabs.home_tab import HomeTab
 from automation_file.ui.tabs.http_tab import HTTPDownloadTab
 from automation_file.ui.tabs.json_editor_tab import JSONEditorTab
 from automation_file.ui.tabs.local_tab import LocalOpsTab
+from automation_file.ui.tabs.onedrive_tab import OneDriveTab
 from automation_file.ui.tabs.progress_tab import ProgressTab
 from automation_file.ui.tabs.s3_tab import S3Tab
 from automation_file.ui.tabs.scheduler_tab import SchedulerTab
@@ -19,12 +21,14 @@ from automation_file.ui.tabs.trigger_tab import TriggerTab
 
 __all__ = [
     "AzureBlobTab",
+    "BoxTab",
     "DropboxTab",
     "GoogleDriveTab",
     "HTTPDownloadTab",
     "HomeTab",
     "JSONEditorTab",
     "LocalOpsTab",
+    "OneDriveTab",
     "ProgressTab",
     "S3Tab",
     "SFTPTab",

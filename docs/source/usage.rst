@@ -13,7 +13,7 @@ An action is one of three shapes:
    ["FA_name", ["positional", "args"]]
 
 An action list is an array of actions. The executor runs them in order and
-returns a mapping of ``"execute: <action>" -> result | repr(error)``.
+returns a mapping of ``"execute[<index>]: <action>" -> result | repr(error)``.
 
 .. code-block:: python
 

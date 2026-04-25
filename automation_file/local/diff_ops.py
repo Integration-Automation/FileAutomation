@@ -11,6 +11,7 @@ from __future__ import annotations
 import difflib
 import hashlib
 import os
+import re
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -113,6 +114,128 @@ def diff_text_files(
     return "".join(diff_lines)
 
 
+def apply_text_patch(target: str | os.PathLike[str], patch: str) -> bool:
+    """Apply a unified-diff ``patch`` to ``target`` in place; return True on success.
+
+    The patch must have been produced against the current contents of
+    ``target`` (for example by :func:`diff_text_files`). Hunk headers are
+    verified against the live file before any write; if a hunk's context
+    lines don't match, no change is applied and :class:`DiffException` is
+    raised so the caller sees the mismatch instead of a corrupt file.
+
+    ``target`` is taken at face value — the caller is the trust boundary
+    for this path, exactly like :func:`pathlib.Path.write_text` or the
+    surrounding :func:`diff_text_files` helper. Upstream callers that
+    accept a user-controlled root should run the path through
+    :func:`automation_file.local.safe_paths.safe_join` themselves.
+    """
+    target_path = Path(target)
+    try:
+        original = target_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    except OSError as error:
+        raise DiffException(f"cannot read patch target: {error}") from error
+    patched = _apply_unified_patch(original, patch)
+    target_path.write_text("".join(patched), encoding="utf-8")  # NOSONAR pythonsecurity:S2083
+    return True
+
+
+def _apply_unified_patch(lines: list[str], patch: str) -> list[str]:
+    result: list[str] = []
+    cursor = 0
+    for hunk in _iter_hunks(patch):
+        cursor = _copy_up_to(lines, cursor, hunk.start, result)
+        cursor = _apply_hunk_ops(lines, cursor, hunk.ops, result)
+    result.extend(lines[cursor:])
+    return result
+
+
+def _copy_up_to(lines: list[str], cursor: int, stop: int, result: list[str]) -> int:
+    while cursor < stop:
+        result.append(lines[cursor])
+        cursor += 1
+    return cursor
+
+
+def _apply_hunk_ops(
+    lines: list[str],
+    cursor: int,
+    ops: tuple[tuple[str, str], ...],
+    result: list[str],
+) -> int:
+    for op, payload in ops:
+        if op == "+":
+            result.append(payload)
+            continue
+        # " " (context) and "-" (delete) both require a live-line match.
+        _verify_live_line(lines, cursor, payload, context=op == " ")
+        if op == " ":
+            result.append(payload)
+        cursor += 1
+    return cursor
+
+
+def _verify_live_line(lines: list[str], cursor: int, expected: str, *, context: bool) -> None:
+    got = lines[cursor] if cursor < len(lines) else "<EOF>"
+    if cursor >= len(lines) or lines[cursor] != expected:
+        kind = "context" if context else "deletion"
+        raise DiffException(
+            f"patch {kind} mismatch at line {cursor + 1}: expected {expected!r}, got {got!r}"
+        )
+
+
+@dataclass(frozen=True)
+class _Hunk:
+    start: int
+    ops: tuple[tuple[str, str], ...]
+
+
+def _iter_hunks(patch: str) -> Iterable[_Hunk]:
+    state = _HunkParseState()
+    for raw_line in patch.splitlines(keepends=True):
+        pending = _consume_patch_line(state, raw_line)
+        if pending is not None:
+            yield pending
+    if state.in_hunk and state.buffer:
+        yield _Hunk(start=state.start, ops=tuple(state.buffer))
+
+
+@dataclass
+class _HunkParseState:
+    buffer: list[tuple[str, str]] = field(default_factory=list)
+    start: int = 0
+    in_hunk: bool = False
+
+
+def _consume_patch_line(state: _HunkParseState, raw_line: str) -> _Hunk | None:
+    if raw_line.startswith("@@"):
+        pending = (
+            _Hunk(start=state.start, ops=tuple(state.buffer))
+            if state.in_hunk and state.buffer
+            else None
+        )
+        state.start = _parse_hunk_header(raw_line)
+        state.buffer = []
+        state.in_hunk = True
+        return pending
+    if raw_line.startswith(("---", "+++")) or not state.in_hunk or not raw_line:
+        return None
+    prefix, payload = raw_line[0], raw_line[1:]
+    if prefix in {" ", "+", "-"}:
+        state.buffer.append((prefix, payload))
+    return None
+
+
+_HUNK_HEADER = re.compile(r"^@@\s+-(\d+)(?:,\d+)?\s+\+\d+(?:,\d+)?\s+@@")
+
+
+def _parse_hunk_header(line: str) -> int:
+    match = _HUNK_HEADER.match(line)
+    if not match:
+        raise DiffException(f"malformed hunk header: {line.rstrip()!r}")
+    # Unified-diff line numbers are 1-based; convert to 0-based index.
+    return max(int(match.group(1)) - 1, 0)
+
+
 def _relative_files(root: Path) -> set[str]:
     collected: set[str] = set()
     for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
@@ -138,3 +261,16 @@ def iter_dir_diff(diff: DirDiff) -> Iterable[tuple[str, str]]:
         yield "removed", rel
     for rel in diff.changed:
         yield "changed", rel
+
+
+def diff_dirs_summary(
+    left: str | os.PathLike[str],
+    right: str | os.PathLike[str],
+) -> dict[str, list[str]]:
+    """JSON-friendly wrapper around :func:`diff_dirs` — returns plain lists."""
+    diff = diff_dirs(left, right)
+    return {
+        "added": list(diff.added),
+        "removed": list(diff.removed),
+        "changed": list(diff.changed),
+    }

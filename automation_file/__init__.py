@@ -73,6 +73,15 @@ from automation_file.core.secrets import (
 )
 from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
+from automation_file.core.tracing import action_span, init_tracing
+from automation_file.exceptions import (
+    BoxException,
+    DataOpsException,
+    DiffException,
+    OneDriveException,
+    TextOpsException,
+    TracingException,
+)
 from automation_file.local.archive_ops import (
     detect_archive_format,
     extract_archive,
@@ -80,10 +89,24 @@ from automation_file.local.archive_ops import (
     supported_formats,
 )
 from automation_file.local.conditional import if_exists, if_newer, if_size_gt
+from automation_file.local.data_ops import (
+    csv_filter,
+    csv_to_jsonl,
+    csv_to_parquet,
+    jsonl_append,
+    jsonl_iter,
+    parquet_read,
+    parquet_write,
+    yaml_delete,
+    yaml_get,
+    yaml_set,
+)
 from automation_file.local.diff_ops import (
     DirDiff,
     apply_dir_diff,
+    apply_text_patch,
     diff_dirs,
+    diff_dirs_summary,
     diff_text_files,
     iter_dir_diff,
 )
@@ -108,6 +131,13 @@ from automation_file.local.shell_ops import ShellException, run_shell
 from automation_file.local.sync_ops import SyncException, sync_dir
 from automation_file.local.tar_ops import TarException, create_tar, extract_tar
 from automation_file.local.templates import render_file, render_string
+from automation_file.local.text_ops import (
+    encoding_convert,
+    file_merge,
+    file_split,
+    line_count,
+    sed_replace,
+)
 from automation_file.local.trash import (
     TrashEntry,
     empty_trash,
@@ -147,6 +177,7 @@ from automation_file.remote.azure_blob import (
     azure_blob_instance,
     register_azure_blob_ops,
 )
+from automation_file.remote.box import BoxClient, box_instance, register_box_ops
 from automation_file.remote.cross_backend import CrossBackendException, copy_between
 from automation_file.remote.dropbox_api import (
     DropboxClient,
@@ -194,6 +225,11 @@ from automation_file.remote.google_drive.upload_ops import (
     drive_upload_to_folder,
 )
 from automation_file.remote.http_download import download_file
+from automation_file.remote.onedrive import (
+    OneDriveClient,
+    onedrive_instance,
+    register_onedrive_ops,
+)
 from automation_file.remote.s3 import S3Client, register_s3_ops, s3_instance
 from automation_file.remote.sftp import SFTPClient, register_sftp_ops, sftp_instance
 from automation_file.remote.smb import SMBClient, SMBEntry
@@ -297,9 +333,19 @@ __all__ = [
     "detect_archive_format",
     "detect_from_bytes",
     "detect_mime",
+    "action_span",
+    "apply_text_patch",
+    "csv_filter",
+    "csv_to_jsonl",
+    "csv_to_parquet",
     "diff_dirs",
+    "diff_dirs_summary",
     "diff_text_files",
     "empty_trash",
+    "encoding_convert",
+    "file_merge",
+    "file_split",
+    "init_tracing",
     "extract_archive",
     "iter_dir_diff",
     "list_archive",
@@ -321,7 +367,20 @@ __all__ = [
     "json_get",
     "json_set",
     "json_delete",
+    "jsonl_append",
+    "jsonl_iter",
     "JsonEditException",
+    "line_count",
+    "parquet_read",
+    "parquet_write",
+    "sed_replace",
+    "yaml_delete",
+    "yaml_get",
+    "yaml_set",
+    "DataOpsException",
+    "DiffException",
+    "TextOpsException",
+    "TracingException",
     "zip_dir",
     "zip_file",
     "zip_info",
@@ -371,6 +430,14 @@ __all__ = [
     "FTPException",
     "ftp_instance",
     "register_ftp_ops",
+    "OneDriveClient",
+    "onedrive_instance",
+    "register_onedrive_ops",
+    "OneDriveException",
+    "BoxClient",
+    "box_instance",
+    "register_box_ops",
+    "BoxException",
     "CrossBackendException",
     "copy_between",
     "WebDAVClient",

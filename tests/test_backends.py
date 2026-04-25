@@ -18,6 +18,8 @@ _BACKENDS = [
     ("automation_file.remote.azure_blob", "azure_blob_instance"),
     ("automation_file.remote.dropbox_api", "dropbox_instance"),
     ("automation_file.remote.sftp", "sftp_instance"),
+    ("automation_file.remote.onedrive", "onedrive_instance"),
+    ("automation_file.remote.box", "box_instance"),
 ]
 
 
@@ -40,6 +42,10 @@ def test_default_registry_contains_every_backend() -> None:
         "FA_dropbox_list_folder",
         "FA_sftp_upload_file",
         "FA_sftp_list_dir",
+        "FA_onedrive_upload_file",
+        "FA_onedrive_list_folder",
+        "FA_box_upload_file",
+        "FA_box_list_folder",
     ]
     for name in expected:
         assert name in registry, f"{name} missing from default registry"
@@ -80,3 +86,23 @@ def test_register_sftp_ops_adds_entries() -> None:
     registry = ActionRegistry()
     register_sftp_ops(registry)
     assert "FA_sftp_upload_file" in registry
+
+
+def test_register_onedrive_ops_adds_entries() -> None:
+    from automation_file.core.action_registry import ActionRegistry
+    from automation_file.remote.onedrive import register_onedrive_ops
+
+    registry = ActionRegistry()
+    register_onedrive_ops(registry)
+    for name in ("FA_onedrive_upload_file", "FA_onedrive_list_folder", "FA_onedrive_close"):
+        assert name in registry
+
+
+def test_register_box_ops_adds_entries() -> None:
+    from automation_file.core.action_registry import ActionRegistry
+    from automation_file.remote.box import register_box_ops
+
+    registry = ActionRegistry()
+    register_box_ops(registry)
+    for name in ("FA_box_upload_file", "FA_box_list_folder", "FA_box_delete_file"):
+        assert name in registry
