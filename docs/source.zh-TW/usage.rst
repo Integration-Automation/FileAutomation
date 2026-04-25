@@ -13,7 +13,7 @@ JSON 動作清單
    ["FA_name", ["positional", "args"]]
 
 動作清單是動作的陣列。執行器依序執行並回傳
-``"execute: <action>" -> result | repr(error)`` 的對應表。
+``"execute[<index>]: <action>" -> result | repr(error)`` 的對應表。
 
 .. code-block:: python
 

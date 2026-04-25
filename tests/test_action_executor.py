@@ -97,3 +97,35 @@ def test_json_store_roundtrip(tmp_path: Path) -> None:
     path = tmp_path / "payload.json"
     write_action_json(str(path), [["a", 1]])
     assert read_action_json(str(path)) == [["a", 1]]
+
+
+def test_duplicate_actions_do_not_collide() -> None:
+    """Two identical actions in one batch must keep both results."""
+    executor = _fresh_executor()
+    results = executor.execute_action(
+        [
+            ["echo", {"value": "first"}],
+            ["echo", {"value": "first"}],
+        ]
+    )
+    assert len(results) == 2
+    assert list(results.values()) == ["first", "first"]
+
+
+def test_substitute_does_not_leak_into_result_key() -> None:
+    """``substitute=True`` must keep the un-expanded literal in result keys."""
+    import os
+
+    os.environ["FA_EXEC_SECRET"] = "TOP_SECRET"
+    try:
+        executor = _fresh_executor()
+        results = executor.execute_action(
+            [["echo", {"value": "${env:FA_EXEC_SECRET}"}]],
+            substitute=True,
+        )
+        [(key, value)] = results.items()
+        assert "TOP_SECRET" not in key
+        assert "${env:FA_EXEC_SECRET}" in key
+        assert value == "TOP_SECRET"
+    finally:
+        os.environ.pop("FA_EXEC_SECRET", None)

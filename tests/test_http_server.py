@@ -39,7 +39,7 @@ def test_http_server_executes_action() -> None:
         url = insecure_url("http", f"{host}:{port}/actions")
         status, body = _post(url, [["test_http_echo", {"value": "hi"}]])
         assert status == 200
-        assert json.loads(body) == {"execute: ['test_http_echo', {'value': 'hi'}]": "hi"}
+        assert json.loads(body) == {"execute[0]: ['test_http_echo', {'value': 'hi'}]": "hi"}
     finally:
         server.shutdown()
 
