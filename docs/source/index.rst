@@ -162,10 +162,10 @@ A JSON action list is simply a list of these lists.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
+   :caption: Documentation
 
    architecture
-   usage
+   usage/index
    api/index
 
 Indices
