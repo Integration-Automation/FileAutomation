@@ -15,12 +15,6 @@ copyright = "2026, JE-Chen"  # pylint: disable=redefined-builtin  # Sphinx requi
 release = "0.0.32"
 language = "en"
 
-# Read the Docs sets READTHEDOCS_CANONICAL_URL to the per-translation canonical
-# URL (e.g. https://fileautomation.readthedocs.io/en/latest/). Use it as the
-# base URL so canonical <link rel="canonical"> tags and the translations flyout
-# resolve correctly. Empty string off-RTD.
-html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
-
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",

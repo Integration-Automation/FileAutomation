@@ -1,11 +1,9 @@
 # .readthedocs.yaml
-# Read the Docs configuration file for the English ("fileautomation") project.
-# Sibling files .readthedocs.zh-TW.yaml and .readthedocs.zh-CN.yaml configure
-# the two translation projects. Wire each translation project to its own YAML
-# in the RTD project admin (Settings → Default settings → Path), and link the
-# three projects via the main project's Translations tab.
+# Read the Docs configuration file. The single Sphinx project under
+# docs/source/ builds all three languages into one site (subdirectories
+# Eng/, Zh-TW/, Zh-CN/, and API/) — cross-language navigation works through
+# normal Sphinx toctrees, with no per-language project required.
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html
-#     https://docs.readthedocs.io/en/stable/localization.html
 
 # Required
 version: 2
@@ -16,7 +14,7 @@ build:
   tools:
     python: "3.11"
 
-# Build the English documentation in docs/source with Sphinx.
+# Build the documentation in docs/source/ with Sphinx.
 sphinx:
    configuration: docs/source/conf.py
 
