@@ -159,10 +159,20 @@ JSON 動作清單就是上述 list 的 list。
 
 .. toctree::
    :maxdepth: 2
-   :caption: 文件
+   :caption: 架構
 
    architecture
+
+.. toctree::
+   :maxdepth: 3
+   :caption: 使用指南
+
    usage/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API 參考
+
    api/index
 
 索引
