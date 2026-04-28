@@ -18,7 +18,13 @@ and exposed from a single ``automation_file`` facade.
 * **Issues / RoadMap** — https://github.com/Integration-Automation/FileAutomation/issues
 * **License** — MIT
 
-Languages: **English** | `繁體中文 <../html-zh-TW/index.html>`_ | `简体中文 <../html-zh-CN/index.html>`_
+Languages: **English** | `繁體中文 <https://fileautomation.readthedocs.io/zh_TW/latest/>`_ | `简体中文 <https://fileautomation.readthedocs.io/zh_CN/latest/>`_
+
+.. note::
+
+   Each language is served as its own Read the Docs project, linked as a
+   translation of ``fileautomation``. RTD also exposes a built-in language
+   selector inside the version flyout in the bottom-right of every page.
 
 .. contents:: On this page
    :local:

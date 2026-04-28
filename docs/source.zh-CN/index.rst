@@ -17,7 +17,13 @@ Dropbox、OneDrive、Box、SFTP、FTP / FTPS、WebDAV、SMB、fsspec）、
 * **Issue / 未来规划**：https://github.com/Integration-Automation/FileAutomation/issues
 * **许可**：MIT
 
-语言：`English <../html/index.html>`_ | `繁體中文 <../html-zh-TW/index.html>`_ | **简体中文**
+语言：`English <https://fileautomation.readthedocs.io/en/latest/>`_ | `繁體中文 <https://fileautomation.readthedocs.io/zh_TW/latest/>`_ | **简体中文**
+
+.. note::
+
+   每个语言都是独立的 Read the Docs 项目，并挂在主项目
+   ``fileautomation`` 下作为翻译。RTD 也会在每页右下角的版本菜单中
+   自动提供语言切换器。
 
 .. contents:: 本页目录
    :local:

@@ -16,6 +16,12 @@ release = "0.0.32"
 language = "zh_TW"
 html_title = "automation_file 文件（繁體中文）"
 
+# Read the Docs sets READTHEDOCS_CANONICAL_URL to the per-translation canonical
+# URL (e.g. https://fileautomation.readthedocs.io/zh_TW/latest/). Use it as the
+# base URL so canonical <link rel="canonical"> tags and the translations flyout
+# resolve correctly. Empty string off-RTD.
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
+
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
