@@ -159,21 +159,40 @@ JSON 动作列表就是上述 list 的 list。
 
 .. toctree::
    :maxdepth: 2
-   :caption: 架构
+   :caption: 手册
 
-   architecture
-
-.. toctree::
-   :maxdepth: 3
-   :caption: 使用指南
-
-   usage/index
+   第 1 章 — 入门 <usage/quickstart>
+   第 2 章 — CLI <usage/cli>
+   第 3 章 — 架构 <architecture>
+   第 4 章 — 本地操作 <usage/local>
+   第 5 章 — HTTP 传输 <usage/transfer>
+   第 6 章 — 云端与 SFTP 后端 <usage/cloud>
+   第 7 章 — 动作服务器 <usage/servers>
+   第 8 章 — MCP 服务器 <usage/mcp>
+   第 9 章 — 图形界面 <usage/gui>
+   第 10 章 — 可靠性 <usage/reliability>
+   第 11 章 — 触发器与调度 <usage/events>
+   第 12 章 — 通知 <usage/notifications>
+   第 13 章 — 配置与机密信息 <usage/config>
+   第 14 章 — DAG 动作执行器 <usage/dag>
+   第 15 章 — 插件 <usage/plugins>
 
 .. toctree::
    :maxdepth: 2
    :caption: API 参考
 
-   api/index
+   第 A 章 — 核心 <api/core>
+   第 B 章 — 本地操作 <api/local>
+   第 C 章 — 远端操作 <api/remote>
+   第 D 章 — 服务器 <api/server>
+   第 E 章 — 客户端 SDK <api/client>
+   第 F 章 — 触发器 <api/trigger>
+   第 G 章 — 调度器 <api/scheduler>
+   第 H 章 — 通知 <api/notify>
+   第 I 章 — 进度与取消 <api/progress>
+   第 J 章 — 项目脚手架 <api/project>
+   第 K 章 — 图形界面 <api/ui>
+   第 L 章 — 工具 <api/utils>
 
 索引
 ----

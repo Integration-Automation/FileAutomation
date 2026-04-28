@@ -162,21 +162,40 @@ A JSON action list is simply a list of these lists.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Architecture
+   :caption: Manual
 
-   architecture
-
-.. toctree::
-   :maxdepth: 3
-   :caption: Usage guide
-
-   usage/index
+   Chapter 1 — Getting Started <usage/quickstart>
+   Chapter 2 — CLI <usage/cli>
+   Chapter 3 — Architecture <architecture>
+   Chapter 4 — Local Operations <usage/local>
+   Chapter 5 — HTTP Transfers <usage/transfer>
+   Chapter 6 — Cloud and SFTP Backends <usage/cloud>
+   Chapter 7 — Action Servers <usage/servers>
+   Chapter 8 — MCP Server <usage/mcp>
+   Chapter 9 — GUI <usage/gui>
+   Chapter 10 — Reliability <usage/reliability>
+   Chapter 11 — Triggers and Scheduler <usage/events>
+   Chapter 12 — Notifications <usage/notifications>
+   Chapter 13 — Configuration and Secrets <usage/config>
+   Chapter 14 — DAG Action Executor <usage/dag>
+   Chapter 15 — Plugins <usage/plugins>
 
 .. toctree::
    :maxdepth: 2
-   :caption: API reference
+   :caption: API Reference
 
-   api/index
+   Chapter A — Core <api/core>
+   Chapter B — Local Operations <api/local>
+   Chapter C — Remote Operations <api/remote>
+   Chapter D — Server <api/server>
+   Chapter E — Client SDK <api/client>
+   Chapter F — Triggers <api/trigger>
+   Chapter G — Scheduler <api/scheduler>
+   Chapter H — Notifications <api/notify>
+   Chapter I — Progress and Cancellation <api/progress>
+   Chapter J — Project Scaffolding <api/project>
+   Chapter K — Graphical User Interface <api/ui>
+   Chapter L — Utils <api/utils>
 
 Indices
 -------

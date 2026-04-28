@@ -159,21 +159,40 @@ JSON 動作清單就是上述 list 的 list。
 
 .. toctree::
    :maxdepth: 2
-   :caption: 架構
+   :caption: 手冊
 
-   architecture
-
-.. toctree::
-   :maxdepth: 3
-   :caption: 使用指南
-
-   usage/index
+   第 1 章 — 入門 <usage/quickstart>
+   第 2 章 — CLI <usage/cli>
+   第 3 章 — 架構 <architecture>
+   第 4 章 — 本地操作 <usage/local>
+   第 5 章 — HTTP 傳輸 <usage/transfer>
+   第 6 章 — 雲端與 SFTP 後端 <usage/cloud>
+   第 7 章 — 動作伺服器 <usage/servers>
+   第 8 章 — MCP 伺服器 <usage/mcp>
+   第 9 章 — 圖形介面 <usage/gui>
+   第 10 章 — 可靠性 <usage/reliability>
+   第 11 章 — 觸發器與排程 <usage/events>
+   第 12 章 — 通知 <usage/notifications>
+   第 13 章 — 設定與機敏資訊 <usage/config>
+   第 14 章 — DAG 動作執行器 <usage/dag>
+   第 15 章 — 外掛 <usage/plugins>
 
 .. toctree::
    :maxdepth: 2
    :caption: API 參考
 
-   api/index
+   第 A 章 — 核心 <api/core>
+   第 B 章 — 本地操作 <api/local>
+   第 C 章 — 遠端操作 <api/remote>
+   第 D 章 — 伺服器 <api/server>
+   第 E 章 — 客戶端 SDK <api/client>
+   第 F 章 — 觸發器 <api/trigger>
+   第 G 章 — 排程器 <api/scheduler>
+   第 H 章 — 通知 <api/notify>
+   第 I 章 — 進度與取消 <api/progress>
+   第 J 章 — 專案腳手架 <api/project>
+   第 K 章 — 圖形介面 <api/ui>
+   第 L 章 — 工具 <api/utils>
 
 索引
 ----
