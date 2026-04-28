@@ -1,0 +1,25 @@
+CLI
+===
+
+执行 JSON 动作列表的旧式参数::
+
+   python -m automation_file --execute_file actions.json
+   python -m automation_file --execute_dir ./actions/
+   python -m automation_file --execute_str '[["FA_create_dir",{"dir_path":"x"}]]'
+   python -m automation_file --create_project ./my_project
+
+一次性操作的子命令::
+
+   python -m automation_file ui
+   python -m automation_file zip ./src out.zip --dir
+   python -m automation_file unzip out.zip ./restored
+   python -m automation_file download https://example.com/file.bin file.bin
+   python -m automation_file create-file hello.txt --content "hi"
+   python -m automation_file server --host 127.0.0.1 --port 9943
+   python -m automation_file http-server --host 127.0.0.1 --port 9944
+   python -m automation_file mcp --allowed-actions FA_list_dir,FA_file_checksum
+   python -m automation_file drive-upload my.txt --token token.json --credentials creds.json
+
+``mcp`` 子命令通过 stdio 启动 Model Context Protocol 服务器，
+让 Claude Desktop 这类宿主可以把 ``FA_*`` 动作当作 MCP 工具调用——完整集成
+说明请见 :doc:`mcp`。
