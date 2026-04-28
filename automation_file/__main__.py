@@ -38,7 +38,14 @@ def _execute_dir(path: str) -> Any:
 
 
 def _execute_str(raw: str) -> Any:
-    return execute_action(json.loads(raw))
+    parsed = json.loads(raw)
+    # PyBreeze (and other launchers) double-encode the action list on Windows
+    # to survive command-line escaping — peel the second JSON layer if we got
+    # a string back. Guarded by isinstance, so callers that pass a single-encoded
+    # payload still work on every platform.
+    if isinstance(parsed, str):
+        parsed = json.loads(parsed)
+    return execute_action(parsed)
 
 
 _LEGACY_DISPATCH: dict[str, Callable[[str], Any]] = {
