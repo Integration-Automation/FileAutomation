@@ -20,6 +20,7 @@ select = [
 ignore = [
     "E501",      # line length enforced by formatter
     "PLR0913",   # argparse builders legitimately take > 7 args
+    "PLR0917",   # same rationale as PLR0913; download_file's positional signature is public API
     "PLR2004",   # magic numbers are allowed in tests / CLI
     "PLR0912",   # branch count is bounded by CLAUDE.md (15) not ruff's default
     "PLR0915",   # statement count same
