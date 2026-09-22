@@ -33,7 +33,7 @@ dependencies = [
     "opentelemetry-api>=1.41.1",
     "opentelemetry-sdk>=1.42.1",
     "msal>=1.37.0",
-    "boxsdk>=3.14.0,<4",
+    "boxsdk>=10.0.0,<11",
     "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [

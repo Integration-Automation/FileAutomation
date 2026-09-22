@@ -1,10 +1,11 @@
-"""Box client (Singleton Facade) backed by the ``boxsdk`` library.
+"""Box client (Singleton Facade) backed by ``box_sdk_gen``.
 
-Box's OAuth2 flow is authorization-code based (not device-code), so the
-caller is expected to obtain an access token via their app registration
-and hand it in to :meth:`later_init`. Matches the Dropbox backend's
-contract — automation workflows typically receive the token from a
-secrets manager rather than prompting interactively.
+``box_sdk_gen`` is the module shipped by the ``boxsdk`` distribution from 10.0 on; the legacy
+``boxsdk.Client`` API it replaced is no longer developed. Box's OAuth2 flow is authorization-code
+based (not device-code), so the caller is expected to obtain an access token via their app
+registration and hand it in to :meth:`later_init`. Matches the Dropbox backend's contract —
+automation workflows typically receive the token from a secrets manager rather than prompting
+interactively.
 """
 
 from __future__ import annotations
@@ -15,18 +16,19 @@ from automation_file.exceptions import BoxException
 from automation_file.logging_config import file_automation_logger
 
 
-def _import_boxsdk() -> Any:
+def import_box_sdk_gen() -> Any:
+    """Import ``box_sdk_gen``, raising :class:`BoxException` when it is missing."""
     try:
-        import boxsdk
+        import box_sdk_gen
     except ImportError as error:
         raise BoxException(
-            "boxsdk import failed — reinstall `automation_file` to restore the Box backend"
+            "box_sdk_gen import failed — install `boxsdk>=10` to restore the Box backend"
         ) from error
-    return boxsdk
+    return box_sdk_gen
 
 
 class BoxClient:
-    """Lazy wrapper around :class:`boxsdk.Client`."""
+    """Lazy wrapper around :class:`box_sdk_gen.BoxClient`."""
 
     def __init__(self) -> None:
         self.client: Any = None
@@ -38,25 +40,26 @@ class BoxClient:
         client_id: str = "",
         client_secret: str = "",
     ) -> Any:
-        """Build a :class:`boxsdk.Client` from an OAuth2 access token.
+        """Build a :class:`box_sdk_gen.BoxClient` from an OAuth2 access token.
 
-        ``client_id`` and ``client_secret`` are only required if the caller
-        wants to let boxsdk refresh the token — most automation callers
-        already refresh externally, so both default to empty.
+        ``client_id`` and ``client_secret`` are optional; when given they are passed to the
+        developer-token auth so the token can be revoked through the SDK. Refreshing the token
+        stays the caller's job, as most automation callers already refresh it externally.
         """
         if not isinstance(access_token, str) or not access_token:
             raise BoxException("access_token must be a non-empty string")
-        boxsdk = _import_boxsdk()
-        oauth = boxsdk.OAuth2(
-            client_id=client_id,
-            client_secret=client_secret,
-            access_token=access_token,
-        )
-        self.client = boxsdk.Client(oauth)
+        sdk = import_box_sdk_gen()
+        config = None
+        if client_id or client_secret:
+            config = sdk.DeveloperTokenConfig(client_id=client_id or None,
+                                              client_secret=client_secret or None)
+        auth = sdk.BoxDeveloperTokenAuth(token=access_token, config=config)
+        self.client = sdk.BoxClient(auth=auth)
         file_automation_logger.info("BoxClient: client ready")
         return self.client
 
     def require_client(self) -> Any:
+        """Return the initialised SDK client, or raise :class:`BoxException` before ``later_init``."""
         if self.client is None:
             raise BoxException("BoxClient not initialised; call later_init() first")
         return self.client

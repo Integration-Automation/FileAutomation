@@ -7,7 +7,7 @@ from pathlib import Path
 from automation_file.exceptions import BoxException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
 from automation_file.remote._upload_tree import walk_and_upload
-from automation_file.remote.box.client import box_instance
+from automation_file.remote.box.client import box_instance, import_box_sdk_gen
 
 
 def box_upload_file(file_path: str, parent_folder_id: str = "0", name: str = "") -> str:
@@ -22,19 +22,20 @@ def box_upload_file(file_path: str, parent_folder_id: str = "0", name: str = "")
         raise FileNotExistsException(str(local))
     client = box_instance.require_client()
     target_name = name or local.name
+    sdk = import_box_sdk_gen()
+    attributes = sdk.UploadFileAttributes(
+        name=target_name, parent=sdk.UploadFileAttributesParentField(id=parent_folder_id)
+    )
     try:
-        folder = client.folder(folder_id=parent_folder_id)
-        new_file = folder.upload(file_path=str(local), file_name=target_name)
+        with open(local, "rb") as stream:
+            uploaded = client.uploads.upload_file(attributes, stream)
+        new_id = str(uploaded.entries[0].id)
     except Exception as error:  # pylint: disable=broad-except
         raise BoxException(f"box_upload_file failed: {error}") from error
     file_automation_logger.info(
-        "box_upload_file: %s -> %s/%s (id=%s)",
-        local,
-        parent_folder_id,
-        target_name,
-        getattr(new_file, "id", "?"),
+        "box_upload_file: %s -> %s/%s (id=%s)", local, parent_folder_id, target_name, new_id
     )
-    return str(getattr(new_file, "id", ""))
+    return new_id
 
 
 def box_upload_dir(dir_path: str, parent_folder_id: str = "0") -> list[str]:

@@ -2,15 +2,17 @@
 
 Live Box endpoints are outside CI; these tests verify registry wiring,
 the Client singleton's guard clauses, and the error-path wrapping that
-converts ``boxsdk`` failures into :class:`BoxException`.
+converts ``box_sdk_gen`` failures into :class:`BoxException`.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from box_sdk_gen.schemas.file_base import FileBaseTypeField
 
 from automation_file import (
     BoxClient,
@@ -25,52 +27,57 @@ from automation_file.remote.box import delete_ops, download_ops, list_ops, uploa
 
 
 class _FakeItem:
-    def __init__(self, item_id: str, name: str, item_type: str = "file") -> None:
+    def __init__(self, item_id: str, name: str, item_type: Any) -> None:
         self.id = item_id
         self.name = name
         self.type = item_type
 
 
-class _FakeFile:
-    def __init__(self, file_id: str) -> None:
-        self.id = file_id
+class _Uploads:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, bytes]] = []
 
-    def download_to(self, writer: Any) -> None:
-        writer.write(b"contents")
-
-    def delete(self) -> None:
-        return None
+    def upload_file(self, attributes: Any, file: Any) -> Any:
+        self.calls.append((attributes.name, attributes.parent.id, file.read()))
+        return SimpleNamespace(entries=[SimpleNamespace(id="new-id")])
 
 
-class _FakeFolder:
-    def __init__(self, folder_id: str) -> None:
-        self.id = folder_id
-        self._uploads: list[tuple[str, str]] = []
+class _Downloads:
+    def download_file_to_output_stream(self, file_id: str, output_stream: Any) -> None:
+        output_stream.write(f"contents of {file_id}".encode())
 
-    def upload(self, file_path: str, file_name: str) -> _FakeFile:
-        self._uploads.append((file_path, file_name))
-        return _FakeFile("new-id")
 
-    def get_items(self, limit: int = 100) -> list[_FakeItem]:
-        del limit
-        return [_FakeItem("1", "a.txt"), _FakeItem("2", "subdir", "folder")]
+class _Folders:
+    def __init__(self) -> None:
+        self.deleted: list[tuple[str, bool]] = []
 
-    def delete(self, recursive: bool = False) -> None:
-        del recursive
+    def get_folder_items(self, folder_id: str, *, limit: int | None = None) -> Any:
+        del folder_id, limit
+        return SimpleNamespace(entries=[
+            _FakeItem("1", "a.txt", FileBaseTypeField.FILE),
+            _FakeItem("2", "subdir", "folder"),
+        ])
+
+    def delete_folder_by_id(self, folder_id: str, *, recursive: bool | None = None) -> None:
+        self.deleted.append((folder_id, bool(recursive)))
+
+
+class _Files:
+    def __init__(self) -> None:
+        self.deleted: list[str] = []
+
+    def delete_file_by_id(self, file_id: str) -> None:
+        self.deleted.append(file_id)
 
 
 class _FakeBoxClient:
+    """Mirrors the managers of :class:`box_sdk_gen.BoxClient` that the backend calls."""
+
     def __init__(self) -> None:
-        self._files: dict[str, _FakeFile] = {}
-        self._folders: dict[str, _FakeFolder] = {}
-
-    def file(self, file_id: str) -> _FakeFile:
-        self._files.setdefault(file_id, _FakeFile(file_id))
-        return self._files[file_id]
-
-    def folder(self, folder_id: str) -> _FakeFolder:
-        self._folders.setdefault(folder_id, _FakeFolder(folder_id))
-        return self._folders[folder_id]
+        self.uploads = _Uploads()
+        self.downloads = _Downloads()
+        self.folders = _Folders()
+        self.files = _Files()
 
 
 @pytest.fixture(name="fake_box")
@@ -129,16 +136,15 @@ def test_upload_dir_uploads_each_file(tmp_path: Path, fake_box: _FakeBoxClient) 
     (tmp_path / "sub" / "b.txt").write_text("b", encoding="utf-8")
     uploaded_keys = upload_ops.box_upload_dir(str(tmp_path))
     assert sorted(uploaded_keys) == ["a.txt", "sub/b.txt"]
-    folder = fake_box.folder("0")
-    flat_names = sorted(name for _, name in folder._uploads)  # pylint: disable=protected-access
-    assert flat_names == ["a.txt", "sub/b.txt"]
+    assert sorted((name, parent) for name, parent, _ in fake_box.uploads.calls) == [
+        ("a.txt", "0"), ("sub/b.txt", "0")]
 
 
 def test_download_writes_target(tmp_path: Path, fake_box: _FakeBoxClient) -> None:
     del fake_box
     target = tmp_path / "out" / "f.txt"
     assert download_ops.box_download_file("42", str(target)) is True
-    assert target.read_bytes() == b"contents"
+    assert target.read_bytes() == b"contents of 42"
 
 
 def test_list_folder_returns_entries(fake_box: _FakeBoxClient) -> None:
@@ -151,13 +157,13 @@ def test_list_folder_returns_entries(fake_box: _FakeBoxClient) -> None:
 
 
 def test_delete_file_uses_client(fake_box: _FakeBoxClient) -> None:
-    del fake_box
     assert delete_ops.box_delete_file("7") is True
+    assert fake_box.files.deleted == ["7"]
 
 
 def test_delete_folder_uses_client(fake_box: _FakeBoxClient) -> None:
-    del fake_box
     assert delete_ops.box_delete_folder("7", recursive=True) is True
+    assert fake_box.folders.deleted == [("7", True)]
 
 
 def test_errors_in_sdk_surface_as_box_exception(
@@ -166,6 +172,23 @@ def test_errors_in_sdk_surface_as_box_exception(
     def blow(*_a: Any, **_k: Any) -> None:
         raise RuntimeError("simulated SDK error")
 
-    monkeypatch.setattr(fake_box, "folder", blow)
+    monkeypatch.setattr(fake_box.folders, "get_folder_items", blow)
     with pytest.raises(BoxException):
         list_ops.box_list_folder()
+
+
+def test_upload_file_sends_name_parent_and_content(tmp_path: Path, fake_box: _FakeBoxClient) -> None:
+    src = tmp_path / "report.txt"
+    src.write_bytes(b"payload")
+    upload_ops.box_upload_file(str(src), parent_folder_id="99", name="renamed.txt")
+    assert fake_box.uploads.calls == [("renamed.txt", "99", b"payload")]
+
+
+def test_later_init_builds_a_real_sdk_client() -> None:
+    import box_sdk_gen
+
+    client = BoxClient()
+    built = client.later_init("token-value", client_id="id", client_secret="secret")
+    assert isinstance(built, box_sdk_gen.BoxClient)
+    assert client.require_client() is built
+    assert hasattr(built, "uploads") and hasattr(built, "folders")
