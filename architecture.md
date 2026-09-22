@@ -26,7 +26,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `automation_file/project/` | `ProjectBuilder`, `create_project_dir` |
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
-| `automation_file/exceptions.py`, `logging_config.py` | `FileAutomationException` hierarchy; `file_automation_logger` |
+| `automation_file/exceptions.py`, `logging_config.py` | `FileAutomationException` hierarchy; `file_automation_logger` (INFO+ to stderr, DEBUG+ to `$FILE_AUTOMATION_LOG_FILE` or `~/.automation_file/logs/FileAutomation.log`, opened on first use) |
 | `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and publish copy one of these TOMLs into place |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
