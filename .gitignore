@@ -158,3 +158,6 @@ credentials.json
 **/credentials.json
 
 .claude/
+
+# Local Codacy / Sonar scratch output
+.codacy_tmp/
