@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20260923-01 | 2026-09-23 | Dependency floors raised; Dependabot on dev; boxsdk 10 refused | #done #deps #ci | [2026-09](2026-09.md) |
 | U-20260922-05 | 2026-09-22 | Contract test for the legacy CLI flags | #done #tests | [2026-09](2026-09.md) |
 | U-20260922-04 | 2026-09-22 | Point project URLs at the current repository | #done #metadata | [2026-09](2026-09.md) |
 | U-20260922-03 | 2026-09-22 | Delete four merged local branches and fast-forward main | #done #housekeeping | [2026-09](2026-09.md) |
@@ -68,4 +69,4 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-09.md](2026-09.md) | 2026-09 | 5 |
+| [2026-09.md](2026-09.md) | 2026-09 | 6 |
