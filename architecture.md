@@ -113,8 +113,9 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - **PyBreeze (subprocess)** runs `python -m automation_file --execute_str <json>` or `--execute_file <path>`
   (`PyBreeze/pybreeze/extend/process_executor/python_task_process_manager.py`; the package name is in
   `.../process_executor/file_automation/file_automation_process.py`). PyBreeze double-encodes the JSON
-  on Windows, so `_execute_str`'s `isinstance`-guarded second decode and the legacy flag names are an
-  implicit contract. PyBreeze also declares `automation-file` as a dependency.
+  on Windows, so `_execute_str`'s `isinstance`-guarded second decode and the legacy flag names are a
+  contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze also declares `automation-file` as
+  a dependency.
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
   (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
 - **Names inherited from AutoControl**: the TCP starter is still called `start_autocontrol_socket_server`
