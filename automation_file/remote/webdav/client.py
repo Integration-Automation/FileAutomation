@@ -13,6 +13,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
+from typing import Any
 from urllib.parse import quote, unquote, urlparse
 
 import requests
@@ -91,7 +92,7 @@ class WebDAVClient:
             return self._base_url + "/"
         return f"{self._base_url}/{quote(remote_path, safe='/')}"
 
-    def _request(self, method: str, remote_path: str, **kwargs: object) -> requests.Response:
+    def _request(self, method: str, remote_path: str, **kwargs: Any) -> requests.Response:
         url = self._url_for(remote_path)
         try:
             response = self._session.request(

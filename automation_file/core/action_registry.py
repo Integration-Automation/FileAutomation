@@ -271,7 +271,9 @@ def build_default_registry() -> ActionRegistry:
     _register_progress_ops(registry)
     _register_notify_ops(registry)
     _load_plugins(registry)
-    file_automation_logger.info(
+    # DEBUG, not INFO: this runs at import, and INFO is mirrored to stderr, so every import --
+    # `python -m automation_file --help` included -- printed it.
+    file_automation_logger.debug(
         "action_registry: built default registry with %d commands", len(registry)
     )
     return registry

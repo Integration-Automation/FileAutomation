@@ -8,69 +8,41 @@ Automation-first Python library for local file / directory / zip operations, HTT
 
 ```
 automation_file/
-├── __init__.py                 # Public API facade (every name users import)
-├── __main__.py                 # CLI entry (argparse dispatcher, subcommands + legacy flags)
-├── exceptions.py               # Exception hierarchy (FileAutomationException base)
-├── logging_config.py           # file_automation_logger (file + stderr handlers)
-├── core/
-│   ├── action_registry.py      # ActionRegistry — name -> callable (Registry + Command)
-│   ├── action_executor.py      # ActionExecutor — runs JSON action lists (Facade + Template Method)
-│   ├── callback_executor.py    # CallbackExecutor — trigger then callback composition
-│   ├── package_loader.py       # PackageLoader — dynamically registers package members
-│   ├── json_store.py           # Thread-safe read/write of JSON action files
-│   ├── retry.py                # retry_on_transient — capped exponential back-off decorator
-│   └── quota.py                # Quota — size + time budget guards
-├── local/                      # Strategy modules — each file is a batch of pure operations
-│   ├── file_ops.py
-│   ├── dir_ops.py
-│   ├── zip_ops.py
-│   └── safe_paths.py           # safe_join / is_within — path traversal guard
-├── remote/
-│   ├── url_validator.py        # SSRF guard for outbound URLs
-│   ├── http_download.py        # SSRF-validated HTTP download with size/timeout caps + retry
-│   ├── google_drive/
-│   │   ├── client.py           # GoogleDriveClient (Singleton Facade)
-│   │   ├── delete_ops.py
-│   │   ├── download_ops.py
-│   │   ├── folder_ops.py
-│   │   ├── search_ops.py
-│   │   ├── share_ops.py
-│   │   └── upload_ops.py
-│   ├── s3/                     # S3 (boto3) — auto-registered in build_default_registry()
-│   │   ├── client.py           # S3Client
-│   │   ├── upload_ops.py
-│   │   ├── download_ops.py
-│   │   ├── delete_ops.py
-│   │   └── list_ops.py
-│   ├── azure_blob/             # Azure Blob — auto-registered in build_default_registry()
-│   │   └── {client,upload,download,delete,list}_ops.py
-│   ├── dropbox_api/            # Dropbox — auto-registered in build_default_registry()
-│   │   └── {client,upload,download,delete,list}_ops.py
-│   └── sftp/                   # SFTP (paramiko + RejectPolicy) — auto-registered in build_default_registry()
-│       └── {client,upload,download,delete,list}_ops.py
-├── server/
-│   ├── tcp_server.py           # Loopback-only TCP server executing JSON actions (optional shared-secret auth)
-│   └── http_server.py          # Loopback-only HTTP server (POST /actions, optional Bearer auth)
-├── project/
-│   ├── project_builder.py      # ProjectBuilder (Builder pattern)
-│   └── templates.py            # Scaffolding templates
-├── ui/                         # PySide6 GUI (required dep)
-│   ├── launcher.py             # launch_ui(argv) — boots QApplication + MainWindow
-│   ├── main_window.py          # MainWindow — tabbed control surface over every feature
-│   ├── worker.py               # ActionWorker(QRunnable) + _WorkerSignals
-│   ├── log_widget.py           # LogPanel — timestamped, read-only log stream
-│   └── tabs/                   # One tab per domain: local / http / drive / s3 /
-│                               #                    azure / dropbox / sftp /
-│                               #                    JSON actions / servers
-└── utils/
-    └── file_discovery.py       # Recursive file listing by extension
+├── __init__.py          # Public API facade (__all__); launch_ui is loaded lazily via __getattr__
+├── __main__.py          # CLI entry: subcommands plus the legacy -e/-d/-c/--execute_str flags
+├── exceptions.py        # FileAutomationException hierarchy
+├── logging_config.py    # file_automation_logger (file + stderr handlers)
+├── core/                # Engine: action_registry (ActionRegistry, build_default_registry), action_executor
+│                        # (shared `executor`), callback_executor, package_loader, plugins, dag_executor,
+│                        # action_queue, json_store, substitution; cross-cutting helpers: retry, quota,
+│                        # rate_limit, circuit_breaker, file_lock, sqlite_lock, checksum, manifest, crypto,
+│                        # secrets, config, config_watcher, audit, metrics, tracing, progress, fim, content_store
+├── local/               # Strategy modules: file/dir/zip/tar/archive ops, sync, diff, text/JSON/data edits,
+│                        # templates, versioning, trash, shell_ops (argv-only subprocess), conditional;
+│                        # safe_paths.py guards against path traversal
+├── remote/              # url_validator (SSRF guard), http_download, cross_backend, fsspec_bridge, and one
+│                        # subpackage per backend: google_drive, s3, azure_blob, dropbox_api, sftp, ftp,
+│                        # onedrive, box (client.py + *_ops.py + register_<backend>_ops); smb and webdav
+│                        # have a client only
+├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
+│                        # action_acl (ActionACL), network_guards (ensure_loopback)
+├── client/              # HTTPActionClient for the HTTP action server
+├── trigger/, scheduler/, notify/   # watchdog file triggers, cron scheduler, notification sinks;
+│                                   # each registers its own FA_* ops
+├── project/             # ProjectBuilder, create_project_dir
+├── ui/                  # PySide6 GUI: launcher.launch_ui, main_window.MainWindow, worker.ActionWorker,
+│                        # log_widget.LogPanel, tabs/ (home, local, http, JSON editor, servers, scheduler,
+│                        # trigger, progress; the cloud backends are panels grouped under transfer_tab)
+└── utils/               # file discovery, fast find, grep, duplicate finder, backup rotation
 ```
+
+`architecture.md` §2 carries the same map with one row per directory; keep the two in step.
 
 **Key design patterns in use:**
 - **Facade**: `automation_file/__init__.py` re-exports every supported name (`execute_action`, `driver_instance`, `start_autocontrol_socket_server`, …).
 - **Registry + Command**: `ActionRegistry` maps action name → callable. JSON action lists are command objects (`[name, kwargs]` / `[name, [args]]` / `[name]`) dispatched through the registry.
 - **Template Method**: `ActionExecutor._execute_event` defines the single-action lifecycle (resolve → call → wrap result); `execute_action` is the outer iteration template.
-- **Strategy**: Each `local/*_ops.py` and `remote/google_drive/*_ops.py` module is an independent strategy that plugs into the registry.
+- **Strategy**: Each `local/*_ops.py` and `remote/<backend>/*_ops.py` module is an independent strategy that plugs into the registry.
 - **Singleton (module-level)**: `driver_instance`, `executor`, `callback_executor`, `package_manager` are shared instances wired in `__init__.py` so `callback_executor.registry is executor.registry`.
 - **Builder**: `ProjectBuilder` assembles the `keyword/` + `executor/` skeleton.
 
@@ -85,7 +57,7 @@ automation_file/
 - `MainWindow` — PySide6 tabbed control surface (`ui/main_window.py`). Nine tabs — Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions, Servers — share a `LogPanel` and dispatch work through `ActionWorker(QRunnable)` on the global `QThreadPool`.
 - `launch_ui(argv=None)` — boots / reuses a `QApplication`, shows `MainWindow`, and returns the exec code. Exposed lazily on the facade via `__getattr__` so the Qt runtime isn't paid for by non-UI importers.
 - `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback; optional `shared_secret` enforces `AUTH <secret>\n` prefix.
-- `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.
+- `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions` plus `GET /healthz`, `/readyz`, `/openapi.json` and `/progress`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.
 - `Quota` — frozen dataclass capping bytes and wall-clock seconds per action or block (`check_size`, `time_budget` context manager, `wraps` decorator). `0` disables each cap.
 - `retry_on_transient(max_attempts, backoff_base, backoff_cap, retriable)` — decorator that retries with capped exponential back-off and raises `RetryExhaustedException` chained to the last error.
 - `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
@@ -96,7 +68,7 @@ automation_file/
 - `dev` branch: development, publishes `automation_file_dev` to PyPI (version in `dev.toml`).
 - Keep `dependencies` and `[project.optional-dependencies]` (`dev`) in sync across both TOMLs. Backends (`boto3`, `azure-storage-blob`, `dropbox`, `paramiko`) and `PySide6` are first-class runtime deps — do not move them back under extras.
 - **Version bumping is automatic.** A dedicated publish workflow bumps the patch in both `stable.toml` and `dev.toml`, builds, uploads to PyPI, then commits the bump back to `main` tagged as `vX.Y.Z`. Do not hand-bump before merging to `main`. The next publish run is skipped via a commit-message guard (`chore: bump version`), so the bump itself never re-triggers publishing.
-- CI: GitHub Actions (Windows, Python 3.10 / 3.11 / 3.12) — one matrix workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
+- CI: GitHub Actions — a `lint` job on Ubuntu (Python 3.12), then `pytest` on Windows across Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14. One workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
 - CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage → uploads `coverage.xml` as an artifact.
 - Publishing lives in a separate workflow (`.github/workflows/publish.yml`) that runs on push to `main`: bumps both TOMLs, copies `stable.toml` to `pyproject.toml`, builds the sdist + wheel, `twine upload` via `PYPI_API_TOKEN`, then commits + tags + pushes and creates `gh release create v<version> --generate-notes`.
 - `pre-commit` is configured (`.pre-commit-config.yaml`): trailing-whitespace, eof-fixer, check-yaml, check-toml, check-added-large-files, ruff, ruff-format, mypy. Install with `pre-commit install` after cloning.
@@ -163,7 +135,7 @@ All code must follow secure-by-default principles. Review every change against t
 
 ### HTTP server
 - `HTTPActionServer` / `start_http_action_server` mirror the TCP server's posture: loopback-only by default, `allow_non_loopback=True` required to bind elsewhere, optional `shared_secret` enforced as `Authorization: Bearer <secret>` using `hmac.compare_digest`.
-- Only `POST /actions` is handled. Request body capped at 1 MB — do not raise without also switching to a streaming parser.
+- `POST /actions` is the only endpoint that runs anything; the `GET` routes (`/healthz`, `/readyz`, `/openapi.json`, `/progress`) only report. Request body capped at 1 MB — do not raise without also switching to a streaming parser.
 - Responses are JSON. Auth failures return `401`; malformed JSON returns `400`; unknown paths return `404`.
 
 ### Path traversal
@@ -266,6 +238,18 @@ All code must satisfy common static-analysis rules. Review every change against 
 ### Running the linter
 - Before committing any non-trivial change, run `ruff check automation_file/ tests/` locally.
 - When adding a `# noqa: RULE`, justify it in the comment — never blanket-disable.
+
+## Stage commits, `progress.md`, `docs/updates/` and `architecture.md`
+
+Workspace rule shared by every repository under `D:\Codes` (full text: `D:\Codes\CLAUDE.md`).
+
+- **Commit at every stage.** A stage is the smallest piece of work that leaves the repository consistent and passes this project's checks (definition of done, tests, lint): one finished `progress.md` item, or one self-contained step of a larger one. Commit it before starting the next stage, before switching to another repository, and before the session ends. Do not leave work uncommitted across sessions; if a stage cannot be finished, commit the consistent part and record the rest in `progress.md`.
+  - Stage only the files that stage touched (`git add <path>`, never `git add -A`), follow this file's commit-message rules, and never add AI attribution.
+  - Committing is not pushing: push or open a PR only as this project's branch flow says or when asked.
+- **`progress.md`** (repository root, tracked) holds outstanding work only: no finished items, no history, no rules.
+- **`docs/updates/`** records finished work: one batch file per month (`YYYY-MM.md`), one entry per piece of work headed `## U-YYYYMMDD-NN · date · title · #tags`, and an index with query commands in `docs/updates/README.md`. When a `progress.md` item is done, delete it and add a `#done` entry plus its index row in the same commit.
+- **`architecture.md`** (repository root) is the short architecture overview: layers, entry points, main flows, extension points, cross-project boundaries. Update it in the same commit whenever a change alters any of those.
+- **Cross-project contracts** are listed in `architecture.md` §6: what other repositories rely on here (CLI flags, import paths, constructor arguments, file layouts) and what this repository relies on elsewhere. No test here protects them, so never rename or remove one without changing its consumers in the same round, and update §6 whenever a contract is added or changes.
 
 ## Commit & PR rules
 

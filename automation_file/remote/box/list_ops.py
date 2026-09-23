@@ -9,6 +9,11 @@ from automation_file.logging_config import file_automation_logger
 from automation_file.remote.box.client import box_instance
 
 
+def _type_name(item_type: Any) -> str:
+    """``"file"``, ``"folder"`` or ``"web_link"``: the SDK reports the type as an enum."""
+    return str(getattr(item_type, "value", item_type))
+
+
 def box_list_folder(folder_id: str = "0", limit: int = 100) -> list[dict[str, Any]]:
     """List entries in a Box folder; return basic metadata per entry.
 
@@ -19,13 +24,12 @@ def box_list_folder(folder_id: str = "0", limit: int = 100) -> list[dict[str, An
     """
     client = box_instance.require_client()
     try:
-        folder = client.folder(folder_id=folder_id)
-        items = folder.get_items(limit=limit)
+        items = client.folders.get_folder_items(folder_id, limit=limit).entries or []
         entries = [
             {
                 "id": str(getattr(item, "id", "")),
-                "name": getattr(item, "name", ""),
-                "type": getattr(item, "type", "file"),
+                "name": getattr(item, "name", "") or "",
+                "type": _type_name(getattr(item, "type", "file")),
             }
             for item in items
         ]
