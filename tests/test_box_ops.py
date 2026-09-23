@@ -53,10 +53,12 @@ class _Folders:
 
     def get_folder_items(self, folder_id: str, *, limit: int | None = None) -> Any:
         del folder_id, limit
-        return SimpleNamespace(entries=[
-            _FakeItem("1", "a.txt", FileBaseTypeField.FILE),
-            _FakeItem("2", "subdir", "folder"),
-        ])
+        return SimpleNamespace(
+            entries=[
+                _FakeItem("1", "a.txt", FileBaseTypeField.FILE),
+                _FakeItem("2", "subdir", "folder"),
+            ]
+        )
 
     def delete_folder_by_id(self, folder_id: str, *, recursive: bool | None = None) -> None:
         self.deleted.append((folder_id, bool(recursive)))
@@ -137,7 +139,9 @@ def test_upload_dir_uploads_each_file(tmp_path: Path, fake_box: _FakeBoxClient) 
     uploaded_keys = upload_ops.box_upload_dir(str(tmp_path))
     assert sorted(uploaded_keys) == ["a.txt", "sub/b.txt"]
     assert sorted((name, parent) for name, parent, _ in fake_box.uploads.calls) == [
-        ("a.txt", "0"), ("sub/b.txt", "0")]
+        ("a.txt", "0"),
+        ("sub/b.txt", "0"),
+    ]
 
 
 def test_download_writes_target(tmp_path: Path, fake_box: _FakeBoxClient) -> None:
@@ -177,7 +181,9 @@ def test_errors_in_sdk_surface_as_box_exception(
         list_ops.box_list_folder()
 
 
-def test_upload_file_sends_name_parent_and_content(tmp_path: Path, fake_box: _FakeBoxClient) -> None:
+def test_upload_file_sends_name_parent_and_content(
+    tmp_path: Path, fake_box: _FakeBoxClient
+) -> None:
     src = tmp_path / "report.txt"
     src.write_bytes(b"payload")
     upload_ops.box_upload_file(str(src), parent_folder_id="99", name="renamed.txt")

@@ -8,6 +8,7 @@ and ``--execute_file <path>``; TestPioneer's ``parallel_run`` starts
 these, so this file does: renaming or removing a flag, or dropping the second
 JSON decode on Windows, breaks them (workspace item X-7).
 """
+
 import json
 import os
 import subprocess  # nosec B404 - the CLI is exercised as a real child process
@@ -30,8 +31,13 @@ def _run_cli(cwd: Path, *args: str) -> subprocess.CompletedProcess:
     env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(  # nosec B603 - fixed interpreter, test-controlled arguments
         [sys.executable, "-m", PACKAGE, *args],
-        cwd=cwd, env=env, capture_output=True, text=True, encoding="utf-8",
-        timeout=300, check=False,
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=300,
+        check=False,
     )
 
 
@@ -70,7 +76,9 @@ def test_execute_dir(tmp_path, flag):
 
 def test_execute_str_as_pybreeze_sends_it(tmp_path):
     target = tmp_path / "created.txt"
-    _assert_ran(_run_cli(tmp_path, "--execute_str", _pybreeze_execute_str(_actions(target))), target)
+    _assert_ran(
+        _run_cli(tmp_path, "--execute_str", _pybreeze_execute_str(_actions(target))), target
+    )
 
 
 @pytest.mark.parametrize("flag", ["-c", "--create_project"])

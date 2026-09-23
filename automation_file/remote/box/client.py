@@ -51,8 +51,9 @@ class BoxClient:
         sdk = import_box_sdk_gen()
         config = None
         if client_id or client_secret:
-            config = sdk.DeveloperTokenConfig(client_id=client_id or None,
-                                              client_secret=client_secret or None)
+            config = sdk.DeveloperTokenConfig(
+                client_id=client_id or None, client_secret=client_secret or None
+            )
         auth = sdk.BoxDeveloperTokenAuth(token=access_token, config=config)
         self.client = sdk.BoxClient(auth=auth)
         file_automation_logger.info("BoxClient: client ready")
