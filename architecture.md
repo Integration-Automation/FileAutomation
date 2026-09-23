@@ -119,7 +119,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
   (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
 - **Names inherited from AutoControl**: the TCP starter is still called `start_autocontrol_socket_server`
-  and the action-dict key is `auto_control`; MailThunder uses the same name and key. MailThunder's
+  and the action-dict key is `auto_control`. MailThunder has renamed both (`start_mail_thunder_socket_server`, `mail_thunder` key) and keeps the old names as deprecated aliases. MailThunder's
   socket-server default is 9942, so it runs next to this package's servers (TCP 9943, HTTP 9944,
   metrics 9945) on their defaults.
 - **Wire format**: TCP replies end with the same `Return_Data_Over_JE` terminator as the sibling servers.
