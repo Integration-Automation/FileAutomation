@@ -4,7 +4,7 @@ google-auth-httplib2
 google-auth-oauthlib
 APScheduler
 cryptography>=47.0.0
-prometheus_client>=0.25.0
+prometheus_client>=0.26.0
 defusedxml>=0.7.1
 twine
 build
