@@ -60,7 +60,7 @@ class BoxClient:
         return self.client
 
     def require_client(self) -> Any:
-        """Return the initialised SDK client, or raise :class:`BoxException` before ``later_init``."""
+        """Return the initialised SDK client; raise :class:`BoxException` before ``later_init``."""
         if self.client is None:
             raise BoxException("BoxClient not initialised; call later_init() first")
         return self.client

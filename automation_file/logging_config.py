@@ -42,7 +42,7 @@ def default_log_file() -> Path:
 
 
 def _rotate_if_large(path: Path, limit: int) -> None:
-    """Move ``path`` to ``<path>.1`` past ``limit`` bytes; best effort while another process holds it."""
+    """Move ``path`` to ``<path>.1`` past ``limit`` bytes; best effort while it is held."""
     try:
         if limit <= 0 or not path.is_file() or path.stat().st_size <= limit:
             return
@@ -52,7 +52,10 @@ def _rotate_if_large(path: Path, limit: int) -> None:
 
 
 class FileAutomationFileHandler(RotatingFileHandler):
-    """Append-mode UTF-8 file handler; a file that cannot be opened becomes ``os.devnull`` with one warning."""
+    """Append-mode UTF-8 file handler.
+
+    A file that cannot be opened becomes ``os.devnull`` with one warning.
+    """
 
     def __init__(self, filename: str, delay: bool = True) -> None:
         super().__init__(

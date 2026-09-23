@@ -1,4 +1,4 @@
-"""Where FileAutomation's log goes, and that importing the package writes nothing (workspace item X-6)."""
+"""Where FileAutomation's log goes, and that importing the package writes nothing (X-6)."""
 
 import logging
 import os
@@ -49,7 +49,7 @@ def test_importing_writes_no_file(tmp_path):
     target = tmp_path / "home" / "FileAutomation.log"
     env = {key: value for key, value in os.environ.items() if key != LOG_FILE_ENV}
     env[LOG_FILE_ENV] = str(target)
-    result = subprocess.run(  # nosec B603 - fixed interpreter, test-controlled arguments
+    result = subprocess.run(  # nosemgrep  # nosec B603 - fixed interpreter, test arguments
         [sys.executable, "-c", _IMPORT_ONLY, str(MODULE_FILE)],
         cwd=tmp_path,
         env=env,
