@@ -6,4 +6,3 @@ Cross-repo and workspace items live in `D:\Codes\progress.md` (relevant here: X-
 
 ## Open
 
-- **#3** `origin/release/bump-v0.0.32` is still unmerged (workspace X-16). The five dependabot branches are settled: four floors applied on `dev` and boxsdk refused, see `docs/updates` U-20260923-01.

@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20260923-07 | 2026-09-23 | Stale release/bump-v0.0.32 branch deleted | #done #housekeeping | [2026-09](2026-09.md) |
 | U-20260923-06 | 2026-09-23 | cryptography floor 50 and msal 1.39 | #done #deps #security | [2026-09](2026-09.md) |
 | U-20260923-05 | 2026-09-23 | Box backend moves to box_sdk_gen (boxsdk 10) | #done #deps #box | [2026-09](2026-09.md) |
 | U-20260923-04 | 2026-09-23 | Port clash with MailThunder resolved on MailThunder's side | #done #docs | [2026-09](2026-09.md) |
@@ -74,4 +75,4 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-09.md](2026-09.md) | 2026-09 | 11 |
+| [2026-09.md](2026-09.md) | 2026-09 | 12 |
