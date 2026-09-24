@@ -32,7 +32,7 @@ facade.
 - **Config hot reload** — `ConfigWatcher` polls `automation_file.toml` and re-applies sinks / defaults on change without restart
 - **Shell / grep / JSON edit / tar / backup rotation** — `FA_run_shell` (argument-list subprocess with timeout), `FA_grep` (streaming text search), `FA_json_get` / `FA_json_set` / `FA_json_delete` (in-place JSON editing), `FA_create_tar` / `FA_extract_tar`, `FA_rotate_backups`
 - **FTP / FTPS backend** — plain FTP or explicit FTPS via `FTP_TLS.auth()`; auto-registered as `FA_ftp_*`
-- **Cross-backend copy** — `FA_copy_between` moves data between any two backends via `local://`, `s3://`, `drive://`, `azure://`, `dropbox://`, `sftp://`, `ftp://` URIs
+- **Cross-backend copy** — `FA_copy_between` moves data between any two backends via `local://`, `s3://`, `azure://`, `dropbox://`, `sftp://`, `ftp://` URIs
 - **Scheduler overlap guard** — running jobs are skipped on the next fire unless `allow_overlap=True`
 - **Server action ACL** — `allowed_actions=(...)` restricts which commands TCP / HTTP servers will dispatch
 - **Variable substitution** — opt-in `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}` expansion in action arguments via `execute_action(..., substitute=True)`
@@ -143,7 +143,7 @@ flowchart TD
         WebDAV["<b>webdav</b>"]
         SMB["<b>smb / cifs</b>"]
         Fsspec["<b>fsspec_bridge</b>"]
-        Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+        Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
     subgraph Notify["<b>notifications</b>"]
@@ -298,7 +298,7 @@ pip install automation_file
 ```
 
 A single install pulls in every backend (Google Drive, S3, Azure Blob, Dropbox,
-SFTP) and the PySide6 GUI — no extras required for day-to-day use.
+SFTP, OneDrive, Box) and the PySide6 GUI — no extras required for day-to-day use.
 
 ```bash
 pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
@@ -306,9 +306,11 @@ pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, b
 
 Requirements:
 - Python 3.10+
-- Bundled dependencies: `google-api-python-client`, `google-auth-oauthlib`,
-  `requests`, `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`, `paramiko`,
-  `PySide6`, `watchdog`
+- Bundled dependencies: `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`, `requests`,
+  `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`,
+  `paramiko`, `msal`, `boxsdk`, `PySide6`,
+  `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
+  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`
 
 ## Usage
 
