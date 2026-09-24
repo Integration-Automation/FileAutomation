@@ -30,7 +30,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **配置热加载** — `ConfigWatcher` 轮询 `automation_file.toml`，变更时即时应用 sink / 默认值,无需重启
 - **Shell / grep / JSON 编辑 / tar / 备份轮转** — `FA_run_shell`(参数列表式 subprocess,含超时)、`FA_grep`(流式文本搜索)、`FA_json_get` / `FA_json_set` / `FA_json_delete`(原地 JSON 编辑)、`FA_create_tar` / `FA_extract_tar`、`FA_rotate_backups`
 - **FTP / FTPS 后端** — 纯 FTP 或通过 `FTP_TLS.auth()` 的显式 FTPS;自动注册为 `FA_ftp_*`
-- **跨后端复制** — `FA_copy_between` 通过 `local://`、`s3://`、`drive://`、`azure://`、`dropbox://`、`sftp://`、`ftp://` URI 在任意两个后端之间搬运数据
+- **跨后端复制** — `FA_copy_between` 通过 `local://`、`s3://`、`azure://`、`dropbox://`、`sftp://`、`ftp://` URI 在任意两个后端之间搬运数据
 - **调度器重叠防护** — 正在执行的作业在下次触发时会被跳过,除非显式传入 `allow_overlap=True`
 - **服务器动作 ACL** — `allowed_actions=(...)` 限制 TCP / HTTP 服务器可派发的命令
 - **变量替换** — 动作参数中可选使用 `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}`,通过 `execute_action(..., substitute=True)` 展开
@@ -141,7 +141,7 @@ flowchart TD
         WebDAV["<b>webdav</b>"]
         SMB["<b>smb / cifs</b>"]
         Fsspec["<b>fsspec_bridge</b>"]
-        Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+        Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
     subgraph Notify["<b>通知</b>"]
@@ -295,7 +295,7 @@ flowchart TD
 pip install automation_file
 ```
 
-单次安装即涵盖所有后端（Google Drive、S3、Azure Blob、Dropbox、SFTP）以及
+单次安装即涵盖所有后端（Google Drive、S3、Azure Blob、Dropbox、SFTP、OneDrive、Box）以及
 PySide6 GUI — 日常使用不需要任何 extras。
 
 ```bash
@@ -304,9 +304,11 @@ pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, b
 
 要求：
 - Python 3.10+
-- 内置依赖：`google-api-python-client`、`google-auth-oauthlib`、
-  `requests`、`tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、`paramiko`、
-  `PySide6`、`watchdog`
+- 内置依赖：`google-api-python-client`、`google-auth-httplib2`、`google-auth-oauthlib`、`requests`、
+  `tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、
+  `paramiko`、`msal`、`boxsdk`、`PySide6`、
+  `watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
+  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`
 
 ## 使用方式
 
