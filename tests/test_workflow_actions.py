@@ -6,6 +6,7 @@ full 40-hex commit and carries the release it corresponds to as a comment,
 which is what Dependabot reads and updates. Pinning also keeps Node 20 actions
 from lingering unnoticed: GitHub removed Node 20 from its runners on 2026-09-23.
 """
+
 from __future__ import annotations
 
 import re
@@ -37,9 +38,11 @@ def test_workflows_exist():
 
 @pytest.mark.parametrize("workflow", _WORKFLOWS, ids=lambda p: p.name)
 def test_every_action_is_pinned_to_a_commit_with_its_version(workflow):
-    bad = [f"{workflow.name}:{number} {ref}{rest}"
-           for number, ref, rest in _uses(workflow)
-           if not (_PINNED.match(ref) and _VERSION_COMMENT.match(rest))]
+    bad = [
+        f"{workflow.name}:{number} {ref}{rest}"
+        for number, ref, rest in _uses(workflow)
+        if not (_PINNED.match(ref) and _VERSION_COMMENT.match(rest))
+    ]
     assert bad == []
 
 
@@ -61,8 +64,7 @@ def test_dependabot_keeps_pins_current_on_dev():
     blocks = re.split(r"^\s*-\s*package-ecosystem:", text, flags=re.MULTILINE)[1:]
     ecosystems = {block.split()[0].strip("\"'") for block in blocks}
     assert {"pip", "github-actions"} <= ecosystems
-    assert all(re.search(r"^\s*target-branch:\s*\"dev\"", block, re.MULTILINE)
-               for block in blocks)
+    assert all(re.search(r"^\s*target-branch:\s*\"dev\"", block, re.MULTILINE) for block in blocks)
 
 
 def _checkout_steps(path: Path) -> list[tuple[int, str]]:
@@ -74,7 +76,7 @@ def _checkout_steps(path: Path) -> list[tuple[int, str]]:
             continue
         column = line.index("uses:")
         body = [line]
-        for following in lines[index + 1:]:
+        for following in lines[index + 1 :]:
             indent = len(following) - len(following.lstrip())
             if following.strip() and (indent < column or following.lstrip().startswith("- ")):
                 break
@@ -88,6 +90,9 @@ def test_every_checkout_decides_on_persisted_credentials(workflow):
     # actions/checkout leaves the job token in .git/config unless told not
     # to, where every later step (and any uploaded workspace) can read it.
     # Only jobs that push keep it, and they say so.
-    bad = [f"{workflow.name}:{number}" for number, step in _checkout_steps(workflow)
-           if not re.search(r"^\s*persist-credentials:\s*(true|false)\b", step, re.MULTILINE)]
+    bad = [
+        f"{workflow.name}:{number}"
+        for number, step in _checkout_steps(workflow)
+        if not re.search(r"^\s*persist-credentials:\s*(true|false)\b", step, re.MULTILINE)
+    ]
     assert bad == []
