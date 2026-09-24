@@ -239,6 +239,12 @@ All code must satisfy common static-analysis rules. Review every change against 
 - Before committing any non-trivial change, run `ruff check automation_file/ tests/` locally.
 - When adding a `# noqa: RULE`, justify it in the comment — never blanket-disable.
 
+## Documentation
+
+- **README parity.** This repository ships `README.md` (English) alongside the translated `README.zh-CN.md` and `README.zh-TW.md`. All three must stay current with the code.
+- When a change alters anything user-facing — features, commands, CLI flags, install/setup steps, configuration, or requirements — update `README.md` **and both translated READMEs in the same commit**, keeping their structure and content aligned.
+- Never update one language and leave the others stale. There is no automated README-parity guard, so verify this by hand before committing.
+
 ## Stage commits, `progress.md`, `docs/updates/` and `architecture.md`
 
 Workspace rule shared by every repository under `D:\Codes` (full text: `D:\Codes\CLAUDE.md`).
