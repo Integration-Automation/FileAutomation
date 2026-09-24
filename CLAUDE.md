@@ -242,8 +242,8 @@ All code must satisfy common static-analysis rules. Review every change against 
 ## Documentation
 
 - **README parity.** This repository ships `README.md` (English) alongside the translated `README.zh-CN.md` and `README.zh-TW.md`. All three must stay current with the code.
-- When a change alters anything user-facing — features, commands, CLI flags, install/setup steps, configuration, or requirements — update `README.md` **and both translated READMEs in the same commit**, keeping their structure and content aligned.
-- Never update one language and leave the others stale. There is no automated README-parity guard, so verify this by hand before committing.
+- When a change alters anything user-facing — features, commands, CLI flags, install/setup steps, configuration, or requirements — update `README.md`, **both translated READMEs (`README.zh-CN.md` and `README.zh-TW.md`), and the affected `docs/` sources, all in the same commit**, keeping their section structure and content aligned across languages. The translations must reflect the English content, not merely match its headings.
+- Never update one language, or `README.md` alone, and leave the other READMEs or the docs stale. There is no automated README-parity guard, so verify this by hand before committing.
 
 ## Stage commits, `progress.md`, `docs/updates/` and `architecture.md`
 
