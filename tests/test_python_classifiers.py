@@ -4,6 +4,7 @@ The package metadata listed only 3.10 while CI ran 3.10 to 3.14, so PyPI showed
 the package as 3.10-only. A workflow matrix ``python-version: ["3.10", "3.11"]``
 needs ``Programming Language :: Python :: 3.10`` and ``:: 3.11``, nothing more.
 """
+
 from __future__ import annotations
 
 import re
