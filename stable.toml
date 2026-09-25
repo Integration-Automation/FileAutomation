@@ -1,6 +1,6 @@
 # Stable release metadata — copied to pyproject.toml by the publish workflow.
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -12,6 +12,7 @@ authors = [
 description = "JSON-driven file, Drive, and cloud automation framework."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
+license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
     "google-api-python-client>=2.100.0",
