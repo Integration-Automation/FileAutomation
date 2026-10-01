@@ -153,7 +153,9 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - Resolve user paths through `safe_join` / `is_within` (§ Security › Path traversal). SFTP keeps
   `paramiko.RejectPolicy()` (§ Security › SFTP host verification).
 - `retry_on_transient` retries only the listed exception types (§ Security › Reliability (retry / quota)).
-  `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading).
+  `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading). No `FA_*`
+  command reaches it, so je_action_core's package gate is off here (`tests/test_package_loader.py` fails if one
+  is added; workspace X-12).
 - No `shell=True`; subprocesses use argument lists and a timeout (§ Security › General rules; › Subprocess execution).
 - Backends and PySide6 are first-class runtime dependencies. Keep `stable.toml` and `dev.toml`
   dependencies in sync, and let the publish workflow bump versions (§ Branching & CI).
