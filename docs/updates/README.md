@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261001-08 | 2026-10-01 | The wheels stop installing the test suite | #done #packaging #tests | [2026-10](2026-10.md) |
 | U-20261001-07 | 2026-10-01 | CI publishes automation_file_dev from the dev branch | #release #ci #X-13 | [2026-10](2026-10.md) |
 | U-20261001-06 | 2026-10-01 | The TCP server moves to je_action_core | #migration #socket-server #L-6 | [2026-10](2026-10.md) |
 | U-20261001-05 | 2026-10-01 | X-12: no action command loads packages, so the gate stays off | #decision #security #X-12 | [2026-10](2026-10.md) |
@@ -91,5 +92,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 7 |
+| [2026-10.md](2026-10.md) | 2026-10 | 8 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

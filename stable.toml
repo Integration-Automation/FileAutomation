@@ -69,4 +69,5 @@ automation_file_mcp = "automation_file.server.mcp_server:_cli"
 "Homepage" = "https://github.com/Integration-Automation/FileAutomation"
 
 [tool.setuptools.packages]
-find = { namespaces = false }
+# Only the library is installed. Without `include`, `tests` (it has an `__init__.py`) ships as a top-level package.
+find = { namespaces = false, include = ["automation_file", "automation_file.*"] }

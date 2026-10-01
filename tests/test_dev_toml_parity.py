@@ -58,5 +58,14 @@ def test_shipped_files_match():
     assert DEV_FILE["tool"]["setuptools"] == STABLE_FILE["tool"]["setuptools"]
 
 
+@pytest.mark.parametrize("metadata", [STABLE_FILE, DEV_FILE], ids=["stable.toml", "dev.toml"])
+def test_only_the_library_is_packaged(metadata):
+    # ``tests`` has an ``__init__.py``, so discovery without ``include`` installs the test suite as a
+    # top-level package next to ``automation_file``.
+    find = metadata["tool"]["setuptools"]["packages"]["find"]
+    assert find["include"] == ["automation_file", "automation_file.*"]
+    assert find["namespaces"] is False
+
+
 def test_build_backend_matches():
     assert DEV_FILE["build-system"] == STABLE_FILE["build-system"]
