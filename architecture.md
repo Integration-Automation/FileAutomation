@@ -28,6 +28,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
 | `automation_file/exceptions.py`, `logging_config.py` | `FileAutomationException` hierarchy; `file_automation_logger` (INFO+ to stderr, DEBUG+ to `$FILE_AUTOMATION_LOG_FILE` or `~/.automation_file/logs/FileAutomation.log`, opened on first use) |
 | `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and the publish jobs write one of these TOMLs into place. Apart from the name, version and description they say the same thing (`tests/test_dev_toml_parity.py`) |
+| `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
 | `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
