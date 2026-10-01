@@ -136,8 +136,8 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   - **callback executor**: strict checks, errors raised;
   - **JSON files**: `JSONDecodeError` / `OSError` wrapped on read, `OSError` / `TypeError` on write.
 
-  The extras (dry run, validate, substitute, parallel, metrics) and the TCP / HTTP servers stay here. Until the
-  package is on PyPI, the CI installs it from GitHub at a fixed commit (`progress.md` #7). ActionCore lists
+  The extras (dry run, validate, substitute, parallel, metrics) and the TCP / HTTP servers stay here. It is a PyPI
+  dependency (`je_action_core>=0.0.1`); the CI lint job installs it too, so mypy reads its types. ActionCore lists
   FileAutomation in its own §6.
 
 ## 7. Design constraints

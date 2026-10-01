@@ -26,10 +26,8 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          # je_action_core is not on PyPI yet (ActionCore progress.md #1): install it from GitHub at a
-          # fixed commit first, so mypy sees its types and `pip install -e .` finds it installed.
-          pip install --no-deps "je_action_core @ git+https://github.com/Integration-Automation/ActionCore@19bfe0a7c907af00c6a59af3de04448999b42e44"
-          pip install ruff mypy
+          # mypy reads je_action_core's types (py.typed) for the classes built on it
+          pip install ruff mypy "je_action_core>=0.0.1"
       - name: Ruff check
         run: ruff check automation_file tests
       - name: Ruff format check
@@ -57,9 +55,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
-          # je_action_core is not on PyPI yet (ActionCore progress.md #1): install it from GitHub at a
-          # fixed commit first, so mypy sees its types and `pip install -e .` finds it installed.
-          pip install --no-deps "je_action_core @ git+https://github.com/Integration-Automation/ActionCore@19bfe0a7c907af00c6a59af3de04448999b42e44"
           Copy-Item dev.toml pyproject.toml -Force
           pip install -e .
           pip install pytest pytest-cov
