@@ -1,4 +1,6 @@
-# Dev release metadata — copied to pyproject.toml by the dev publish workflow.
+# The dev channel, automation_file_dev. The publish-dev job of .github/workflows/ci-dev.yml builds it by
+# writing this file to pyproject.toml (scripts/dev_release.py). The version below is a floor: CI publishes
+# one patch above the newest release on PyPI and commits nothing back.
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"

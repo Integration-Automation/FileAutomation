@@ -27,7 +27,8 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
 | `automation_file/exceptions.py`, `logging_config.py` | `FileAutomationException` hierarchy; `file_automation_logger` (INFO+ to stderr, DEBUG+ to `$FILE_AUTOMATION_LOG_FILE` or `~/.automation_file/logs/FileAutomation.log`, opened on first use) |
-| `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and publish copy one of these TOMLs into place |
+| `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and the publish jobs write one of these TOMLs into place. Apart from the name, version and description they say the same thing (`tests/test_dev_toml_parity.py`) |
+| `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
@@ -57,6 +58,14 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
   default port 9945).
 - **GUI**: `launch_ui()`, `python -m automation_file ui` or `python main_ui.py`.
 - **Plugins**: third-party packages register actions through the entry-point group `automation_file.actions`.
+- **PyPI packages**: `automation_file` (stable) and `automation_file_dev` (dev channel), both the same
+  import package.
+  - Stable: a push to `main` runs `publish.yml`, which bumps both TOMLs, builds from `stable.toml`,
+    uploads, and commits and tags the bump.
+  - Dev: the `publish-dev` job of `ci-dev.yml` runs after `lint` and `pytest` on a push to `dev`. It
+    builds from `dev.toml` and uploads when the commit is still the tip of `dev` and the wheel differs
+    from the newest published one. `scripts/dev_release.py` takes the version from PyPI (newest release
+    plus one patch, never below the version in `dev.toml`), so nothing is committed back.
 
 ## 4. Main flows
 
@@ -163,7 +172,8 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   is added; workspace X-12).
 - No `shell=True`; subprocesses use argument lists and a timeout (§ Security › General rules; › Subprocess execution).
 - Backends and PySide6 are first-class runtime dependencies. Keep `stable.toml` and `dev.toml`
-  dependencies in sync, and let the publish workflow bump versions (§ Branching & CI).
+  in sync (`tests/test_dev_toml_parity.py`), and let CI number both channels: never bump a version by
+  hand (§ Branching & CI).
 - Limits: cyclomatic complexity ≤ 15 (hard cap 20), cognitive complexity ≤ 15, functions ≤ 75 lines,
   ≤ 7 parameters, nesting ≤ 4, files ≤ 1000 lines (§ Code quality › Complexity & size).
 - Run `ruff check`, `ruff format --check`, `mypy` and `pytest` before committing (§ Development).
@@ -173,6 +183,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 
 - A top-level subpackage, backend or server module is added, removed or renamed.
 - CLI flags, subcommands, `[project.scripts]` in the TOMLs, or the entry-point group change.
+- How either PyPI package is built or published changes.
 - The action format, the `auto_control` key, the registry build order, or plugin override semantics change.
 - Server defaults (host, port, auth, ACL, terminator) or HTTP routes change.
 - A §6 contract changes: PyBreeze invocation, the Windows double decode, the facade names TestPioneer uses.
