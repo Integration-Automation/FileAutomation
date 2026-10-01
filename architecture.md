@@ -136,8 +136,13 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   - **callback executor**: strict checks, errors raised;
   - **JSON files**: `JSONDecodeError` / `OSError` wrapped on read, `OSError` / `TypeError` on write.
 
-  The extras (dry run, validate, substitute, parallel, metrics) and the TCP / HTTP servers stay here. It is a PyPI
-  dependency (`je_action_core>=0.0.1`); the CI lint job installs it too, so mypy reads its types. ActionCore lists
+  - **TCP server**: `SecretHeaderRequestHandler` (`AUTH <secret>` first line) on a `TCPActionServer`
+    (`ActionTCPServer` with daemon threads and address reuse), the ACL as its `validate` hook, and
+    `ReplyMessages` for `<key> -> <value>` lines and the `json error` / `forbidden` / `execution error` /
+    `decode error` / `auth error` replies; `ensure_loopback` runs before it starts.
+
+  The extras (dry run, validate, substitute, parallel, metrics) and the HTTP server stay here. It is a PyPI
+  dependency (`je_action_core>=0.0.2`); the CI lint job installs it too, so mypy reads its types. ActionCore lists
   FileAutomation in its own §6.
 
 ## 7. Design constraints
