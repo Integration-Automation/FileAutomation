@@ -310,7 +310,8 @@ Requirements:
   `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`,
   `paramiko`, `msal`, `boxsdk`, `PySide6`,
   `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
-  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`
+  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
+  shared with APITestka, LoadDensity and MailThunder)
 
 ## Usage
 

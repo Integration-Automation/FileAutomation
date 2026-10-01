@@ -308,7 +308,8 @@ pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, b
   `tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、
   `paramiko`、`msal`、`boxsdk`、`PySide6`、
   `watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
-  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`
+  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`(與 APITestka、
+  LoadDensity、MailThunder 共用的 action 執行器)
 
 ## 使用方式
 

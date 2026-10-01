@@ -17,7 +17,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | --- | --- |
 | `automation_file/__init__.py` | Public facade (`__all__`). Wires the shared `executor`, `callback_executor` and `package_manager` over one registry. `launch_ui` is loaded lazily through `__getattr__` |
 | `automation_file/__main__.py` | CLI: legacy flags plus subcommands |
-| `automation_file/core/` | Engine: `action_registry.py` (`ActionRegistry`, `build_default_registry`), `action_executor.py` (`ActionExecutor`, shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
+| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
@@ -66,7 +66,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 JSON file / --execute_str / Python → ActionExecutor.execute_action(list|dict, validate_first, dry_run, substitute)
   → _coerce (list or {"auto_control": [...]}) → _execute_event → registry.resolve(name)
   → FA_* callable in local/ | remote/ | utils/ | core/ (inside tracing.action_span)
-  → {"execute: <action>": return value | repr(error)}   (one failure never aborts the batch)
+  → {"execute[<index>]: <action>": return value | repr(error)}   (one failure never aborts the batch)
 ```
 
 **Remote transports**
@@ -124,8 +124,21 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   metrics 9945) on their defaults.
 - **Wire format**: TCP replies end with the same `Return_Data_Over_JE` terminator as the sibling servers.
 - **Builtins policy**: the default registry contains no Python builtins; only `PackageLoader` can add
-  them. In the siblings, APITestka uses an explicit allowlist, LoadDensity a `_UNSAFE_BUILTINS`
-  blacklist, and MailThunder registers every builtin (known gap).
+  them. In the siblings, APITestka registers none, and LoadDensity, MailThunder and WebRunner register the
+  same `SAFE_BUILTINS` allowlist.
+- **ActionCore (this repo depends on it)**: `je_action_core` (Integration-Automation/ActionCore) holds the registry,
+  executor pipeline, package loader, callback executor and JSON files. FileAutomation configures them as follows:
+  - **registry**: accepts any callable; a refused one raises `AddCommandException("<name> is not callable")`;
+  - **executor**: `StrictActionParser` (its messages are this repo's), `execute[<index>]: <action>` record keys,
+    document key `auto_control`, its list messages, and the tracing span through `invoke`;
+  - **package loader**: `<package>_<member>` names, import errors logged, gate off, the count returned through
+    `check_and_add`;
+  - **callback executor**: strict checks, errors raised;
+  - **JSON files**: `JSONDecodeError` / `OSError` wrapped on read, `OSError` / `TypeError` on write.
+
+  The extras (dry run, validate, substitute, parallel, metrics) and the TCP / HTTP servers stay here. Until the
+  package is on PyPI, the CI installs it from GitHub at a fixed commit (`progress.md` #7). ActionCore lists
+  FileAutomation in its own §6.
 
 ## 7. Design constraints
 
