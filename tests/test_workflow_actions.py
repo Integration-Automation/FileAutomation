@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 _ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".github" / "workflows").is_dir())
 _WORKFLOWS = sorted((_ROOT / ".github" / "workflows").glob("*.yml"))
@@ -37,6 +38,14 @@ def test_workflows_exist():
 
 
 @pytest.mark.parametrize("workflow", _WORKFLOWS, ids=lambda p: p.name)
+def test_every_workflow_is_valid_yaml(workflow):
+    # GitHub runs nothing from a workflow it cannot parse, and the checks below read the files as
+    # text, so they would not notice. One way to get there: a one-line `run:` holding ": ", as in
+    # pip's `--only-binary :all: -r`. Such a command needs a block (`run: |`).
+    assert yaml.safe_load(workflow.read_text(encoding="utf-8"))["jobs"]
+
+
+@pytest.mark.parametrize("workflow", _WORKFLOWS, ids=lambda p: p.name)
 def test_every_action_is_pinned_to_a_commit_with_its_version(workflow):
     bad = [
         f"{workflow.name}:{number} {ref}{rest}"
@@ -58,8 +67,7 @@ def test_one_version_per_action():
 
 def test_dependabot_keeps_pins_current_on_dev():
     # Pinned SHAs only stay current if something bumps them; every update
-    # goes to dev because main is the release branch. Parsed as text: PyYAML
-    # is not a test dependency.
+    # goes to dev because main is the release branch.
     text = (_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
     blocks = re.split(r"^\s*-\s*package-ecosystem:", text, flags=re.MULTILINE)[1:]
     ecosystems = {block.split()[0].strip("\"'") for block in blocks}
@@ -133,3 +141,71 @@ def test_every_job_has_a_timeout(workflow):
         if "runs-on:" in body and not re.search(r"^\s*timeout-minutes:", body, re.MULTILINE)
     ]
     assert bad == []
+
+
+_REQUIREMENTS = _ROOT / ".github" / "requirements"
+_LOCKED_INSTALL = (
+    "python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt"
+)
+_PIP_INSTALL = re.compile(r"\bpip\d*\s+install\b")
+_STEP_PREFIX = re.compile(r"^\s*(?:-\s*)?(?:run:\s*)?")
+_TOOL = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)", re.MULTILINE)
+_PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==", re.MULTILINE)
+
+
+def _publish_jobs() -> list[tuple[str, str]]:
+    """Return ``(workflow:job, job text)`` for each job that is given the PyPI token."""
+    return [
+        (f"{workflow.name}:{name}", body)
+        for workflow in _WORKFLOWS
+        for name, body in _jobs(workflow)
+        if "secrets.PYPI_API_TOKEN" in body
+    ]
+
+
+def _pip_installs(job: str) -> list[str]:
+    """Return each ``pip install`` command of a job, without its YAML key and any comment."""
+    commands = []
+    for line in job.splitlines():
+        code = line.split("#", 1)[0]
+        if _PIP_INSTALL.search(code):
+            commands.append(_STEP_PREFIX.sub("", code).strip())
+    return commands
+
+
+def _normalised(names: list[str]) -> set[str]:
+    """Return project names in the form PyPI compares them: lower case, runs of ``-_.`` as ``-``."""
+    return {re.sub(r"[-_.]+", "-", name).lower() for name in names}
+
+
+def test_the_publish_jobs_are_the_two_known_ones():
+    # A new job that is given the token has to be looked at against the rule below.
+    assert [name for name, _body in _publish_jobs()] == [
+        "ci-dev.yml:publish-dev",
+        "publish.yml:publish",
+    ]
+
+
+@pytest.mark.parametrize("job", _publish_jobs(), ids=lambda job: job[0])
+def test_publish_jobs_install_only_hash_locked_tools(job):
+    # What such a job installs runs beside the PyPI token and builds the files it uploads. Its one
+    # install takes wheels whose hashes are in publish.txt: no `pip install --upgrade pip` and no
+    # unpinned package, so a release published a minute ago cannot reach the job.
+    _name, body = job
+    assert _pip_installs(body) == [_LOCKED_INSTALL]
+
+
+def test_publish_lock_pins_every_tool_in_publish_in():
+    # A tool named in publish.in but not pinned in publish.txt means the lock was not regenerated.
+    tools = _normalised(_TOOL.findall((_REQUIREMENTS / "publish.in").read_text(encoding="utf-8")))
+    pinned = _normalised(_PIN.findall((_REQUIREMENTS / "publish.txt").read_text(encoding="utf-8")))
+    assert tools and tools <= pinned
+
+
+def test_dependabot_reads_the_publish_lock():
+    # Locked versions only move when Dependabot is told which directory holds the lock.
+    text = (_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    blocks = re.split(r"^\s*-\s*package-ecosystem:", text, flags=re.MULTILINE)[1:]
+    pip = [block for block in blocks if block.split()[0].strip("\"'") == "pip"]
+    listed = re.compile(r"^\s*(?:-|directory:)\s*\"/\.github/requirements\"", re.MULTILINE)
+    assert any(listed.search(block) for block in pip)

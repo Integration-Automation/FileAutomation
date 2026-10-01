@@ -27,10 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      # This job holds the PyPI token, so its tools are hash-locked and wheels only.
+      # .github/requirements/publish.in says how publish.txt is generated.
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+          python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt
 
       - name: Bump patch version in stable.toml and dev.toml
         id: bump

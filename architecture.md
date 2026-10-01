@@ -30,6 +30,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and the publish jobs write one of these TOMLs into place. Apart from the name, version and description they say the same thing (`tests/test_dev_toml_parity.py`) |
 | `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
 | `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
+| `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
@@ -67,6 +68,9 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
     builds from `dev.toml` and uploads when the commit is still the tip of `dev` and the wheel differs
     from the newest published one. `scripts/dev_release.py` takes the version from PyPI (newest release
     plus one patch, never below the version in `dev.toml`), so nothing is committed back.
+  - Both jobs hold the PyPI token and install only the wheels pinned by hash in
+    `.github/requirements/publish.txt` (`pip install --require-hashes --only-binary :all:`);
+    `tests/test_workflow_actions.py` fails on any other `pip install` in them.
 
 ## 4. Main flows
 
