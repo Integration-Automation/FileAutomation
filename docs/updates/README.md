@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261001-11 | 2026-10-01 | The publish jobs build with the locked setuptools | #done #ci #security #X-13 | [2026-10](2026-10.md) |
 | U-20261001-10 | 2026-10-01 | The publish jobs install hash-locked build tools | #done #ci #security #deps | [2026-10](2026-10.md) |
 | U-20261001-09 | 2026-10-01 | The source distributions stop carrying the tests | #done #packaging #tests | [2026-10](2026-10.md) |
 | U-20261001-08 | 2026-10-01 | The wheels stop installing the test suite | #done #packaging #tests | [2026-10](2026-10.md) |
@@ -94,5 +95,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 10 |
+| [2026-10.md](2026-10.md) | 2026-10 | 11 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

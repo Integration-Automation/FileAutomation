@@ -10,10 +10,18 @@ from lingering unnoticed: GitHub removed Node 20 from its runners on 2026-09-23.
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib  # declared in *.toml for Python<3.11
 
 _ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".github" / "workflows").is_dir())
 _WORKFLOWS = sorted((_ROOT / ".github" / "workflows").glob("*.yml"))
@@ -148,9 +156,12 @@ _LOCKED_INSTALL = (
     "python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt"
 )
 _PIP_INSTALL = re.compile(r"\bpip\d*\s+install\b")
+_BUILD = re.compile(r"\bpython\S*\s+-m\s+build\b|\bpyproject-build\b")
 _STEP_PREFIX = re.compile(r"^\s*(?:-\s*)?(?:run:\s*)?")
 _TOOL = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)", re.MULTILINE)
-_PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==", re.MULTILINE)
+_PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==(\S+)", re.MULTILINE)
+# The metadata the publish jobs build from: each writes one of these to pyproject.toml.
+_METADATA = ["stable.toml", "dev.toml"]
 
 
 def _publish_jobs() -> list[tuple[str, str]]:
@@ -163,19 +174,32 @@ def _publish_jobs() -> list[tuple[str, str]]:
     ]
 
 
-def _pip_installs(job: str) -> list[str]:
-    """Return each ``pip install`` command of a job, without its YAML key and any comment."""
+def _commands(job: str, pattern: re.Pattern[str]) -> list[str]:
+    """Return each command of a job that ``pattern`` finds, without its YAML key and any comment."""
     commands = []
     for line in job.splitlines():
         code = line.split("#", 1)[0]
-        if _PIP_INSTALL.search(code):
+        if pattern.search(code):
             commands.append(_STEP_PREFIX.sub("", code).strip())
     return commands
 
 
-def _normalised(names: list[str]) -> set[str]:
-    """Return project names in the form PyPI compares them: lower case, runs of ``-_.`` as ``-``."""
-    return {re.sub(r"[-_.]+", "-", name).lower() for name in names}
+def _pins() -> dict[str, str]:
+    """Return ``{name: version}`` for each pin in ``publish.txt``, names as PyPI compares them."""
+    text = (_REQUIREMENTS / "publish.txt").read_text(encoding="utf-8")
+    return {canonicalize_name(name): version for name, version in _PIN.findall(text)}
+
+
+def _build_requires(metadata: str) -> list[Requirement]:
+    """Return ``build-system.requires`` of a metadata file in the repository root."""
+    with (_ROOT / metadata).open("rb") as handle:
+        return [Requirement(item) for item in tomllib.load(handle)["build-system"]["requires"]]
+
+
+def _is_locked(requirement: Requirement, pins: dict[str, str]) -> bool:
+    """Tell whether ``pins`` holds a version of the package that ``requirement`` accepts."""
+    version = pins.get(canonicalize_name(requirement.name))
+    return version is not None and requirement.specifier.contains(version)
 
 
 def test_the_publish_jobs_are_the_two_known_ones():
@@ -192,14 +216,33 @@ def test_publish_jobs_install_only_hash_locked_tools(job):
     # install takes wheels whose hashes are in publish.txt: no `pip install --upgrade pip` and no
     # unpinned package, so a release published a minute ago cannot reach the job.
     _name, body = job
-    assert _pip_installs(body) == [_LOCKED_INSTALL]
+    assert _commands(body, _PIP_INSTALL) == [_LOCKED_INSTALL]
+
+
+@pytest.mark.parametrize("job", _publish_jobs(), ids=lambda job: job[0])
+def test_publish_jobs_build_with_the_locked_backend(job):
+    # An isolated build downloads the newest setuptools of that minute, outside publish.txt, and runs
+    # it beside the token. --no-isolation builds with the backend the locked install put in the job.
+    _name, body = job
+    builds = _commands(body, _BUILD)
+    assert builds and all("--no-isolation" in build.split() for build in builds)
 
 
 def test_publish_lock_pins_every_tool_in_publish_in():
     # A tool named in publish.in but not pinned in publish.txt means the lock was not regenerated.
-    tools = _normalised(_TOOL.findall((_REQUIREMENTS / "publish.in").read_text(encoding="utf-8")))
-    pinned = _normalised(_PIN.findall((_REQUIREMENTS / "publish.txt").read_text(encoding="utf-8")))
-    assert tools and tools <= pinned
+    listed = _TOOL.findall((_REQUIREMENTS / "publish.in").read_text(encoding="utf-8"))
+    tools = {canonicalize_name(name) for name in listed}
+    assert tools and tools <= set(_pins())
+
+
+@pytest.mark.parametrize("metadata", _METADATA)
+def test_publish_lock_satisfies_build_system_requires(metadata):
+    # --no-isolation checks build-system.requires against what is installed and installs nothing, so
+    # a backend that is not locked, or a floor raised without regenerating publish.txt, has to fail
+    # here and not in the publish job.
+    pins = _pins()
+    requires = _build_requires(metadata)
+    assert requires and [str(item) for item in requires if not _is_locked(item, pins)] == []
 
 
 def test_dependabot_reads_the_publish_lock():

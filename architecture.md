@@ -30,7 +30,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and the publish jobs write one of these TOMLs into place. Apart from the name, version and description they say the same thing (`tests/test_dev_toml_parity.py`) |
 | `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
 | `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
-| `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
+| `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`, and the build backend `setuptools`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
@@ -71,6 +71,9 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
   - Both jobs hold the PyPI token and install only the wheels pinned by hash in
     `.github/requirements/publish.txt` (`pip install --require-hashes --only-binary :all:`);
     `tests/test_workflow_actions.py` fails on any other `pip install` in them.
+  - Both jobs build with `python -m build --no-isolation`, so the build backend is the locked
+    `setuptools` and not a download made at build time. The same test file fails on a build without
+    the flag and when the lock does not satisfy `[build-system] requires` of `stable.toml` or `dev.toml`.
 
 ## 4. Main flows
 

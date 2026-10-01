@@ -160,7 +160,8 @@ def test_the_workflow_publishes_only_a_tested_push_to_dev():
 def test_the_workflow_uploads_only_a_changed_build_and_keeps_no_credentials():
     job = _publish_job()
     upload = job.index("twine upload")
-    assert job.index("dev_release.py prepare") < job.index("python -m build") < upload
+    build = job.index("python -m build --no-isolation")
+    assert job.index("dev_release.py prepare") < build < upload
     assert job.index("dev_release.py changed dist") < upload
     assert job.index("git ls-remote origin refs/heads/dev") < upload
     guard = "if: steps.compare.outputs.changed == 'true' && steps.tip.outputs.current == 'true'"
