@@ -43,7 +43,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`, and the build backend `setuptools`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
 | `.github/requirements/lint.in`, `lint.txt`, `integration.in`, `integration.txt` | Hash-locked wheel dependencies for lint and Python 3.12 integration jobs. The editable package uses the locked build backend without dependency resolution or build isolation. |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
-| `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
+| `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures, including the shared Qt application lifecycle, in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
 ## 3. Entry points and public interfaces
 

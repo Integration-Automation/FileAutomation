@@ -45,14 +45,6 @@ PAGES = (
 )
 
 
-@pytest.fixture(name="qt_app", scope="module")
-def _qt_app():
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance() or QApplication([])
-    yield app
-
-
 @pytest.fixture(name="window")
 def _window(qt_app) -> Iterator:
     from automation_file.ui.main_window import MainWindow

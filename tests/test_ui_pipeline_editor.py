@@ -76,14 +76,6 @@ class _Workshop:
         )
 
 
-@pytest.fixture(name="qt_app", scope="module")
-def _qt_app():
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance() or QApplication([])
-    yield app
-
-
 @pytest.fixture(name="workshop")
 def _workshop() -> Iterator[_Workshop]:
     workshop = _Workshop()

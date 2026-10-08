@@ -74,14 +74,6 @@ class _Broken(NotificationSink):
         raise NotificationException("POST https://hooks.example.com/services/s3cr3t failed")
 
 
-@pytest.fixture(name="qt_app", scope="module")
-def _qt_app():
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance() or QApplication([])
-    yield app
-
-
 @pytest.fixture(autouse=True)
 def _clean_global_state() -> Iterator[None]:
     clear_memory_stores()
