@@ -328,6 +328,7 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 公開 API 與相容性
 
    usage/api_policy
+   usage/migration
 
 .. _zh-tw-integration-tests:
 

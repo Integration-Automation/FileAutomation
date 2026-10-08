@@ -1419,7 +1419,9 @@ storage layer, the event bus, pipelines, the integrity monitor, the audit trail,
 router and the semantic MCP tools are provisional: they may still change in a minor release, and
 the release notes say how. A deprecated name keeps working for at least two minor releases, warns
 with its replacement, and is removed only in a major release. The full policy is in the manual:
-*Public API and compatibility* (`docs/source/Eng/usage/api_policy.rst`).
+*Public API and compatibility* (`docs/source/Eng/usage/api_policy.rst`). Coming from 0.0.x: nothing was
+removed, the cloud SDKs moved into extras (`pip install "automation_file[all]"`), and *Migrating to 1.0*
+(`docs/source/Eng/usage/migration.rst`) lists the few behaviours that changed.
 
 ## Documentation
 

@@ -1369,7 +1369,9 @@ python -m pytest tests/integration/test_s3_minio.py
 在 1.0 之前，存储层、事件总线、流水线、完整性监控、审计轨迹、通知路由器与语义化 MCP 工具属于
 暂定功能：仍可能在次版本中变动，版本说明会交代如何应对。被弃用的名称至少会保留两个次版本、
 发出附带替代方案的警告，并且只会在主版本中移除。完整的政策请见手册的“公开 API 与兼容性”
-（`docs/source/Zh-CN/usage/api_policy.rst`）。
+（`docs/source/Zh-CN/usage/api_policy.rst`）。从 0.0.x 升级时：没有任何东西被移除，云端 SDK 改放到
+extra（`pip install "automation_file[all]"`），少数有所改变的行为列在“迁移到 1.0”
+（`docs/source/Zh-CN/usage/migration.rst`）。
 
 ## 文档
 

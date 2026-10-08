@@ -343,6 +343,7 @@ promises, and how a name is deprecated and removed.
    :caption: Public API and Compatibility
 
    usage/api_policy
+   usage/migration
 
 .. _eng-integration-tests:
 
