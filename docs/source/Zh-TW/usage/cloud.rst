@@ -44,17 +44,24 @@ SFTP
 跨後端複製
 ----------
 
-跨後端調度器接受 URI 語法：
+``FA_copy_between``（``copy_between(source, target)``）透過本機暫存檔，把一個檔案
+從某個後端複製到另一個後端，兩個階段都成功時回傳 ``True``：
 
 .. code-block:: python
 
    from automation_file import execute_action
 
    execute_action([
-       ["FA_cross_copy",
-        {"src": "s3://reports/2026-04.csv",
-         "dst": "drive:///Backups/april.csv"}],
+       ["FA_copy_between",
+        {"source": "s3://reports/2026-04.csv",
+         "target": "azure://backups/april.csv"}],
    ])
 
-URI 前綴：``local://``、``s3://``、``drive://``、``sftp://``、
-``azure://``、``dropbox://``、``ftp://``。
+它接受 ``s3://bucket/key``、``azure://container/blob``（或 ``az://``）、
+``dropbox:/path``、``sftp:/path``、``ftp:/path``、``local:/path`` 或一般的檔案系統
+路徑；``http://`` / ``https://`` 只能作為來源。每個後端都必須先初始化
+（``s3_instance.later_init(...)`` 等）。沒有 Google Drive 的 scheme：Drive 以 ID
+定位檔案，請改用 ``FA_drive_*`` 動作。
+
+新的程式建議使用儲存層（:doc:`storage`）：``FA_storage_copy`` 接受同類型的 URI，
+會回報複製的結果，失敗時拋出明確的例外，而不是回傳 ``False``。

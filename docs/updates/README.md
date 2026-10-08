@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-07 | 2026-10-08 | The cloud pages describe FA_copy_between, not FA_cross_copy | #done #docs | [2026-10](2026-10.md) |
 | U-20261008-06 | 2026-10-08 | Event model, event bus and storage observers | #events #roadmap #storage | [2026-10](2026-10.md) |
 | U-20261008-05 | 2026-10-08 | Streams and directory trees in the storage layer | #storage #roadmap #streams | [2026-10](2026-10.md) |
 | U-20261008-04 | 2026-10-08 | Version directories stay short for long source paths | #done #versioning #windows | [2026-10](2026-10.md) |
@@ -101,5 +102,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 17 |
+| [2026-10.md](2026-10.md) | 2026-10 | 18 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

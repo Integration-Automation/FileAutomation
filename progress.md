@@ -39,4 +39,3 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Found on the way
 
-- **#27** The three `usage/cloud.rst` pages (`docs/source/Eng`, `Zh-TW`, `Zh-CN`) show a `FA_cross_copy` action with `src` / `dst` and a `drive://` prefix. Neither exists: the action is `FA_copy_between(source, target)` and `remote/cross_backend.py` has no `drive` scheme. The READMEs were corrected in `bc13101`; these pages were not. Fix them with #16, which rewrites that section anyway.

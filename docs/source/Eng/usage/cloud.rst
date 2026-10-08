@@ -46,17 +46,27 @@ swap in ``AutoAddPolicy`` for convenience.
 Cross-backend copy
 ------------------
 
-The cross-backend dispatcher accepts URI syntax for every backend:
+``FA_copy_between`` (``copy_between(source, target)``) copies one file from a
+backend to another through a local temporary file and returns ``True`` when
+both halves succeeded:
 
 .. code-block:: python
 
    from automation_file import execute_action
 
    execute_action([
-       ["FA_cross_copy",
-        {"src": "s3://reports/2026-04.csv",
-         "dst": "drive:///Backups/april.csv"}],
+       ["FA_copy_between",
+        {"source": "s3://reports/2026-04.csv",
+         "target": "azure://backups/april.csv"}],
    ])
 
-URI prefixes: ``local://``, ``s3://``, ``drive://``, ``sftp://``,
-``azure://``, ``dropbox://``, ``ftp://``.
+It accepts ``s3://bucket/key``, ``azure://container/blob`` (or ``az://``),
+``dropbox:/path``, ``sftp:/path``, ``ftp:/path``, ``local:/path`` or a plain
+filesystem path, and ``http://`` / ``https://`` as a source only. Each backend
+must be initialised first (``s3_instance.later_init(...)`` and so on). There is
+no Google Drive scheme: Drive addresses files by ID, so use the ``FA_drive_*``
+actions for it.
+
+For new code prefer the storage layer (:doc:`storage`): ``FA_storage_copy``
+takes the same kind of URIs, reports what it copied, and raises a specific
+error instead of returning ``False``.
