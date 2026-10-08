@@ -2,7 +2,7 @@
 ========
 
 单元测试为每个存储后端准备了服务的替身。集成测试则把同一套契约测试
-（``tests/storage_contract.py``，88 个用例）拿去对真正的服务运行：S3 用 MinIO、
+（``tests/storage_contract.py``，88 个用例）拿去对真正的服务运行：S3 用 S3Mock、
 Azure Blob 用 Azurite、SFTP 用 OpenSSH 服务器，另外还有 FTP、WebDAV 与 Samba 服务器。
 这些测试放在 ``tests/integration/``。
 

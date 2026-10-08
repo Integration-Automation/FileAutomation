@@ -1,5 +1,9 @@
 """IntegrityMonitor: snapshot, baseline, verify, accept, alerts and continuous mode."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 # pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
 
@@ -490,7 +494,7 @@ def test_a_monitor_refuses_a_weak_algorithm_unless_told_otherwise(tree: Storage)
     allowed = IntegrityMonitor(TREE, baseline=BASELINE, algorithm="md5", allow_weak=True)
     entry = allowed.snapshot().get("a.txt")
     assert entry is not None
-    assert entry.checksum == hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert entry.checksum == hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
 
 
 def test_a_weak_baseline_is_not_verified_without_allow_weak(tree: Storage, bus: EventBus) -> None:

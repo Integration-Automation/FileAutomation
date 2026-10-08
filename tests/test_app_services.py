@@ -1,5 +1,9 @@
 """The scheduler, integrity, audit, notification, settings and dashboard services."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=no-member  # the member exists on the object the fixture builds
 # pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
 
@@ -286,7 +290,7 @@ def test_audit_records_are_searched_counted_and_masked(trail: AuditTrail, bus: E
         PipelineFailed(
             source="pipeline",
             subject="nightly failed",
-            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},  # nosec B105  # a made-up value for a stand-in, not a credential
+            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},  # nosec B105
         )
     )
     trail.record("manual.note", resource="s3://reports/a.csv", status="ok", actor="ops")
@@ -626,7 +630,7 @@ def test_the_dashboard_counts_runs_and_asks_for_attention_after_a_failure(
 def test_recent_events_are_newest_first_filtered_and_masked(
     services: AppServices, bus: EventBus
 ) -> None:
-    bus.publish(Event(source="test", subject="first", payload={"token": "abc"}))  # nosec B105  # a made-up value for a stand-in, not a credential
+    bus.publish(Event(source="test", subject="first", payload={"token": "abc"}))  # nosec B105
     bus.publish(SystemErrorEvent(source="test", subject="second"))
     events = services.dashboard.recent_events()
     assert [event["subject"] for event in events] == ["second", "first"]
@@ -778,7 +782,8 @@ def test_importing_and_using_the_layer_loads_no_gui_toolkit() -> None:
         "services.settings.extras()\n"
         "print('PySide6' in sys.modules)\n"
     )
-    result = subprocess.run(  # nosec B603 - fixed argv: this interpreter and the script above
+    # nosemgrep  # a fixed argument list: this interpreter and a script of this test
+    result = subprocess.run(  # nosec B603
         [sys.executable, "-c", probe],
         cwd=REPO_ROOT,
         capture_output=True,

@@ -1,4 +1,4 @@
-"""S3Storage against an S3-compatible service (MinIO in CI).
+"""S3Storage against an S3-compatible service (S3Mock in CI).
 
 Environment: ``FA_IT_S3_ENDPOINT`` (for example ``http://127.0.0.1:9000``),
 ``FA_IT_S3_ACCESS_KEY``, ``FA_IT_S3_SECRET_KEY`` and optionally ``FA_IT_S3_REGION``.

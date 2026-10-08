@@ -1,5 +1,9 @@
 """The application layer keeps secrets out of what it returns, and reads form text."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=keyword-arg-before-vararg  # a stand-in keeps the real signature
 # pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
 
@@ -62,13 +66,13 @@ def test_url_names_are_told_from_storage_uris() -> None:
 
 def test_a_secret_value_is_replaced_whatever_its_type() -> None:
     masked = mask_secrets(
-        {"password": "hunter2", "token": {"value": "abc"}, "api_key": 12, "name": "ops"}  # nosec B105  # a made-up value for a stand-in, not a credential
+        {"password": "hunter2", "token": {"value": "abc"}, "api_key": 12, "name": "ops"}  # nosec B105
     )
     assert masked == {"password": MASK, "token": MASK, "api_key": MASK, "name": "ops"}
 
 
 def test_an_empty_secret_stays_empty_so_a_view_can_tell_it_is_unset() -> None:
-    assert mask_secrets({"password": "", "token": None}) == {"password": "", "token": None}  # nosec B105  # a made-up value for a stand-in, not a credential
+    assert mask_secrets({"password": "", "token": None}) == {"password": "", "token": None}  # nosec B105
 
 
 def test_a_webhook_url_keeps_only_its_host() -> None:
@@ -83,7 +87,7 @@ def test_a_url_field_without_an_http_url_is_masked_whole() -> None:
 
 
 def test_nested_values_are_walked_and_tuples_become_lists() -> None:
-    masked = mask_secrets({"sinks": ({"name": "a", "password": "x"}, {"name": "b"})})  # nosec B105  # a made-up value for a stand-in, not a credential
+    masked = mask_secrets({"sinks": ({"name": "a", "password": "x"}, {"name": "b"})})  # nosec B105
     assert masked == {"sinks": [{"name": "a", "password": MASK}, {"name": "b"}]}
 
 
@@ -101,9 +105,9 @@ def test_a_storage_uri_is_left_alone() -> None:
 
 
 def test_the_input_is_not_changed() -> None:
-    original = {"password": "hunter2", "items": [{"token": "t"}]}  # nosec B105  # a made-up value for a stand-in, not a credential
+    original = {"password": "hunter2", "items": [{"token": "t"}]}  # nosec B105
     mask_secrets(original)
-    assert original == {"password": "hunter2", "items": [{"token": "t"}]}  # nosec B105  # a made-up value for a stand-in, not a credential
+    assert original == {"password": "hunter2", "items": [{"token": "t"}]}  # nosec B105
 
 
 def test_values_that_are_not_containers_pass_through() -> None:

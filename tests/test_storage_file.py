@@ -1,5 +1,9 @@
 """File and Storage: the object API over the resolver, including cross-backend transfers."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 # pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
 
@@ -159,13 +163,13 @@ def test_checksum_and_verify(resolver: StorageResolver) -> None:
     file = File("memory://scratch/a.bin", resolver=resolver)
     file.write(PAYLOAD)
     assert file.checksum() == Checksum("sha256", SHA256)
-    assert file.checksum("md5").value == hashlib.md5(PAYLOAD, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert file.checksum("md5").value == hashlib.md5(PAYLOAD, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     assert file.verify(SHA256) is True
     assert file.verify(SHA256.upper()) is True
     assert file.verify(f"sha256:{SHA256}") is True
     assert file.verify(Checksum("sha256", SHA256)) is True
     assert file.verify("0" * 64) is False
-    md5 = hashlib.md5(PAYLOAD, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    md5 = hashlib.md5(PAYLOAD, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     assert file.verify(md5, algorithm="md5") is True
     assert file.verify(f"md5:{md5}") is True
     assert file.verify(md5) is False

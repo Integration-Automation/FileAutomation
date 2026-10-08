@@ -1,5 +1,9 @@
 """The semantic file and storage tools, called without the JSON-RPC layer."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 
 from __future__ import annotations
@@ -521,7 +525,7 @@ def test_file_checksum_defaults_to_sha256() -> None:
         24,
     )
     md5 = succeed(kit.call("file_checksum", {"uri": A, "algorithm": "MD5"}))
-    assert md5["value"] == hashlib.md5(File(A).read(), usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert md5["value"] == hashlib.md5(File(A).read(), usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     failed(kit.call("file_checksum", {"uri": A, "algorithm": "crc-nope"}), "failed")
 
 
@@ -533,7 +537,7 @@ def test_file_verify_answers_match_or_mismatch_without_failing() -> None:
         assert (body["match"], body["actual"], body["algorithm"]) == (True, digest, "sha256")
     wrong = succeed(kit.call("file_verify", {"uri": A, "expected": "00"}))
     assert (wrong["match"], wrong["expected"]) == (False, "00")
-    sha1 = hashlib.sha1(File(A).read(), usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    sha1 = hashlib.sha1(File(A).read(), usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     prefixed = succeed(kit.call("file_verify", {"uri": A, "expected": f"sha1:{sha1}"}))
     assert (prefixed["match"], prefixed["algorithm"]) == (True, "sha1")
     failed(kit.call("file_verify", {"uri": A, "expected": "sha256:"}), "invalid_arguments")

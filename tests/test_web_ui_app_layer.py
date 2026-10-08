@@ -1,5 +1,8 @@
 """The Web UI renders its fragments from the application layer, escaped and masked."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+
 # pylint: disable=consider-using-with  # the handle is closed by the code under test
 # pylint: disable=cyclic-import
 
@@ -187,7 +190,7 @@ def test_secrets_are_masked_before_they_are_rendered(
         PipelineFailed(
             source="pipeline",
             subject="fetch https://user:hunter2@example.com/x failed",
-            payload={"error": "Bearer abc.def-123 was refused", "token": "t0ps3cret"},  # nosec B105  # a made-up value for a stand-in, not a credential
+            payload={"error": "Bearer abc.def-123 was refused", "token": "t0ps3cret"},  # nosec B105
         )
     )
     for path in ("/ui/events", "/ui/audit", "/ui/health"):

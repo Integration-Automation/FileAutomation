@@ -19,6 +19,10 @@ Where it is stricter than Drive (``addParents`` takes real IDs only) a comment
 says so.
 """
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=line-too-long  # an expected value is kept on one line
 # pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
 # pylint: disable=too-many-positional-arguments  # a stand-in keeps the real signature
@@ -121,8 +125,8 @@ class _Entry:
         if self.data is not None:
             resource["size"] = str(len(self.data))
             if digests:
-                resource["md5Checksum"] = hashlib.md5(self.data, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
-                resource["sha1Checksum"] = hashlib.sha1(  # nosec B324  # nosemgrep  # the digest under test, not a security use
+                resource["md5Checksum"] = hashlib.md5(self.data, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
+                resource["sha1Checksum"] = hashlib.sha1(  # nosec B324  # nosemgrep
                     self.data, usedforsecurity=False
                 ).hexdigest()
                 resource["sha256Checksum"] = hashlib.sha256(self.data).hexdigest()

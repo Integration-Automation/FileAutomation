@@ -7,6 +7,10 @@ The stand-in answers the calls the adapter makes -- ``get_blob_client`` (with
 leaves the process.
 """
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=protected-access  # the tests look at private state on purpose
 # pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
@@ -80,7 +84,7 @@ class _Blob:
             name=name,
             size=len(self.data),
             last_modified=self.modified,
-            etag=f'"0x{hashlib.md5(self.data, usedforsecurity=False).hexdigest()[:16].upper()}"',  # nosec B324  # nosemgrep  # the digest under test, not a security use
+            etag=f'"0x{hashlib.md5(self.data, usedforsecurity=False).hexdigest()[:16].upper()}"',  # nosec B324  # nosemgrep
             content_settings=SimpleNamespace(content_type=self.content_type),
             metadata={},
             version_id=None,

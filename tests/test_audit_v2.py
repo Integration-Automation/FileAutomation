@@ -1,5 +1,8 @@
 """Audit schema v2: the record, the stores, the trail, the v1 import and the actions."""
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 # pylint: disable=too-many-function-args  # the call is expected to be refused
 # pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
@@ -490,7 +493,7 @@ def test_the_database_states_its_schema_version(sqlite_store: SQLiteAuditStore) 
 def test_the_database_has_its_indexes(sqlite_store: SQLiteAuditStore) -> None:
     with closing(sqlite3.connect(sqlite_store.path)) as conn:
         indexed = {
-            conn.execute(f"PRAGMA index_info({name})").fetchall()[0][2]  # nosec B608  # nosemgrep  # the name comes from sqlite_master
+            conn.execute(f"PRAGMA index_info({name})").fetchall()[0][2]  # nosec B608  # nosemgrep
             for name in _names(sqlite_store.path, "index")
             if name.startswith("idx_audit_records_")
         }

@@ -6,6 +6,10 @@ server writes the way Apache and Nextcloud write them. No request leaves the
 process.
 """
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
 # pylint: disable=protected-access  # the tests look at private state on purpose
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
@@ -26,9 +30,10 @@ from email.utils import format_datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
-from xml.sax.saxutils import (
-    escape,  # nosec B406  # nosemgrep  # escapes what the fake server writes; parses nothing
-)
+
+# The fake server escapes the text it writes; nothing is parsed with this module.
+# nosemgrep
+from xml.sax.saxutils import escape  # nosec B406
 
 import pytest
 import requests
@@ -71,7 +76,7 @@ class _Resource:
 
     @property
     def etag(self) -> str:
-        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep  # the digest under test, not a security use
+        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep
 
 
 class _Response:
@@ -296,7 +301,7 @@ def test_stat_reports_what_propfind_returns(storage: WebDAVStorage, server: Fake
     assert info.size == 2
     assert info.modified_at == stored.modified
     assert info.modified_at.utcoffset() == timedelta(0)
-    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     assert info.content_type == "application/json"
     assert info.version is None
     folder = storage.stat("reports")

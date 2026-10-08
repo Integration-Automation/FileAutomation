@@ -1,4 +1,4 @@
-"""The ``integrity``, ``pipeline`` and ``audit`` subcommands: JSON out, exit codes that mean something."""
+"""The ``integrity``, ``pipeline`` and ``audit`` subcommands: JSON out, meaningful exit codes."""
 
 # pylint: disable=line-too-long  # an expected value is kept on one line
 

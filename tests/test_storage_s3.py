@@ -6,6 +6,10 @@ The stand-in answers the calls the adapter makes -- ``head_object``, the
 real ``botocore`` exceptions. No request leaves the process.
 """
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=protected-access  # the tests look at private state on purpose
 # pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
@@ -65,7 +69,7 @@ class _Object:
 
     @property
     def etag(self) -> str:
-        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep  # the digest under test, not a security use
+        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep
 
 
 class _Paginator:
@@ -220,7 +224,7 @@ def test_stat_reports_what_head_object_returns(storage: S3Storage) -> None:
     info = storage.write_bytes("reports/q1.json", b"{}")
     assert info.path == "reports/q1.json"
     assert info.size == 2
-    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     assert info.content_type == "application/json"
     assert info.version is None
     assert dict(info.metadata) == {}

@@ -55,7 +55,7 @@ from tests.graph_stand_in import (
     KIB,
     SIMPLE_UPLOAD_LIMIT,
     UPLOAD_ORIGIN,
-    URL_SECRET,
+    URL_SIGNATURE,
     FakeGraph,
     graph_answer,
 )
@@ -272,7 +272,7 @@ def test_the_default_fragment_size_is_a_multiple_of_320_kib() -> None:
 
 @pytest.mark.parametrize(
     "failure",
-    [503, requests.ConnectionError(f"Max retries exceeded with url: /session/1?{URL_SECRET}")],
+    [503, requests.ConnectionError(f"Max retries exceeded with url: /session/1?{URL_SIGNATURE}")],
 )
 def test_a_failed_fragment_cancels_the_session_and_keeps_its_url_secret(
     storage: OneDriveStorage,
@@ -290,8 +290,8 @@ def test_a_failed_fragment_cancels_the_session_and_keeps_its_url_secret(
     assert storage.exists("big.bin") is False
     assert caught.value.__cause__ is None
     assert "onedrive:///big.bin" in str(caught.value)
-    assert URL_SECRET not in _printed(caught.value)
-    assert not any(URL_SECRET in message or FAKE_TOKEN in message for message in logged)
+    assert URL_SIGNATURE not in _printed(caught.value)
+    assert not any(URL_SIGNATURE in message or FAKE_TOKEN in message for message in logged)
 
 
 def test_a_session_that_cannot_be_cancelled_is_logged_and_the_first_error_wins(
@@ -306,7 +306,7 @@ def test_a_session_that_cannot_be_cancelled_is_logged_and_the_first_error_wins(
         storage.write_bytes("big.bin", b"x" * 100)
     (warning,) = [message for message in logged if "could not be cancelled" in message]
     assert "onedrive:///big.bin" in warning
-    assert URL_SECRET not in warning
+    assert URL_SIGNATURE not in warning
 
 
 def test_an_upload_session_without_an_https_url_is_refused(
@@ -351,12 +351,14 @@ def test_a_failed_download_keeps_the_download_url_secret_and_leaves_no_file(
     target = tmp_path / "out" / "a.txt"
     target.parent.mkdir()
     target.write_bytes(b"local")
-    graph.fail_with = requests.ConnectionError(f"Max retries exceeded with url: /c/1?{URL_SECRET}")
+    graph.fail_with = requests.ConnectionError(
+        f"Max retries exceeded with url: /c/1?{URL_SIGNATURE}"
+    )
     graph.fail_calls = frozenset({"download"})
     with pytest.raises(StorageTransientException) as caught:
         storage.download("a.txt", target)
     assert caught.value.__cause__ is None
-    assert URL_SECRET not in _printed(caught.value)
+    assert URL_SIGNATURE not in _printed(caught.value)
     assert target.read_bytes() == b"local"
     assert [entry.name for entry in target.parent.iterdir()] == ["a.txt"]
 

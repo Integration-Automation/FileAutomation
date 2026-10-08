@@ -123,7 +123,8 @@ print(json.dumps({
 
 
 def _probe(blocked: tuple[str, ...]) -> dict:
-    result = subprocess.run(  # nosec B603 - fixed argv: this interpreter and a script defined above
+    # nosemgrep  # a fixed argument list: this interpreter and a script of this test
+    result = subprocess.run(  # nosec B603
         [sys.executable, "-c", _PROBE, json.dumps(blocked), json.dumps(OPTIONAL_ROOTS)],
         cwd=REPO_ROOT,
         capture_output=True,

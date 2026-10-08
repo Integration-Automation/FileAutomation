@@ -202,7 +202,7 @@ def is_installed(module: str | None) -> bool:
 def _client_ready(client: _Client) -> bool:
     """Ask the shared client whether it has been initialised. Never opens a connection."""
     try:
-        # nosemgrep  # the module name is one of this package's own client modules, from a fixed table
+        # nosemgrep  # the module name comes from a fixed table of this package's clients
         instance = getattr(importlib.import_module(client.module), client.attribute)
         probe: Callable[[], Any] = getattr(instance, client.probe)
         probe()

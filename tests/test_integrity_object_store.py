@@ -6,6 +6,10 @@ the version and the content type. It counts its reads, so the tests can tell a
 quick pass from a deep one.
 """
 
+# The nosec / nosemgrep markers below sit on made-up values and on digests that are the thing
+# under test; none is a credential or a security use of a hash.
+# pylint: disable=line-too-long  # a marker has to follow the value it is about
+
 # pylint: disable=consider-using-with  # the handle is closed by the code under test
 # pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
 # pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
@@ -73,7 +77,7 @@ class _Bucket(ObjectStorage):
             size=len(item.data),
             # An HTTP Last-Modified header carries whole seconds; the listing has the stored time.
             modified_at=item.modified.replace(microsecond=0),
-            etag=hashlib.md5(item.data, usedforsecurity=False).hexdigest(),  # nosec B324  # nosemgrep  # the digest under test, not a security use
+            etag=hashlib.md5(item.data, usedforsecurity=False).hexdigest(),  # nosec B324  # nosemgrep
             version=item.version,
             content_type="text/csv" if key.endswith(".csv") else "application/octet-stream",
         )
@@ -95,7 +99,7 @@ class _Bucket(ObjectStorage):
                     path=key,
                     size=len(item.data),
                     modified_at=item.modified,
-                    etag=hashlib.md5(item.data, usedforsecurity=False).hexdigest(),
+                    etag=hashlib.md5(item.data, usedforsecurity=False).hexdigest(),  # nosec B324  # nosemgrep
                 )
             )
         if not shallow:
@@ -169,7 +173,7 @@ def test_a_snapshot_takes_the_etag_from_the_listing_and_the_rest_from_a_head(
     entry = snapshot.get("q1.csv")
     assert entry is not None
     assert entry.checksum == hashlib.sha256(b"region,total\nEMEA,42\n").hexdigest()
-    assert entry.etag == hashlib.md5(b"region,total\nEMEA,42\n", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+    assert entry.etag == hashlib.md5(b"region,total\nEMEA,42\n", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep
     assert (entry.version, entry.content_type, entry.backend, entry.mode) == (
         "v1",
         "text/csv",

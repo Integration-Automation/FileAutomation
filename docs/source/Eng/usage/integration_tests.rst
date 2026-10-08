@@ -3,7 +3,7 @@ Integration tests
 
 The unit tests give every storage backend a stand-in for its service. The
 integration tests run the same contract suite (``tests/storage_contract.py``, 88
-cases) against a real one: MinIO for S3, Azurite for Azure Blob, an OpenSSH server
+cases) against a real one: S3Mock for S3, Azurite for Azure Blob, an OpenSSH server
 for SFTP, and an FTP, a WebDAV and a Samba server. They live in
 ``tests/integration/``.
 

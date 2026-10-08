@@ -41,7 +41,7 @@ UPLOAD_ORIGIN = "https://upload.onedrive.invalid"
 DOWNLOAD_ORIGIN = "https://download.onedrive.invalid"
 # Not credentials: markers the stand-in hands out and the tests look for in messages.
 FAKE_TOKEN = "fake-token"  # nosec B105
-URL_SECRET = "tempauth=fake-url-secret"  # nosec B105
+URL_SIGNATURE = "tempauth=fake-url-secret"  # nosec B105
 ROOT_ID = "ROOT"
 DRIVE_ID = "fake-drive"
 LIST_PAGE = 2
@@ -356,7 +356,7 @@ class FakeGraph(BaseAdapter):
         data = self._existing(path).data
         if data is None:
             raise _Failure(400)
-        ticket = f"{DOWNLOAD_ORIGIN}/content/{next(self._ids)}?{URL_SECRET}"
+        ticket = f"{DOWNLOAD_ORIGIN}/content/{next(self._ids)}?{URL_SIGNATURE}"
         self._downloads[ticket] = data
         return graph_answer(request, 302, location=ticket)
 
@@ -370,7 +370,7 @@ class FakeGraph(BaseAdapter):
         existing = self.find(path)
         if existing is not None and existing.data is None:
             raise _Failure(409)
-        upload_url = f"{UPLOAD_ORIGIN}/session/{next(self._ids)}?{URL_SECRET}"
+        upload_url = f"{UPLOAD_ORIGIN}/session/{next(self._ids)}?{URL_SIGNATURE}"
         self.sessions[upload_url] = (path, bytearray())
         return graph_answer(request, 200, {"uploadUrl": upload_url, "nextExpectedRanges": ["0-"]})
 
