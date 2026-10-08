@@ -46,7 +46,7 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **HTTP 伺服器觀測端點** — `GET /healthz` / `GET /readyz` 探針、`GET /openapi.json` 規格、以及 `GET /progress`（以 WebSocket 推送即時傳輸快照）
 - **HTMX Web UI** — `start_web_ui()` 啟動唯讀觀測儀表板（health、progress、registry），以 HTML 片段輪詢；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
-- **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建本機、S3、Azure Blob 與記憶體後端，並附 77 個案例的契約測試套件可檢查任何後端
+- **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建本機、S3、Azure Blob 與記憶體後端，並附 81 個案例的契約測試套件可檢查任何後端
 - **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
@@ -501,7 +501,7 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` 即可運作。
   Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 與 fsspec 目前仍透過各自的用戶端與 `FA_*`
   動作使用，其轉接器尚未完成。你可以繼承 `StorageBackend`（物件儲存則繼承 `ObjectStorage`）
-  撰寫自己的後端，並用 `tests/storage_contract.py` 中 77 個案例的契約測試套件檢查。
+  撰寫自己的後端，並用 `tests/storage_contract.py` 中 81 個案例的契約測試套件檢查。
 
 - **動作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,

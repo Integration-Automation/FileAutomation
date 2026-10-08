@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -31,12 +32,35 @@ def _rootless(path: Path) -> str:
     return path.resolve().as_posix().lstrip("/")
 
 
+_FAILURES: dict[str, type[OSError]] = {"denied": PermissionError, "transient": TimeoutError}
+
+
 class TestRootedLocalStorageContract(StorageContract):
     @pytest.fixture
     def backend(self, tmp_path: Path) -> StorageBackend:
         root = tmp_path / "storage-root"
         root.mkdir()
         return LocalStorage(root)
+
+    @pytest.fixture
+    def break_storage(
+        self, backend: StorageBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> Callable[..., None]:
+        real_read = Path.read_bytes
+        remaining = {"kind": "", "times": 0}
+
+        def read_bytes(path: Path) -> bytes:
+            if remaining["times"]:
+                remaining["times"] = int(remaining["times"]) - 1
+                raise _FAILURES[str(remaining["kind"])]("injected")
+            return real_read(path)
+
+        monkeypatch.setattr(Path, "read_bytes", read_bytes)
+
+        def fail(kind: str, times: int = 1) -> None:
+            remaining.update(kind=kind, times=times)
+
+        return fail
 
 
 @pytest.fixture

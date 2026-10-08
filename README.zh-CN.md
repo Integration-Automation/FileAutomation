@@ -46,7 +46,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **HTTP 服务器观测端点** — `GET /healthz` / `GET /readyz` 探针、`GET /openapi.json` 规格，以及 `GET /progress`（通过 WebSocket 推送实时传输快照）
 - **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
-- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 77 个用例的契约测试套件可检查任何后端
+- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 81 个用例的契约测试套件可检查任何后端
 - **事件总线** — 单一 `Event` 模型与十种核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具备严重程度、关联 ID 与 actor；可以在 `event_bus` 上按类、type 或前缀订阅
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
@@ -501,7 +501,7 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` 即可运行。
   Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 与 fsspec 目前仍通过各自的客户端与 `FA_*`
   动作使用，其适配器尚未完成。你可以继承 `StorageBackend`（对象存储则继承 `ObjectStorage`）
-  编写自己的后端，并用 `tests/storage_contract.py` 中 77 个用例的契约测试套件检查。
+  编写自己的后端，并用 `tests/storage_contract.py` 中 81 个用例的契约测试套件检查。
 
 - **动作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,

@@ -24,7 +24,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 ### Backend integration tests (roadmap M3)
 
 - **#19** Integration environments for the contract suite in CI: MinIO and Azurite (`S3Storage` and `AzureStorage` have only met stand-in clients and, for S3, botocore's Stubber; no request has reached a real service), SFTP, FTP/FTPS, WebDAV and Samba, plus credential-gated jobs for the cloud adapters, and Linux and macOS legs (`ci-dev.yml` runs pytest on Windows only). Needs #13.
-- **#20** Failure cases in the contract suite: access denied, transient failures mapped to `StorageTransientException` and retried, metadata kept where the backend supports it. Only `LocalStorage` has permission-error tests today (`tests/test_storage_local.py`).
+- **#20** Metadata cases in the contract suite: user metadata and content type kept across an upload and a copy where `capabilities` says the backend supports them. The failure cases exist (U-20261008-10): a backend's contract class gets them by providing the `break_storage` fixture, as the local, S3 and Azure classes do.
 
 ### Later milestones
 
@@ -39,4 +39,3 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 - **#29** [BLOCKED] PyBreeze has to declare `automation-file[all]` before the stable release that splits the extras reaches users, or it installs without the SDKs it relied on. The change exists on PyBreeze's local branch `deps/automation-file-all-extra` (one commit on its `origin/dev`: `dev.toml`, `pyproject.toml`, `requirements.txt`), not pushed: it waits for someone to open the PR there and for PyBreeze's own update log. PyBreeze's checkout was on `docs/tutorials` with other work, so nothing else was touched.
 - **#30** `remote/sftp/client.py` ("reinstall `automation_file`"), `remote/onedrive/client.py` (the same) and `remote/smb/client.py` ("install `smbprotocol`") still report a missing SDK without naming the extra. Change them to `core.optional.require_module` or `install_hint` once the adapter branches that edit those files are merged.
-

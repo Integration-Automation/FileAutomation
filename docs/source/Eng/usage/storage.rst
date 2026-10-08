@@ -415,7 +415,7 @@ implement ``_head``, ``_scan``, ``_put``, ``_get`` and ``_remove``. It supplies
 the directory behaviour described under `Built-in backends`_, and is what
 ``S3Storage`` and ``AzureStorage`` are built on.
 
-Check it with the contract suite. ``tests/storage_contract.py`` holds 77 cases —
+Check it with the contract suite. ``tests/storage_contract.py`` holds 81 cases —
 nested directories, empty and large files, Unicode paths, binary data, overwrite
 and missing-path behaviour, path normalisation, streams, copy and move — and reads
 ``capabilities`` where backends legitimately differ:
@@ -429,3 +429,13 @@ and missing-path behaviour, path normalisation, streams, copy and move — and r
        @pytest.fixture
        def backend(self):
            return VaultStorage(...)        # an empty storage for each test
+
+       @pytest.fixture
+       def break_storage(self, backend):
+           def fail(kind, times=1):          # kind: "denied" or "transient"
+               backend.client.fail_next(kind, times)
+           return fail
+
+The four failure cases (access denied, a transient failure, a retry that succeeds, a
+denied call that is not retried) need the ``break_storage`` fixture, which makes the
+next calls to the service fail. Without it those four skip and the rest still run.

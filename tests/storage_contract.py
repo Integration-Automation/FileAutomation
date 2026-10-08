@@ -13,23 +13,33 @@ Subclass :class:`StorageContract` in a ``test_*.py`` module and provide a
 The suite reads ``backend.capabilities`` to pick the expected behaviour where
 backends legitimately differ (real directories versus implied ones, optional
 ``FileInfo`` fields). Everything else is the same for every backend.
+
+The failure cases need a way to make the storage fail. Override the
+``break_storage`` fixture to return ``fail(kind, times=1)``, which makes the next
+``times`` calls to the service fail as ``"denied"`` or ``"transient"``; without it
+those cases skip.
 """
 
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from automation_file.core.retry import retry_on_transient
 from automation_file.exceptions import (
     FileNotExistsException,
+    RetryExhaustedException,
     StorageAlreadyExistsException,
     StorageException,
     StorageNotEmptyException,
     StorageNotFoundException,
     StoragePathTypeException,
+    StoragePermissionException,
+    StorageTransientException,
     StorageUnsupportedException,
     StorageURIException,
 )
@@ -57,6 +67,10 @@ class StorageContract:
     @pytest.fixture
     def backend(self) -> StorageBackend:
         raise NotImplementedError("the contract subclass provides the backend fixture")
+
+    @pytest.fixture
+    def break_storage(self, backend: StorageBackend) -> Callable[..., None]:
+        pytest.skip("this backend's stand-in cannot be made to fail")
 
     # ------------------------------------------------------------------ exists / stat
 
@@ -491,6 +505,70 @@ class StorageContract:
         backend.move_from(backend, "a.txt", "b.txt")
         assert backend.read_bytes("b.txt") == b"new"
         assert backend.exists("a.txt") is False
+
+    # ------------------------------------------------------------------ failures
+
+    def test_a_denied_call_raises_the_permission_error(
+        self, backend: StorageBackend, break_storage: Callable[..., None]
+    ) -> None:
+        backend.write_bytes("a.txt", b"x")
+        break_storage("denied")
+        with pytest.raises(StoragePermissionException) as caught:
+            backend.read_bytes("a.txt")
+        assert caught.value.__cause__ is not None
+        assert backend.read_bytes("a.txt") == b"x"
+
+    def test_a_transient_failure_raises_the_retryable_error(
+        self, backend: StorageBackend, break_storage: Callable[..., None]
+    ) -> None:
+        backend.write_bytes("a.txt", b"x")
+        break_storage("transient")
+        with pytest.raises(StorageTransientException) as caught:
+            backend.read_bytes("a.txt")
+        assert caught.value.__cause__ is not None
+
+    def test_a_transient_failure_goes_away_on_retry(
+        self, backend: StorageBackend, break_storage: Callable[..., None]
+    ) -> None:
+        backend.write_bytes("a.txt", b"payload")
+
+        @retry_on_transient(
+            max_attempts=3,
+            backoff_base=0.0,
+            backoff_cap=0.0,
+            retriable=(StorageTransientException,),
+        )
+        def read() -> bytes:
+            return backend.read_bytes("a.txt")
+
+        break_storage("transient", times=2)
+        assert read() == b"payload"
+        break_storage("transient", times=5)
+        with pytest.raises(RetryExhaustedException) as caught:
+            read()
+        assert isinstance(caught.value.__cause__, StorageTransientException)
+
+    def test_a_denied_call_is_not_retried(
+        self, backend: StorageBackend, break_storage: Callable[..., None]
+    ) -> None:
+        backend.write_bytes("a.txt", b"x")
+        attempts = 0
+
+        @retry_on_transient(
+            max_attempts=3,
+            backoff_base=0.0,
+            backoff_cap=0.0,
+            retriable=(StorageTransientException,),
+        )
+        def read() -> bytes:
+            nonlocal attempts
+            attempts += 1
+            return backend.read_bytes("a.txt")
+
+        break_storage("denied", times=3)
+        with pytest.raises(StoragePermissionException):
+            read()
+        assert attempts == 1
 
     # ------------------------------------------------------------------ lifecycle
 

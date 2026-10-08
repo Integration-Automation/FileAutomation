@@ -28,7 +28,11 @@ from pathlib import Path
 from typing import BinaryIO
 
 from automation_file.core.checksum import file_checksum
-from automation_file.exceptions import StorageException, StoragePermissionException
+from automation_file.exceptions import (
+    StorageException,
+    StoragePermissionException,
+    StorageTransientException,
+)
 from automation_file.local.safe_paths import safe_join
 from automation_file.storage.backend import (
     StorageBackend,
@@ -53,6 +57,9 @@ def _os_errors(location: str) -> Iterator[None]:
         raise missing_error(location) from error
     except PermissionError as error:
         raise StoragePermissionException(f"access to {location} was denied") from error
+    except (TimeoutError, ConnectionError, InterruptedError) as error:
+        # A network filesystem mounted as a local path fails this way.
+        raise StorageTransientException(f"{location}: {error}") from error
     except OSError as error:
         raise StorageException(f"{location}: {error}") from error
 

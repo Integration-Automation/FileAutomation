@@ -48,7 +48,7 @@ facade.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
 - **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
-- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; local, S3, Azure Blob and in-memory backends are built in, and a 77-case contract suite checks any backend
+- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; local, S3, Azure Blob and in-memory backends are built in, and an 81-case contract suite checks any backend
 - **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
@@ -506,7 +506,7 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` works once both are ready.
   Google Drive, Dropbox, SFTP, FTP, WebDAV, SMB and fsspec are still used through their own
   clients and `FA_*` actions; their adapters are not written yet. Write your own by subclassing
-  `StorageBackend` (or `ObjectStorage` for an object store) and check it with the 77-case
+  `StorageBackend` (or `ObjectStorage` for an object store) and check it with the 81-case
   contract suite in `tests/storage_contract.py`.
 
 - **Actions** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,

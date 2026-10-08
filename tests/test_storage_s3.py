@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -106,10 +107,13 @@ class FakeS3Client:
         self.buckets: dict[str, dict[str, _Object]] = {name: {} for name in buckets or ("bucket",)}
         self.calls: list[str] = []
         self.fail_with: Exception | None = None
+        self.fail_times: int | None = None  # None: every call while fail_with is set
 
     def objects(self, bucket: str, operation: str) -> dict[str, _Object]:
         self.calls.append(operation)
-        if self.fail_with is not None:
+        if self.fail_with is not None and self.fail_times != 0:
+            if self.fail_times is not None:
+                self.fail_times -= 1
             raise self.fail_with
         if bucket not in self.buckets:
             raise _client_error("NoSuchBucket", operation)
@@ -159,13 +163,32 @@ class FakeS3Client:
         )
 
 
+_FAILURES = {
+    "denied": lambda: _client_error("AccessDenied", "HeadObject"),
+    "transient": lambda: _client_error("SlowDown", "HeadObject"),
+}
+
+
+def _breaker(client: FakeS3Client) -> Callable[..., None]:
+    def fail(kind: str, times: int = 1) -> None:
+        client.fail_with = _FAILURES[kind]()
+        client.fail_times = times
+
+    return fail
+
+
 class TestS3StorageContract(StorageContract):
     @pytest.fixture
     def backend(self) -> StorageBackend:
         return S3Storage("bucket", client=FakeS3Client())
 
+    @pytest.fixture
+    def break_storage(self, backend: StorageBackend) -> Callable[..., None]:
+        assert isinstance(backend, S3Storage)
+        return _breaker(backend._client)
 
-class TestPrefixedS3StorageContract(StorageContract):
+
+class TestPrefixedS3StorageContract(TestS3StorageContract):
     @pytest.fixture
     def backend(self) -> StorageBackend:
         client = FakeS3Client()

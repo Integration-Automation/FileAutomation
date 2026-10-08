@@ -390,7 +390,7 @@ scheme 或 authority，並且只接受其下的 URI。
 ``_head``、``_scan``、``_put``、``_get`` 與 ``_remove``。它提供 `內建後端`_ 一節
 所述的目錄行為，``S3Storage`` 與 ``AzureStorage`` 都建立在它之上。
 
-請用契約測試套件檢查。``tests/storage_contract.py`` 包含 77 個案例——巢狀目錄、
+請用契約測試套件檢查。``tests/storage_contract.py`` 包含 81 個案例——巢狀目錄、
 空檔與大檔、Unicode 路徑、二進位資料、覆寫與路徑不存在時的行為、路徑正規化、
 串流、複製與搬移——並在後端確實有差異之處讀取 ``capabilities``：
 
@@ -403,3 +403,13 @@ scheme 或 authority，並且只接受其下的 URI。
        @pytest.fixture
        def backend(self):
            return VaultStorage(...)        # 每個測試都要是空的儲存
+
+       @pytest.fixture
+       def break_storage(self, backend):
+           def fail(kind, times=1):          # kind: "denied" or "transient"
+               backend.client.fail_next(kind, times)
+           return fail
+
+四個失敗案例（存取被拒、暫時性失敗、重試後成功、被拒的呼叫不會重試）需要
+``break_storage`` fixture，它會讓接下來對服務的呼叫失敗。沒有它時，這四個案例會略過，
+其餘案例照常執行。

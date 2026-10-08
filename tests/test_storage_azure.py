@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -157,9 +158,12 @@ class FakeBlobService:
             name: {} for name in containers or ("container",)
         }
         self.fail_with: Exception | None = None
+        self.fail_times: int | None = None  # None: every call while fail_with is set
 
     def blobs(self, container: str) -> dict[str, _Blob]:
-        if self.fail_with is not None:
+        if self.fail_with is not None and self.fail_times != 0:
+            if self.fail_times is not None:
+                self.fail_times -= 1
             raise self.fail_with
         if container not in self.containers:
             raise ResourceNotFoundError("The specified container does not exist.")
@@ -172,13 +176,30 @@ class FakeBlobService:
         return _ContainerClient(self, container)
 
 
+_FAILURES = {
+    "denied": lambda: _http_error(403),
+    "transient": lambda: _http_error(503),
+}
+
+
 class TestAzureStorageContract(StorageContract):
     @pytest.fixture
     def backend(self) -> StorageBackend:
         return AzureStorage("container", service=FakeBlobService())
 
+    @pytest.fixture
+    def break_storage(self, backend: StorageBackend) -> Callable[..., None]:
+        assert isinstance(backend, AzureStorage)
+        service = backend._service
 
-class TestPrefixedAzureStorageContract(StorageContract):
+        def fail(kind: str, times: int = 1) -> None:
+            service.fail_with = _FAILURES[kind]()
+            service.fail_times = times
+
+        return fail
+
+
+class TestPrefixedAzureStorageContract(TestAzureStorageContract):
     @pytest.fixture
     def backend(self) -> StorageBackend:
         service = FakeBlobService()
