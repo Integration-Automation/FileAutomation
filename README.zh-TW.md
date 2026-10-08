@@ -1027,6 +1027,12 @@ python -m automation_file drive-upload my.txt --token token.json --credentials c
 python -m automation_file mcp --allowed-actions FA_file_checksum,FA_fast_find
 automation_file_mcp --allowed-actions FA_file_checksum,FA_fast_find  # 已安裝的 console script
 
+# 儲存層：ls、stat、cat、cp、mv、rm、mkdir、sync、checksum、verify、schemes（輸出 JSON）
+python -m automation_file storage ls s3://reports/2026 --recursive
+python -m automation_file storage cp report.csv s3://reports/2026/report.csv
+python -m automation_file storage sync ./site s3://www --delete --dry-run
+python -m automation_file storage checksum s3://reports/2026/q1.csv
+
 # 舊式旗標（JSON 動作清單）
 python -m automation_file --execute_file actions.json
 python -m automation_file --execute_dir ./actions/

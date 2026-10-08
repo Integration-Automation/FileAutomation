@@ -20,7 +20,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | Path | Responsibility |
 | --- | --- |
 | `automation_file/__init__.py` | Public facade (`__all__`). Wires the shared `executor`, `callback_executor` and `package_manager` over one registry. `launch_ui` is loaded lazily through `__getattr__` |
-| `automation_file/__main__.py` | CLI: legacy flags plus subcommands |
+| `automation_file/__main__.py`, `cli_storage.py` | CLI: legacy flags plus subcommands; `cli_storage.py` holds the `storage` subcommand |
 | `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `optional` (`require_module`, the extras table), `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
@@ -66,7 +66,10 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 - **CLI** (`python -m automation_file`; no console script for it):
   - legacy flags `-e/--execute_file`, `-d/--execute_dir`, `-c/--create_project` and `--execute_str`.
     `_execute_str` decodes a second time when the first `json.loads` yields a string;
-  - subcommands `zip`, `unzip`, `download`, `create-file`, `server`, `http-server`, `ui`, `mcp`, `drive-upload`.
+  - subcommands `zip`, `unzip`, `download`, `create-file`, `server`, `http-server`, `ui`, `mcp`, `drive-upload`;
+  - `storage` with its own subcommands `ls`, `stat`, `cat`, `cp`, `mv`, `rm`, `mkdir`, `sync`, `checksum`,
+    `verify`, `schemes` (`cli_storage.py`): one JSON document per call, and `--init <action list>` to
+    initialise a backend's client first.
 - **MCP**: `automation_file_mcp` (`automation_file.server.mcp_server:_cli`) or
   `python -m automation_file mcp [--allowed-actions ...]`. It is a standard-library JSON-RPC stdio
   server whose tools come from the registry (`tools_from_registry`).

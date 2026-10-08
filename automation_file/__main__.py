@@ -5,8 +5,8 @@ Supports three invocation styles:
 * Legacy flags (``-e``, ``-d``, ``-c``, ``--execute_str``) — run JSON action
   lists without writing Python.
 * Subcommands (``zip``, ``unzip``, ``download``, ``server``, ``http-server``,
-  ``drive-upload``, ``ui``) — wrap the most common facade calls so users do
-  not need to hand-author JSON for one-shot operations.
+  ``drive-upload``, ``ui``, ``mcp``, ``storage``) — wrap the most common facade
+  calls so users do not need to hand-author JSON for one-shot operations.
 * No arguments — prints help and exits non-zero.
 """
 
@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from automation_file.cli_storage import add_storage_commands
 from automation_file.core.action_executor import execute_action, execute_files
 from automation_file.core.json_store import read_action_json
 from automation_file.exceptions import ArgparseException
@@ -224,6 +225,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_file_commands(subparsers)
     _add_server_commands(subparsers)
     _add_integration_commands(subparsers)
+    add_storage_commands(subparsers)
     return parser
 
 

@@ -23,3 +23,35 @@ Subcommands for one-shot operations::
 The ``mcp`` subcommand starts a Model Context Protocol server over stdio so
 hosts such as Claude Desktop can call ``FA_*`` actions as MCP tools — see
 :doc:`mcp` for the full integration guide.
+
+Storage
+-------
+
+The ``storage`` subcommand reaches the storage layer (:doc:`storage`) from a
+shell. Every command takes storage URIs or plain local paths::
+
+   python -m automation_file storage ls s3://reports/2026 --recursive
+   python -m automation_file storage stat s3://reports/2026/q1.csv
+   python -m automation_file storage cat local:///etc/hostname
+   python -m automation_file storage cp report.csv s3://reports/2026/report.csv
+   python -m automation_file storage cp -r ./site s3://www/site --no-overwrite
+   python -m automation_file storage mv s3://inbox/a.csv s3://archive/a.csv
+   python -m automation_file storage rm s3://tmp/old --recursive --missing-ok
+   python -m automation_file storage mkdir local:///data/new
+   python -m automation_file storage sync ./site s3://www --delete --dry-run
+   python -m automation_file storage checksum s3://reports/2026/q1.csv --algorithm sha512
+   python -m automation_file storage verify s3://reports/2026/q1.csv sha256:9f86d081...
+   python -m automation_file storage schemes
+
+Each command prints one JSON document (``cat`` prints the file's text), so the
+output can be piped into ``jq`` or read by another program. The exit code is 0 on
+success. ``verify`` exits 1 when the digest does not match; ``cp -r`` and ``sync``
+exit 1 when a file failed, with the failures under ``errors``. Any other failure
+prints the exception and exits 1.
+
+A remote backend needs its client initialised first. ``--init`` takes a JSON
+action list that runs before the command::
+
+   python -m automation_file storage \
+       --init '[["FA_s3_later_init", {"region_name": "us-east-1"}]]' \
+       ls s3://reports
