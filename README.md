@@ -1240,6 +1240,17 @@ Each entry is either a bare command name, a `[name, kwargs]` pair, or a
 ]
 ```
 
+## Compatibility
+
+Releases follow semantic versioning. The public surface is everything in `automation_file.__all__`
+and in the `__all__` of the documented packages, the `FA_*` actions, the command line, the storage
+URI syntax, the data formats (each carries a schema version) and the event types. Until 1.0 the
+storage layer, the event bus, pipelines, the integrity monitor, the audit trail, the notification
+router and the semantic MCP tools are provisional: they may still change in a minor release, and
+the release notes say how. A deprecated name keeps working for at least two minor releases, warns
+with its replacement, and is removed only in a major release. The full policy is in the manual:
+*Public API and compatibility* (`docs/source/Eng/usage/api_policy.rst`).
+
 ## Documentation
 
 Full API documentation lives under `docs/` and can be built with Sphinx:

@@ -309,3 +309,16 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 管線
 
    usage/pipeline
+
+.. _zh-tw-api-policy:
+
+第 21 章 — 公開 API 與相容性
+============================
+
+哪些是公開的、哪些不是，穩定等級，版本號碼所作的承諾，以及名稱如何被棄用與移除。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 公開 API 與相容性
+
+   usage/api_policy

@@ -319,3 +319,17 @@ history; written in Python or as a versioned YAML / JSON definition.
    :caption: Pipelines
 
    usage/pipeline
+
+.. _eng-api-policy:
+
+Chapter 21 — Public API and Compatibility
+=========================================
+
+What is public and what is not, the stability levels, what a version number
+promises, and how a name is deprecated and removed.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Public API and Compatibility
+
+   usage/api_policy

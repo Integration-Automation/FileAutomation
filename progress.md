@@ -10,7 +10,6 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Architecture and packaging (roadmap M1)
 
-- **#11** [DECIDE] Public API policy and deprecation policy (roadmap M1, M9): which names are frozen at 1.0 and how a name is retired. The storage layer is documented as provisional until then.
 
 ### Universal storage layer (roadmap M2)
 

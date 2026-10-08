@@ -134,6 +134,7 @@ python -m automation_file --help
 - Action-list shape: `[name]`, `[name, {kwargs}]`, or `[name, [args]]` — nothing else.
 - Delete all unused code — no dead imports, commented-out blocks, unreachable branches, or `_old_`-prefixed names. Git history is the archive.
 - Prefer updating the registry over extending the executor class. Plugins register via `add_command_to_executor({name: callable})`.
+- Public API: what `docs/source/Eng/usage/api_policy.rst` lists (the facade and package `__all__`s, `FA_*` actions with their parameters and result shapes, CLI flags and exit codes, storage URI syntax, versioned data formats, event types and payload keys, the exception hierarchy). Never rename, remove or change the meaning of one of those in place. Retire it with `automation_file.core.deprecation.deprecated(since=, removal=, replacement=)` or `warn_deprecated`, keep it working for at least two minor releases, and remove it only in a major release. A format written to disk carries a schema version, and its reader refuses a version it does not know.
 
 ## Security
 

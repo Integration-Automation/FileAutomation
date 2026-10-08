@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-22 | 2026-10-08 | Public API and deprecation policy | #decision #docs #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-21 | 2026-10-08 | copy_between runs on the storage layer | #storage #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-20 | 2026-10-08 | CLI subcommands for integrity, pipelines and the audit trail | #cli #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-19 | 2026-10-08 | The action ACL and the MCP server check nested action names | #security #incident | [2026-10](2026-10.md) |
@@ -116,5 +117,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 32 |
+| [2026-10.md](2026-10.md) | 2026-10 | 33 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

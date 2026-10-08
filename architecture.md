@@ -252,6 +252,10 @@ storage.observe → events.storage_bridge → StorageError (only for a failing b
 
 ## 7. Design constraints
 
+- The public surface (facade and package `__all__`s, `FA_*` actions, CLI, storage URIs, versioned data
+  formats, event types, the exception hierarchy) changes only by deprecation: `core/deprecation.py`
+  warns, the name stays for at least two minor releases, a major release removes it
+  (`docs/source/Eng/usage/api_policy.rst`; CLAUDE.md § Conventions).
 - Only the three action shapes in §3. Extend through the registry, not by subclassing the executor.
   Python 3.10+, `X | Y` unions, `from __future__ import annotations` (CLAUDE.md § Conventions).
 - Exceptions derive from `FileAutomationException`. Log through `file_automation_logger`; no
