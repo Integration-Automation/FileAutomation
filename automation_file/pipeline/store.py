@@ -237,6 +237,7 @@ class SQLiteRunStore(RunStore):
     @contextmanager
     def _session(self) -> Iterator[sqlite3.Connection]:
         try:
+            # pylint: disable-next=confusing-with-statement  # three managers, entered in this order
             with (
                 self._lock,
                 closing(sqlite3.connect(self._path, timeout=_BUSY_SECONDS)) as connection,

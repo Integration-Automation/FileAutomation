@@ -1,10 +1,13 @@
 """The scheduler, integrity, audit, notification, settings and dashboard services."""
 
+# pylint: disable=no-member  # the member exists on the object the fixture builds
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import ast
 import json
-import subprocess
+import subprocess  # nosec B404  # the test starts this interpreter with a fixed argument list
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -283,7 +286,7 @@ def test_audit_records_are_searched_counted_and_masked(trail: AuditTrail, bus: E
         PipelineFailed(
             source="pipeline",
             subject="nightly failed",
-            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},
+            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},  # nosec B105  # a made-up value for a stand-in, not a credential
         )
     )
     trail.record("manual.note", resource="s3://reports/a.csv", status="ok", actor="ops")
@@ -623,7 +626,7 @@ def test_the_dashboard_counts_runs_and_asks_for_attention_after_a_failure(
 def test_recent_events_are_newest_first_filtered_and_masked(
     services: AppServices, bus: EventBus
 ) -> None:
-    bus.publish(Event(source="test", subject="first", payload={"token": "abc"}))
+    bus.publish(Event(source="test", subject="first", payload={"token": "abc"}))  # nosec B105  # a made-up value for a stand-in, not a credential
     bus.publish(SystemErrorEvent(source="test", subject="second"))
     events = services.dashboard.recent_events()
     assert [event["subject"] for event in events] == ["second", "first"]

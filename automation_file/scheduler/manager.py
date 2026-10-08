@@ -576,6 +576,7 @@ def schedule_job(
     )
 
 
+# pylint: disable-next=too-many-positional-arguments  # a JSON action: by name or by position
 def schedule_pipeline(
     definition: Any,
     name: str | None = None,

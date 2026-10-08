@@ -1,5 +1,8 @@
 """LocalStorage: the storage contract plus what is specific to a filesystem."""
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import os

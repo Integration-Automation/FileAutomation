@@ -8,6 +8,10 @@ smbprotocol does: with an ``OSError`` subclass of its own that carries an errno
 and an NTSTATUS code. The real ``SMBClient`` runs on top of it.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+
 from __future__ import annotations
 
 import errno

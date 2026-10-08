@@ -130,6 +130,7 @@ class StorageResolver:
             if scheme != uri.scheme or mounted_authority != authority:
                 continue
             relative = _below(uri.path, prefix)
+            # pylint: disable-next=unsubscriptable-object  # best is a tuple once it is not None
             if relative is not None and (best is None or len(prefix) > best[0]):
                 best = (len(prefix), backend, relative)
         return None if best is None else (best[1], best[2])

@@ -4,6 +4,10 @@ Environment: ``FA_IT_S3_ENDPOINT`` (for example ``http://127.0.0.1:9000``),
 ``FA_IT_S3_ACCESS_KEY``, ``FA_IT_S3_SECRET_KEY`` and optionally ``FA_IT_S3_REGION``.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=ungrouped-imports  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 from collections.abc import Iterator

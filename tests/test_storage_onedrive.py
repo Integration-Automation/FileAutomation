@@ -6,6 +6,10 @@ The stand-in (``tests/graph_stand_in.py``) is a transport adapter mounted on the
 ``driveItem`` documentation: nothing installed describes that API.
 """
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 # pylint: disable=protected-access  # the shared client's session is swapped for the stand-in's
 
 from __future__ import annotations

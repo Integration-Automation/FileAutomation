@@ -6,6 +6,14 @@ The stand-in answers the calls the adapter makes -- ``head_object``, the
 real ``botocore`` exceptions. No request leaves the process.
 """
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=too-many-locals  # one scenario told in order
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib
@@ -57,7 +65,7 @@ class _Object:
 
     @property
     def etag(self) -> str:
-        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'
+        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep  # the digest under test, not a security use
 
 
 class _Paginator:
@@ -212,7 +220,7 @@ def test_stat_reports_what_head_object_returns(storage: S3Storage) -> None:
     info = storage.write_bytes("reports/q1.json", b"{}")
     assert info.path == "reports/q1.json"
     assert info.size == 2
-    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()
+    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
     assert info.content_type == "application/json"
     assert info.version is None
     assert dict(info.metadata) == {}

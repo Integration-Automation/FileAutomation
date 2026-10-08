@@ -215,6 +215,7 @@ class PipelineService:
         run = self._pipeline(definition).run(params=params, dry_run=True)
         return self._view(run, active=False)
 
+    # pylint: disable-next=too-many-locals  # one task run from start to result, told in order
     def test_task(
         self,
         definition: Definition,

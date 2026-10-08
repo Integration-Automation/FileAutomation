@@ -14,6 +14,8 @@ between two paths of one client is a rename on the server; a copy goes through a
 local staging file.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

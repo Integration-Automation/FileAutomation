@@ -143,7 +143,8 @@ class IntegrityPage(BasePage):
     def accept(self) -> None:
         target, baseline = self._target.text(), self._baseline.text()
         if not self.confirm(
-            "Approve the current state as the new baseline? Drift found so far will no longer be reported."
+            "Approve the current state as the new baseline? "
+            "Drift found so far will no longer be reported."
         ):
             return
         self.run_async(

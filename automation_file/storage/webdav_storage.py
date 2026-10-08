@@ -15,6 +15,8 @@ and move between two paths of one client are done by the server (``COPY`` /
 ``MOVE``), and deleting a directory is one ``DELETE``.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

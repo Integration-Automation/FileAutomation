@@ -1,5 +1,9 @@
 """Run records of the scheduler: the seven states, overlap, timeout, cancellation, history."""
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import json

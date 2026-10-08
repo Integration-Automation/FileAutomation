@@ -5,6 +5,10 @@ Environment: ``FA_IT_SMB_SERVER``, ``FA_IT_SMB_SHARE``, ``FA_IT_SMB_USER``,
 ``FA_IT_SMB_ENCRYPT`` (``1``; ``0`` for a server without SMB3 encryption).
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=ungrouped-imports  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 from collections.abc import Iterator

@@ -4,6 +4,9 @@ Environment: ``FA_IT_WEBDAV_URL`` (for example ``http://127.0.0.1:8080``),
 ``FA_IT_WEBDAV_USER`` and ``FA_IT_WEBDAV_PASSWORD``.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 from collections.abc import Iterator

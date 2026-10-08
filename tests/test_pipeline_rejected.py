@@ -1,5 +1,7 @@
 """The pipeline runtime: what is rejected before anything runs."""
 
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import re

@@ -16,6 +16,8 @@ Dropbox never replaces a file on copy or move: when the target exists it is
 deleted first, then the copy or move runs.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

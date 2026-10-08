@@ -1,5 +1,11 @@
 """The pipeline editor: canvas, task form and page, as thin views over a draft."""
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=too-many-locals  # one scenario told in order
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+# pylint: disable=wrong-import-position  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 import itertools

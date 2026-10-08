@@ -5,6 +5,13 @@ both without a stand-in. A third filesystem written here keeps flat keys the way
 an object store does, for the ``directories=False`` mode.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import inspect

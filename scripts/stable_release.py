@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess
+import subprocess  # nosec B404  # one fixed git command, no shell
 import sys
 from collections.abc import Iterable
 from pathlib import Path

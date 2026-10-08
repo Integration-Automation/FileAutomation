@@ -4,6 +4,9 @@ Live FTP servers are outside CI; these tests exercise the registry wiring,
 facade exports, guard clauses, and offline error-path behaviour.
 """
 
+# pylint: disable=no-member  # the member exists on the object the fixture builds
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -150,7 +153,7 @@ class _StubSession:
     def auth(self) -> None:
         self.steps.append("auth")
 
-    def login(self, user: str = "", passwd: str = "") -> None:
+    def login(self, user: str = "", passwd: str = "") -> None:  # nosec B107  # ftplib's own default
         self.steps.append("login")
 
     def prot_p(self) -> None:

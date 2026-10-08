@@ -14,6 +14,8 @@ Paths are relative to the backend's root, use ``/`` and never start with one.
 The root itself is the empty string.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib
@@ -163,10 +165,12 @@ class StorageBackend(ABC):
                     pending.append(info.path)
         return found
 
+    # pylint: disable-next=unused-argument  # a hook: the default declines, a backend overrides it
     def _copy_from(self, source: StorageBackend, source_path: str, path: str) -> bool:
         """Copy a file from ``source`` without a local staging copy; ``False`` if unable."""
         return False
 
+    # pylint: disable-next=unused-argument  # a hook: the default declines, a backend overrides it
     def _move_from(self, source: StorageBackend, source_path: str, path: str) -> bool:
         """Move a file from ``source`` natively (a rename); ``False`` if unable."""
         return False
@@ -243,7 +247,7 @@ class StorageBackend(ABC):
         return self._stat(self._normalize(path)) is not None
 
     def stat(self, path: str) -> FileInfo:
-        """Return the :class:`FileInfo` of ``path``; raise ``StorageNotFoundException`` if absent."""
+        """Return the :class:`FileInfo` of ``path``, or raise ``StorageNotFoundException``."""
         clean = self._normalize(path)
         info = self._stat(clean)
         if info is None:
@@ -393,7 +397,10 @@ class StorageBackend(ABC):
     def move_from(
         self, source: StorageBackend, source_path: str, path: str, *, overwrite: bool = True
     ) -> FileInfo:
-        """Move the file ``source_path`` of ``source`` to ``path``: a rename, or copy then delete."""
+        """Move the file ``source_path`` of ``source`` to ``path``.
+
+        A rename where the backends can, a copy followed by a delete otherwise.
+        """
         with self._observing("move", path, (source, source_path)), observe.suppressed():
             origin, target = self._transfer_paths(source, source_path, path, overwrite)
             if not self._move_from(source, origin, target):

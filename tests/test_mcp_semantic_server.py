@@ -1,5 +1,8 @@
 """The semantic tools over JSON-RPC, next to the ``FA_*`` bridge, and the server's flags."""
 
+# pylint: disable=unnecessary-lambda  # the lambda is looked up late, when it is called
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import argparse

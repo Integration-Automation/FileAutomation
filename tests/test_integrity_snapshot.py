@@ -394,7 +394,7 @@ def test_a_weak_algorithm_works_when_explicitly_allowed() -> None:
     engine = HashEngine("md5", allow_weak=True)
     assert engine.algorithm == "md5"
     assert engine.hash_file(storage, "a.txt") == (
-        hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()
+        hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
     )
 
 

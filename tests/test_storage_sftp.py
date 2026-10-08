@@ -7,6 +7,11 @@ paramiko's own ``SFTPAttributes`` and with the exceptions paramiko turns an SFTP
 status into. No connection is opened.
 """
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import errno

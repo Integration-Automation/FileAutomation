@@ -13,6 +13,8 @@ Symbolic links are followed when reading and writing. Deleting never follows
 them: the link is removed and its target is left alone.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

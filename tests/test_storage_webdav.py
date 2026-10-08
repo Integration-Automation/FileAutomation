@@ -6,6 +6,12 @@ server writes the way Apache and Nextcloud write them. No request leaves the
 process.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +26,9 @@ from email.utils import format_datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import (
+    escape,  # nosec B406  # nosemgrep  # escapes what the fake server writes; parses nothing
+)
 
 import pytest
 import requests
@@ -63,7 +71,7 @@ class _Resource:
 
     @property
     def etag(self) -> str:
-        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'
+        return f'"{hashlib.md5(self.data, usedforsecurity=False).hexdigest()}"'  # nosec B324  # nosemgrep  # the digest under test, not a security use
 
 
 class _Response:
@@ -288,7 +296,7 @@ def test_stat_reports_what_propfind_returns(storage: WebDAVStorage, server: Fake
     assert info.size == 2
     assert info.modified_at == stored.modified
     assert info.modified_at.utcoffset() == timedelta(0)
-    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()
+    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
     assert info.content_type == "application/json"
     assert info.version is None
     folder = storage.stat("reports")

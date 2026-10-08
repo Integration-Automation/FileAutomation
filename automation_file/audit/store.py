@@ -9,7 +9,8 @@ Filters are passed by name to ``search`` and ``count``:
 ``since`` / ``until``
     The time range, ``since`` included and ``until`` excluded. An aware
     ``datetime``, an ISO 8601 string with an offset, or seconds since the epoch.
-``actor``, ``source``, ``pipeline``, ``task``, ``action``, ``backend``, ``status``, ``correlation_id``
+``actor``, ``source``, ``pipeline``, ``task``, ``action``, ``backend``, ``status``,
+``correlation_id``
     Exact matches.
 ``resource_prefix``
     Records whose resource starts with the text.

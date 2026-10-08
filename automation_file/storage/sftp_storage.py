@@ -48,7 +48,10 @@ _SSH_PORT = 22
 
 
 def _closed(sftp: Any) -> bool:
-    """Say whether the channel under ``sftp`` is closed; using it then raises a plain ``OSError``."""
+    """Say whether the channel under ``sftp`` is closed.
+
+    Using a closed channel raises a plain ``OSError``.
+    """
     channel = sftp.get_channel()
     return channel is None or bool(channel.closed)
 

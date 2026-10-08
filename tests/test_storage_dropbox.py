@@ -7,6 +7,12 @@ The stand-in answers the calls the adapter makes -- ``files_get_metadata``,
 raises the SDK's own exceptions. No request leaves the process.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib

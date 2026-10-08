@@ -88,9 +88,10 @@ _COLUMNS = (
     "duration_ms, error, metadata, correlation_id"
 )
 _PLACEHOLDERS = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
-_INSERT = f"INSERT INTO audit_records ({_COLUMNS}) VALUES ({_PLACEHOLDERS})"
+# The two fragments are constants of this module; every value goes in as a parameter.
+_INSERT = f"INSERT INTO audit_records ({_COLUMNS}) VALUES ({_PLACEHOLDERS})"  # nosec B608
 _INSERT_NEW = f"INSERT OR IGNORE INTO audit_records ({_COLUMNS}) VALUES ({_PLACEHOLDERS})"
-_SELECT = f"SELECT {_COLUMNS} FROM audit_records"
+_SELECT = f"SELECT {_COLUMNS} FROM audit_records"  # nosec B608
 _COUNT = "SELECT COUNT(*) FROM audit_records"
 _NEWEST_FIRST = " ORDER BY ts_us DESC, seq DESC LIMIT ? OFFSET ?"
 _PURGE = "DELETE FROM audit_records WHERE ts_us < ?"
@@ -228,6 +229,7 @@ class SQLiteAuditStore(AuditStore):
         check_record(record)
         try:
             with self._lock, self._conn:
+                # nosemgrep  # a constant statement with bound parameters
                 self._conn.execute(_INSERT, _row(record))
         except sqlite3.IntegrityError as err:
             raise AuditException(f"audit record {record.id} is already stored") from err

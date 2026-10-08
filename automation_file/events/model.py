@@ -6,7 +6,8 @@ notification sink or the audit log itself. An event is frozen and JSON-friendly
 details in ``payload`` under the keys listed in :data:`PAYLOAD_KEYS`.
 
 The ten core events are subclasses that fix the ``type`` and the default
-severity (which a caller may still override). ``SystemErrorEvent`` is the roadmap's "SystemError"; the shorter name
+severity (which a caller may still override). ``SystemErrorEvent`` is the roadmap's
+"SystemError"; the shorter name
 would shadow Python's builtin exception.
 """
 

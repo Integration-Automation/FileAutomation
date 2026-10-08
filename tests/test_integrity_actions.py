@@ -1,5 +1,8 @@
 """FA_integrity_* actions: the monitor through the registry, the executor and MCP."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import hashlib

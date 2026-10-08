@@ -1,5 +1,9 @@
 """Run stores, checkpoints, resume, idempotency and the execution history."""
 
+# pylint: disable=broad-exception-caught  # the test records whatever was raised
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import inspect
@@ -264,7 +268,7 @@ def test_a_store_is_safe_to_share_between_threads(store: RunStore) -> None:
 
 def test_run_store_is_abstract() -> None:
     with pytest.raises(TypeError):
-        RunStore()  # type: ignore[abstract]
+        RunStore()  # type: ignore[abstract]  # pylint: disable=abstract-class-instantiated  # the refusal is the test
 
 
 # ---------------------------------------------------------------------- memory

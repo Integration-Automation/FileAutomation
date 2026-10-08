@@ -40,9 +40,9 @@ wait_for_port() {
 
 case "$service" in
   s3)
-    docker run -d --name fa-it-s3 -p 9000:9000 \
-      -e "MINIO_ROOT_USER=$user-integration" -e "MINIO_ROOT_PASSWORD=$secret" \
-      quay.io/minio/minio server /data >&2
+    # MinIO no longer publishes an image that can be pulled without an account. S3Mock
+    # answers the S3 API on port 9090 and accepts any access key.
+    docker run -d --name fa-it-s3 -p 9000:9090 adobe/s3mock >&2
     wait_for_port 9000
     emit FA_IT_S3_ENDPOINT "http://127.0.0.1:9000"
     emit FA_IT_S3_ACCESS_KEY "$user-integration"

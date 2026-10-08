@@ -1,5 +1,9 @@
 """The notification router: routes, deduplication, rate limits, failures, notify_on_failure."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import dataclasses

@@ -7,6 +7,12 @@ The stand-in answers the calls the adapter makes -- ``get_blob_client`` (with
 leaves the process.
 """
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib
@@ -74,7 +80,7 @@ class _Blob:
             name=name,
             size=len(self.data),
             last_modified=self.modified,
-            etag=f'"0x{hashlib.md5(self.data, usedforsecurity=False).hexdigest()[:16].upper()}"',
+            etag=f'"0x{hashlib.md5(self.data, usedforsecurity=False).hexdigest()[:16].upper()}"',  # nosec B324  # nosemgrep  # the digest under test, not a security use
             content_settings=SimpleNamespace(content_type=self.content_type),
             metadata={},
             version_id=None,

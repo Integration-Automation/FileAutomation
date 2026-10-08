@@ -59,6 +59,7 @@ _FINISHED_OK = "succeeded"
 _EDITOR_WIDTHS = (220, 560, 420)
 
 
+# pylint: disable-next=too-many-instance-attributes,too-many-public-methods  # one editor: widgets and slots
 class PipelinesPage(BasePage):
     """Build a pipeline on a canvas, check it, run it and follow the run."""
 
@@ -214,10 +215,10 @@ class PipelinesPage(BasePage):
         for label, handler in buttons:
             row.addWidget(self.make_button(label, handler))
         row.addStretch()
-        bar = QVBoxLayout()
-        bar.addLayout(params)
-        bar.addLayout(row)
-        return bar
+        controls = QVBoxLayout()
+        controls.addLayout(params)
+        controls.addLayout(row)
+        return controls
 
     # ------------------------------------------------------------------ parts, for callers
 
@@ -574,7 +575,7 @@ class PipelinesPage(BasePage):
         self.poll()
 
     def _stop_following(self) -> None:
-        """Stop asking about a run that cannot be read; the failure is already on the status line."""
+        """Stop asking about a run that cannot be read; the status line already says why."""
         self._following = False
         self._timer.stop()
 

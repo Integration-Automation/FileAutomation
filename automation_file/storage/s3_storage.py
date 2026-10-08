@@ -12,6 +12,8 @@ modification time, ETag, content type, version ID and user metadata that
 not a digest of a multipart upload, so it is never used as one.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

@@ -9,11 +9,13 @@ Three things are held here:
   optional package sits among the base dependencies.
 """
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import json
 import re
-import subprocess
+import subprocess  # nosec B404  # the test starts this interpreter with a fixed argument list
 import sys
 from pathlib import Path
 

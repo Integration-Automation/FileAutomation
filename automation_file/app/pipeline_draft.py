@@ -187,6 +187,7 @@ def _task_from_spec(task_id: str, spec: Mapping[str, Any]) -> DraftTask:
     return task
 
 
+# pylint: disable-next=too-many-public-methods  # one method per edit the editor offers
 class PipelineDraft:
     """A pipeline definition being edited, with the canvas layout next to it."""
 

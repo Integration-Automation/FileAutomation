@@ -1,5 +1,7 @@
 """copy_tree and sync_tree: directory trees between any two backends."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import os

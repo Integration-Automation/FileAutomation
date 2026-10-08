@@ -1,5 +1,7 @@
 """The semantic pipeline and reporting tools, and the guarded actions a pipeline runs with."""
 
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import json

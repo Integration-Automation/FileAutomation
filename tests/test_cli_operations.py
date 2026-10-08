@@ -1,5 +1,7 @@
 """The ``integrity``, ``pipeline`` and ``audit`` subcommands: JSON out, exit codes that mean something."""
 
+# pylint: disable=line-too-long  # an expected value is kept on one line
+
 from __future__ import annotations
 
 import json

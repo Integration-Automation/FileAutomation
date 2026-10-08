@@ -7,6 +7,8 @@ helper must plug its ops into an arbitrary registry. Integration against a
 real cloud backend lives outside CI.
 """
 
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import importlib
@@ -110,7 +112,7 @@ def test_sftp_client_reports_the_host_and_port_of_its_session(
         def connect(self, **options: object) -> None:
             self.connected_to = (str(options["hostname"]), int(str(options["port"])))
 
-        def open_sftp(self) -> _StubSSH:
+        def open_sftp(self) -> _StubSSH:  # pylint: disable=undefined-variable  # a forward reference, read lazily
             return self
 
         def close(self) -> None:

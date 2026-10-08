@@ -1,5 +1,7 @@
 """Pipelines as scheduler targets: the declared schedule, parameters, dependencies, stopping."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import json

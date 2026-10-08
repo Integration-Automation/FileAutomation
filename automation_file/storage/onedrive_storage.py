@@ -22,6 +22,8 @@ recycle bin, a folder together with everything in it.
 ``stat`` reports the size, modification time, ETag and MIME type of a file.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib
@@ -436,7 +438,7 @@ class OneDriveStorage(StorageBackend):
                 raise not_empty_error(location)
         self._send(_DELETE, self._item_url(path), location)
 
-    # ------------------------------------------------------------------ copy and move inside OneDrive
+    # ------------------------------------------------------------------ copy and move in OneDrive
 
     def _copy_from(self, source: StorageBackend, source_path: str, path: str) -> bool:
         if isinstance(source, OneDriveStorage):

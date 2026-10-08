@@ -15,6 +15,11 @@ an upload session answers 202 until its last fragment, and that deleting a folde
 deletes what is in it.
 """
 
+# pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
+# pylint: disable=too-many-locals  # one scenario told in order
+# pylint: disable=too-many-positional-arguments  # a stand-in keeps the real signature
+# pylint: disable=unsupported-membership-test  # the value is a container at run time
+
 from __future__ import annotations
 
 import io

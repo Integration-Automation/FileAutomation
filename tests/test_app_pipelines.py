@@ -274,7 +274,7 @@ def test_a_run_the_store_says_is_running_counts_as_running(bus: EventBus) -> Non
 
 def test_secrets_in_the_parameters_are_masked_in_every_view(service: PipelineService) -> None:
     draft = _draft(("a", "T_echo", {"value": "${params.word}"}))
-    params = {"word": "hi", "password": "hunter2"}
+    params = {"word": "hi", "password": "hunter2"}  # nosec B105  # a made-up value for a stand-in, not a credential
     started = service.start(draft, params)
     assert started["params"] == {"word": "hi", "password": MASK}
     done = _finished(service, started["run_id"])

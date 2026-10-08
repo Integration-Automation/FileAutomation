@@ -1,5 +1,9 @@
 """The event model, the bus, the scopes, and the storage-error bridge."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=too-many-function-args  # the call is expected to be refused
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import dataclasses

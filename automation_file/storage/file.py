@@ -15,6 +15,8 @@ The backend is looked up on every call, so a ``File`` can be created before its
 backend is initialised or mounted.
 """
 
+# pylint: disable=protected-access  # File reads the private locator of another File
+
 from __future__ import annotations
 
 import os

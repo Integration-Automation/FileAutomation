@@ -18,6 +18,8 @@ expand glob patterns, so a copy uses ``cp_file`` and a move uses ``mv`` only for
 paths without ``*``, ``?`` or ``[``; other moves are a copy followed by a delete.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

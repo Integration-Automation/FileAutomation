@@ -56,6 +56,7 @@ class StagedWriter(io.BufferedWriter):
         self.close()
 
     def close(self) -> None:
+        # pylint: disable-next=using-constant-test  # closed is a property of the stream
         if self.closed:
             return
         commit, self._commit = self._commit, None

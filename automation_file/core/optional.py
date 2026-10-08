@@ -44,6 +44,7 @@ def require_module(name: str, *, extra: str) -> ModuleType:
     cannot be imported.
     """
     try:
+        # nosemgrep  # callers pass the literal name of an optional SDK, never input from outside
         return importlib.import_module(name)
     except ImportError as error:
         feature = EXTRAS.get(extra, f"the {extra} feature")

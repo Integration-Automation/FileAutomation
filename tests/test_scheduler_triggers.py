@@ -1,5 +1,9 @@
 """The scheduler's triggers: cron with a time zone, file events, events on the bus."""
 
+# pylint: disable=inconsistent-return-statements  # the other branch raises, or no test reaches it
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import zoneinfo
@@ -429,7 +433,7 @@ class _Observer:
         self.alive = False
 
     def join(self, timeout: float | None = None) -> None:
-        self.joined_with = timeout
+        self.joined_with = timeout  # pylint: disable=attribute-defined-outside-init  # kept for the assertion
 
     def is_alive(self) -> bool:
         return self.alive

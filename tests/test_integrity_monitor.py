@@ -1,5 +1,8 @@
 """IntegrityMonitor: snapshot, baseline, verify, accept, alerts and continuous mode."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import hashlib
@@ -487,7 +490,7 @@ def test_a_monitor_refuses_a_weak_algorithm_unless_told_otherwise(tree: Storage)
     allowed = IntegrityMonitor(TREE, baseline=BASELINE, algorithm="md5", allow_weak=True)
     entry = allowed.snapshot().get("a.txt")
     assert entry is not None
-    assert entry.checksum == hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()
+    assert entry.checksum == hashlib.md5(b"alpha", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
 
 
 def test_a_weak_baseline_is_not_verified_without_allow_weak(tree: Storage, bus: EventBus) -> None:

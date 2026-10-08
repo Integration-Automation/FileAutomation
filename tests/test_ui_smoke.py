@@ -6,6 +6,9 @@ drift between ops-module signatures and tab form fields. What the pages do with
 their services is in ``test_ui_pages.py`` and ``test_ui_pipeline_editor.py``.
 """
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=unnecessary-lambda  # the lambda is looked up late, when it is called
+
 from __future__ import annotations
 
 import os

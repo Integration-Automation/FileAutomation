@@ -1,5 +1,7 @@
 """What a pipeline run publishes: the events, their order, payload and correlation ID."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import threading

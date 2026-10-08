@@ -1,5 +1,8 @@
 """Pipeline definitions: validation with paths, the schema, round trips, YAML and JSON files."""
 
+# pylint: disable=line-too-long  # an expected value is kept on one line
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import copy
@@ -792,7 +795,7 @@ def test_a_definition_runs_with_its_retry_and_its_placeholders(
         calls.append(source)
         if len(calls) < 3:
             raise StorageTransientException("throttled")
-        return {"path": f"/tmp/{source.rsplit('/', 1)[-1]}"}
+        return {"path": f"/tmp/{source.rsplit('/', 1)[-1]}"}  # nosec B108  # a path that is never opened
 
     registry = ActionRegistry()
     registry.register("T_fetch", fetch)
@@ -819,7 +822,7 @@ def test_a_definition_runs_with_its_retry_and_its_placeholders(
     assert run.status is RunStatus.SUCCEEDED
     assert calls == ["s3://in/2026-10-08.csv"] * 3
     assert run.tasks["fetch"].attempts == 3
-    assert run.tasks["report"].result == "/tmp/2026-10-08.csv for 2026-10-08"
+    assert run.tasks["report"].result == "/tmp/2026-10-08.csv for 2026-10-08"  # nosec B108  # a path that is never opened
 
 
 # ---------------------------------------------------------------------- substitution

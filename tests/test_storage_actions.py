@@ -138,7 +138,7 @@ def test_checksum_and_verify() -> None:
         "algorithm": "sha256",
         "value": SHA256_HELLO,
     }
-    md5 = hashlib.md5(b"hello", usedforsecurity=False).hexdigest()
+    md5 = hashlib.md5(b"hello", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
     assert actions.storage_checksum("memory://scratch/a.txt", "md5")["value"] == md5
     assert actions.storage_verify("memory://scratch/a.txt", SHA256_HELLO) is True
     assert actions.storage_verify("memory://scratch/a.txt", f"md5:{md5}") is True

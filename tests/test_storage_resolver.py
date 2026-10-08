@@ -1,5 +1,7 @@
 """StorageResolver: mounts, scheme factories, and the default table."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import os

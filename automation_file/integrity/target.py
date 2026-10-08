@@ -77,7 +77,10 @@ class Target:
         return path.casefold() if self._case_blind else path
 
     def relative(self, other: URILike) -> str | None:
-        """Return the path of ``other`` inside this tree: ``""`` for the tree itself, ``None`` outside."""
+        """Return the path of ``other`` inside this tree.
+
+        ``""`` is the tree itself and ``None`` means outside it.
+        """
         candidate = parse_storage_uri(other)
         if candidate.scheme != self._uri.scheme:
             return None

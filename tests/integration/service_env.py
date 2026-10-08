@@ -6,6 +6,8 @@ set, and a missing variable is then an error: a job that skipped every test
 would look green without having touched the service.
 """
 
+# pylint: disable=inconsistent-return-statements  # the other branch raises, or no test reaches it
+
 from __future__ import annotations
 
 import os

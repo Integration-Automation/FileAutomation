@@ -1,5 +1,7 @@
 """Tests for automation_file.core.config."""
 
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import time

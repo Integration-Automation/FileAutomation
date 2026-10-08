@@ -15,6 +15,8 @@ protocol:
 share: a URI names no host, or the host of the open session.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

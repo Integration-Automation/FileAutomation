@@ -1,5 +1,7 @@
 """FA_schedule_* actions, the package's exports and what its modules may import."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 import ast

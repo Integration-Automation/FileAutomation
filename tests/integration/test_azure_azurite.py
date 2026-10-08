@@ -3,6 +3,10 @@
 Environment: ``FA_IT_AZURE_CONNECTION_STRING``.
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=ungrouped-imports  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 from collections.abc import Iterator

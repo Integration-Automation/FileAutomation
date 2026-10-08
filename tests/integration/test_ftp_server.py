@@ -5,6 +5,9 @@ optionally ``FA_IT_FTP_PORT`` (21), ``FA_IT_FTP_ROOT`` (``/``, an absolute
 directory the user may write to) and ``FA_IT_FTP_TLS`` (``1`` for FTPS).
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 from collections.abc import Iterator

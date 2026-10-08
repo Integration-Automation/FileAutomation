@@ -1,5 +1,9 @@
 """The pages of the main window, fed by their services through a pool that runs at once."""
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+# pylint: disable=wrong-import-position  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 import ast
@@ -336,7 +340,7 @@ def test_the_dashboard_renders_the_summary_of_its_service(
     draft.add_task("T_fail", "only")
     run_id = services.pipelines.start(draft)["run_id"]
     assert services.pipelines.wait(run_id, WAIT)
-    bus.publish(SystemErrorEvent(source="test", subject="disk full", payload={"token": "abc"}))
+    bus.publish(SystemErrorEvent(source="test", subject="disk full", payload={"token": "abc"}))  # nosec B105  # a made-up value for a stand-in, not a credential
     page.refresh()
     assert page._headline.text() == "Needs attention"
     assert "1 of the last 1 pipeline runs failed" in page._reasons.text()
@@ -622,7 +626,7 @@ def test_the_audit_page_configures_searches_and_shows_a_record(
         PipelineFailed(
             source="pipeline",
             subject="nightly failed",
-            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},
+            payload={"pipeline": "nightly", "status": "failed", "password": "hunter2"},  # nosec B105  # a made-up value for a stand-in, not a credential
         )
     )
     bus.publish(SystemErrorEvent(source="system", subject="disk full"))

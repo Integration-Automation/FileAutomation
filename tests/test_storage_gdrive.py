@@ -6,6 +6,12 @@ package ships. Every ``files()`` call the adapter makes is therefore the real
 one, and the last section names what that pins and what it leaves open.
 """
 
+# pylint: disable=line-too-long  # an expected value is kept on one line
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unidiomatic-typecheck  # the exact class is what is asserted
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib
@@ -109,7 +115,7 @@ def test_stat_reports_what_drive_holds(storage: GoogleDriveStorage, drive: FakeD
     info = storage.write_bytes("reports/q1.json", b"{}")
     assert info.path == "reports/q1.json"
     assert info.size == 2
-    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()
+    assert info.etag == hashlib.md5(b"{}", usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
     assert info.version == "1"
     assert info.content_type == "application/json"
     assert info.modified_at is not None

@@ -6,6 +6,10 @@ are rejected), and optionally ``FA_IT_SFTP_PORT`` (22) and ``FA_IT_SFTP_ROOT``
 (``/upload``, an absolute directory the user may write to).
 """
 
+# pylint: disable=arguments-differ  # a fixture or a stand-in takes other arguments than the one it replaces
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=ungrouped-imports  # imports follow pytest.importorskip
+
 from __future__ import annotations
 
 from collections.abc import Iterator

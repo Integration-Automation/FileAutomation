@@ -1,5 +1,7 @@
 """Storage observers: what each backend operation reports."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+
 from __future__ import annotations
 
 from collections.abc import Iterator

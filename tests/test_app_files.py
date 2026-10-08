@@ -1,5 +1,7 @@
 """The Files and Storage services of the application layer, on private resolvers."""
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+
 from __future__ import annotations
 
 from collections.abc import Iterable

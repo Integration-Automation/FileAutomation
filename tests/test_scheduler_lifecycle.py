@@ -1,5 +1,8 @@
 """The scheduler's own thread: starting, ticking, shutting down, and arming triggers again."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import threading

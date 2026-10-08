@@ -1,5 +1,8 @@
 """``copy_between`` on the storage layer: storage URIs, the older spellings, and what fails how."""
 
+# pylint: disable=protected-access  # the tests look at private state on purpose
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 from collections.abc import Iterator

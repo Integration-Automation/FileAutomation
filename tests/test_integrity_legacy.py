@@ -6,6 +6,9 @@ written by ``write_manifest``. The rest covers what the summary does with the
 change kinds the first monitor did not know.
 """
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 from pathlib import Path

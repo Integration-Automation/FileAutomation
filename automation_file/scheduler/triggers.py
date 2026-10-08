@@ -70,6 +70,7 @@ class Trigger(ABC):
     def to_dict(self) -> dict[str, Any]:
         """Return the JSON-friendly form of the trigger, with its ``kind``."""
 
+    # pylint: disable-next=unused-argument  # the default trigger needs nothing from the port
     def arm(self, port: TriggerPort) -> Disarm | None:
         """Start watching for the trigger's moment and return the call that stops it.
 

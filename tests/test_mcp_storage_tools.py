@@ -1,5 +1,7 @@
 """The semantic tools that work on a directory: ``storage_list``, ``storage_copy``, ``file_search``."""
 
+# pylint: disable=line-too-long  # an expected value is kept on one line
+
 from __future__ import annotations
 
 from collections.abc import Iterator

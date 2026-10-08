@@ -20,6 +20,9 @@ The failure cases need a way to make the storage fail. Override the
 those cases skip.
 """
 
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import hashlib
@@ -61,7 +64,7 @@ def _local_file(directory: Path, data: bytes, name: str = "source.bin") -> Path:
     return path
 
 
-class StorageContract:
+class StorageContract:  # pylint: disable=too-many-public-methods  # one method per contract case
     """Behaviour shared by every backend. Not collected on its own."""
 
     @pytest.fixture

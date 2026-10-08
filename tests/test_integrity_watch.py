@@ -6,6 +6,10 @@ verification is called with the paths a watcher would report. The last case
 writes to a watched directory for real and is skipped where no event arrives.
 """
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import threading

@@ -8,6 +8,8 @@ server does. Options select the behaviours real servers differ in: ``MLST`` /
 answered with 550, and a rename that will not replace an existing file.
 """
 
+# pylint: disable=unused-argument  # a fixture is requested for its effect; a stand-in keeps the real signature
+
 from __future__ import annotations
 
 import ftplib  # nosec B402 - the sessions built here lead to an in-memory server
@@ -67,7 +69,7 @@ class _DataConnection:
         self.close()
 
 
-class FakeFTPServer:
+class FakeFTPServer:  # pylint: disable=too-many-instance-attributes  # the state of one in-memory server
     """An FTP server in memory: a tree of entries and the far end of one control connection."""
 
     def __init__(

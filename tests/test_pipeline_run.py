@@ -1,5 +1,8 @@
 """The pipeline runtime: ordering, fan-out, statuses, retry, timeout, cancellation, conditions."""
 
+# pylint: disable=redefined-outer-name  # pytest passes fixtures by matching name
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 import threading

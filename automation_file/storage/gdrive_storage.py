@@ -29,6 +29,8 @@ moved, copied and deleted, but ``download``, ``read_bytes`` and ``checksum``
 raise :class:`~automation_file.exceptions.StorageUnsupportedException`.
 """
 
+# pylint: disable=protected-access  # a backend reads the private parts of another instance of its own kind
+
 from __future__ import annotations
 
 import contextlib

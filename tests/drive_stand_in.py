@@ -19,6 +19,11 @@ Where it is stricter than Drive (``addParents`` takes real IDs only) a comment
 says so.
 """
 
+# pylint: disable=line-too-long  # an expected value is kept on one line
+# pylint: disable=raising-bad-type  # a stand-in raises what the test hands it
+# pylint: disable=too-many-positional-arguments  # a stand-in keeps the real signature
+# pylint: disable=unsupported-membership-test  # the value is a container at run time
+
 from __future__ import annotations
 
 import hashlib
@@ -116,8 +121,8 @@ class _Entry:
         if self.data is not None:
             resource["size"] = str(len(self.data))
             if digests:
-                resource["md5Checksum"] = hashlib.md5(self.data, usedforsecurity=False).hexdigest()
-                resource["sha1Checksum"] = hashlib.sha1(
+                resource["md5Checksum"] = hashlib.md5(self.data, usedforsecurity=False).hexdigest()  # nosec B324  # nosemgrep  # the digest under test, not a security use
+                resource["sha1Checksum"] = hashlib.sha1(  # nosec B324  # nosemgrep  # the digest under test, not a security use
                     self.data, usedforsecurity=False
                 ).hexdigest()
                 resource["sha256Checksum"] = hashlib.sha256(self.data).hexdigest()
@@ -208,7 +213,7 @@ class FakeDrive:
         ):
             if isinstance(self.fail_with, Exception):
                 raise self.fail_with
-            return error_answer(*self.fail_with)
+            return error_answer(*self.fail_with)  # pylint: disable=not-an-iterable  # a tuple here
         lowered = {key.lower(): value for key, value in (headers or {}).items()}
         try:
             if uri.startswith(UPLOAD_URL):

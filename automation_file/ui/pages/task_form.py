@@ -209,6 +209,7 @@ class ArgumentsEditor(QWidget):
         self._stack.setCurrentIndex(_TABLE_PAGE)
 
 
+# pylint: disable-next=too-many-instance-attributes  # one input widget per field of a task
 class TaskForm(QWidget):
     """Edits the selected task of a draft; nothing changes until Apply is pressed."""
 
