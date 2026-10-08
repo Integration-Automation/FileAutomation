@@ -36,6 +36,3 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 - **#24** UI 2.0 (roadmap §11, M7). Not before the APIs of #13 to #23 are stable (roadmap §20).
 - **#25** Semantic MCP tools (roadmap §12, M8): `file_*`, `storage_*`, `pipeline_*`, `integrity_status`, `audit_search`, with a permission model and dry run, next to the existing `FA_*` bridge.
 - **#26** Release engineering and 1.0 (roadmap §13, M9): contract and integration tests in the PR gate, PyPI Trusted Publishing, SemVer, migration guide, API freeze.
-
-### Found on the way
-

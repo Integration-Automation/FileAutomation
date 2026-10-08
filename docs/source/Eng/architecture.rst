@@ -104,7 +104,7 @@ dispatchers.
            WebDAV["<b>webdav</b>"]
            SMB["<b>smb / cifs</b>"]
            Fsspec["<b>fsspec_bridge</b>"]
-           Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+           Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
        end
 
        subgraph Notify["<b>notifications</b>"]
