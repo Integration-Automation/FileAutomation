@@ -25,7 +25,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 from types import TracebackType
-from typing import ClassVar, TypeVar
+from typing import TypeVar
 
 from automation_file.core.checksum import file_checksum
 from automation_file.exceptions import (
@@ -96,8 +96,10 @@ def _by_depth(info: FileInfo) -> int:
 class StorageBackend(ABC):
     """One storage root: a directory tree, a bucket, a share, a remote session."""
 
-    scheme: ClassVar[str] = ""
-    capabilities: ClassVar[StorageCapabilities] = StorageCapabilities()
+    #: Class-wide defaults. A backend whose instances differ (one adapter over many
+    #: kinds of filesystem) assigns its own in ``__init__``.
+    scheme: str = ""
+    capabilities: StorageCapabilities = StorageCapabilities()
 
     # ------------------------------------------------------------------ primitives
 
