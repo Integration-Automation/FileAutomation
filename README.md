@@ -1240,6 +1240,20 @@ Each entry is either a bare command name, a `[name, kwargs]` pair, or a
 ]
 ```
 
+## Tests
+
+```bash
+pip install -e ".[all,test]"
+python -m pytest tests/                 # unit tests; a backend whose extra is missing is skipped
+
+# The storage contract against a real service in a container (needs Docker)
+eval "$(bash tests/integration/start_service.sh s3)"   # or azure, sftp, ftp, webdav, smb
+python -m pytest tests/integration/test_s3_minio.py
+```
+
+The integration tests are skipped unless their `FA_IT_*` variables are set; see the manual chapter
+*Integration tests*.
+
 ## Compatibility
 
 Releases follow semantic versioning. The public surface is everything in `automation_file.__all__`

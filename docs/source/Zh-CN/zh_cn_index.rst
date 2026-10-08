@@ -322,3 +322,17 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 公开 API 与兼容性
 
    usage/api_policy
+
+.. _zh-cn-integration-tests:
+
+第 22 章 — 集成测试
+===================
+
+把存储契约测试套件拿去对容器中的真实服务运行：如何在本地运行、各模块读取的变量，
+以及 CI 运行了什么。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 集成测试
+
+   usage/integration_tests

@@ -333,3 +333,17 @@ promises, and how a name is deprecated and removed.
    :caption: Public API and Compatibility
 
    usage/api_policy
+
+.. _eng-integration-tests:
+
+Chapter 22 — Integration Tests
+==============================
+
+The storage contract suite against real services in containers: how to run it
+locally, the variables each module reads, and what CI runs.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Integration Tests
+
+   usage/integration_tests

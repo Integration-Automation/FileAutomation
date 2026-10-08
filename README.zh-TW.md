@@ -1205,6 +1205,19 @@ python -m automation_file --create_project ./my_project
 ]
 ```
 
+## 測試
+
+```bash
+pip install -e ".[all,test]"
+python -m pytest tests/                 # 單元測試；缺少 extra 的後端會被略過
+
+# 對容器中的真實服務執行儲存契約測試（需要 Docker）
+eval "$(bash tests/integration/start_service.sh s3)"   # 或 azure、sftp、ftp、webdav、smb
+python -m pytest tests/integration/test_s3_minio.py
+```
+
+除非設定了對應的 `FA_IT_*` 變數，否則整合測試會被略過；詳見手冊的「整合測試」一章。
+
 ## 相容性
 
 版本採用語意化版本。公開介面包含 `automation_file.__all__` 與已寫入文件的各套件 `__all__` 中的
