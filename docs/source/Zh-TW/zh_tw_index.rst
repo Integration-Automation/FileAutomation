@@ -336,3 +336,17 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 整合測試
 
    usage/integration_tests
+
+.. _zh-tw-deployment:
+
+第 23 章 — 部署到正式環境
+=========================
+
+無人看管地運作：要安裝什麼、單一的長時間行程、磁碟上的狀態、網路上要開放什麼、
+該監看什麼，以及如何升級。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 部署到正式環境
+
+   usage/deployment

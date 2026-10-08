@@ -1205,6 +1205,14 @@ python -m automation_file --create_project ./my_project
 ]
 ```
 
+## 部署
+
+调度器、完整性监控、通知路由器、审计轨迹与各个服务器，都是启动它们的那个进程中的线程，因此
+生产环境的部署就是一个交给服务管理器运行的脚本：加载配置、把审计轨迹与流水线运行记录指向 SQLite
+文件、初始化后端、启动该运行的部分，并让每个服务器都只绑定 loopback 接口、设有共享密钥与动作
+允许列表。手册的“部署到生产环境”一章（`docs/source/Zh-CN/usage/deployment.rst`）提供了这个
+脚本、systemd unit、该备份什么、该监控什么，以及如何升级。
+
 ## 测试
 
 ```bash

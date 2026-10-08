@@ -1205,6 +1205,14 @@ python -m automation_file --create_project ./my_project
 ]
 ```
 
+## 部署
+
+排程器、完整性監控、通知路由器、稽核軌跡與各個伺服器，都是啟動它們的那個行程中的執行緒，因此
+正式環境的部署就是一支交給服務管理員執行的腳本：載入設定、把稽核軌跡與管線執行紀錄指向 SQLite
+檔案、初始化後端、啟動該執行的部分，並讓每個伺服器都只綁定 loopback 介面、設有共享密鑰與動作
+允許清單。手冊的「部署到正式環境」一章（`docs/source/Zh-TW/usage/deployment.rst`）提供了這支
+腳本、systemd unit、該備份什麼、該監看什麼，以及如何升級。
+
 ## 測試
 
 ```bash

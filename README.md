@@ -1240,6 +1240,16 @@ Each entry is either a bare command name, a `[name, kwargs]` pair, or a
 ]
 ```
 
+## Deployment
+
+The scheduler, the integrity monitors, the notification router, the audit trail and the servers are
+threads of the process that starts them, so a production deployment is one script under your service
+manager: load the configuration, point the audit trail and the pipeline run store at SQLite files,
+initialise the backends, start what should run, and keep every server on the loopback interface behind
+a shared secret and an action allow list. The manual chapter *Deploying to production*
+(`docs/source/Eng/usage/deployment.rst`) has the script, a systemd unit, what to back up, what to
+watch and how to upgrade.
+
 ## Tests
 
 ```bash

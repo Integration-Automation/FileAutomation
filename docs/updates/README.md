@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-26 | 2026-10-08 | Production deployment guide | #docs #roadmap | [2026-10](2026-10.md) |
 | U-20261008-25 | 2026-10-08 | Metadata cases in the storage contract | #storage #tests #done | [2026-10](2026-10.md) |
 | U-20261008-24 | 2026-10-08 | A release can raise MINOR or MAJOR | #release #ci #roadmap | [2026-10](2026-10.md) |
 | U-20261008-23 | 2026-10-08 | Integration tests and their workflow | #ci #tests #roadmap | [2026-10](2026-10.md) |
@@ -120,5 +121,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 36 |
+| [2026-10.md](2026-10.md) | 2026-10 | 37 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

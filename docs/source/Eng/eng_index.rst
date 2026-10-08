@@ -347,3 +347,17 @@ locally, the variables each module reads, and what CI runs.
    :caption: Integration Tests
 
    usage/integration_tests
+
+.. _eng-deployment:
+
+Chapter 23 — Deploying to Production
+====================================
+
+Running unattended: what to install, one long-lived process, the state on
+disk, what to expose on the network, what to watch, and how to upgrade.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Deploying to Production
+
+   usage/deployment
