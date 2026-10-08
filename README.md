@@ -32,7 +32,7 @@ facade.
 - **Config hot reload** — `ConfigWatcher` polls `automation_file.toml` and re-applies sinks / defaults on change without restart
 - **Shell / grep / JSON edit / tar / backup rotation** — `FA_run_shell` (argument-list subprocess with timeout), `FA_grep` (streaming text search), `FA_json_get` / `FA_json_set` / `FA_json_delete` (in-place JSON editing), `FA_create_tar` / `FA_extract_tar`, `FA_rotate_backups`
 - **FTP / FTPS backend** — plain FTP or explicit FTPS via `FTP_TLS.auth()`; auto-registered as `FA_ftp_*`
-- **Cross-backend copy** — `FA_copy_between` moves data between any two backends via `local://`, `s3://`, `azure://`, `dropbox://`, `sftp://`, `ftp://` URIs
+- **Cross-backend copy** — `FA_copy_between` copies a file between any two storage locations (`local://`, `s3://`, `azure://`, `gdrive://`, `dropbox://`, `sftp://`, `ftp://`, a mount, or an `http(s)://` source) on the storage layer; the older `s3:bucket/key` and `sftp:/path` spellings still work
 - **Scheduler overlap guard** — running jobs are skipped on the next fire unless `allow_overlap=True`
 - **Server action ACL** — `allowed_actions=(...)` restricts which commands TCP / HTTP servers will dispatch
 - **Variable substitution** — opt-in `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}` expansion in action arguments via `execute_action(..., substitute=True)`

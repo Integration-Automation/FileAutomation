@@ -47,8 +47,10 @@ SFTP
 跨後端複製
 ----------
 
-``FA_copy_between``（``copy_between(source, target)``）透過本機暫存檔，把一個檔案
-從某個後端複製到另一個後端，兩個階段都成功時回傳 ``True``：
+``FA_copy_between``（``copy_between(source, target)``）把一個檔案從某個位置複製到
+另一個位置，傳輸完成時回傳 ``True``。它是 ``File(source).copy_to(target)`` 的舊寫法，
+建立在儲存層之上（:doc:`storage`）：兩個後端能直接互傳時會採用原生複製，目標位置已有
+的檔案會被取代，而且這次操作會送達儲存觀察者與稽核軌跡。
 
 .. code-block:: python
 
@@ -60,11 +62,23 @@ SFTP
          "target": "azure://backups/april.csv"}],
    ])
 
-它接受 ``s3://bucket/key``、``azure://container/blob``（或 ``az://``）、
-``dropbox:/path``、``sftp:/path``、``ftp:/path``、``local:/path`` 或一般的檔案系統
-路徑；``http://`` / ``https://`` 只能作為來源。每個後端都必須先初始化
-（``s3_instance.later_init(...)`` 等）。沒有 Google Drive 的 scheme：Drive 以 ID
-定位檔案，請改用 ``FA_drive_*`` 動作。
+它接受：
 
-新的程式建議使用儲存層（:doc:`storage`）：``FA_storage_copy`` 接受同類型的 URI，
-會回報複製的結果，失敗時拋出明確的例外，而不是回傳 ``False``。
+* 任何儲存 URI：``s3://bucket/key``、``azure://container/blob``（或 ``az://``）、
+  ``gdrive:///path``、``onedrive:///path``、``dropbox:///path``、
+  ``sftp://host/absolute/path``、``memory://name/path``，或掛載的前綴；
+* 一般的檔案系統路徑、``local:<path>`` 或 ``local:/path``；
+* 它一直以來接受的寫法：``s3:bucket/key``、``azure:container/blob`` 與
+  ``dropbox:/path``；
+* 只有一個斜線或沒有斜線的 ``sftp:/path`` 與 ``ftp:/path``，路徑相對於工作階段登入時
+  所在的目錄，與以往相同。寫成兩個斜線（``sftp://host/path``）時，URI 指定的是主機
+  與絕對路徑，而且主機必須是工作階段實際連線的那一台；
+* ``http://`` / ``https://`` 只能作為來源，透過經過驗證的下載器取得（:doc:`transfer`）。
+
+每個後端都必須先初始化（``s3_instance.later_init(...)`` 等）。傳輸本身失敗時（來源不
+存在、寫入被拒、把檔案複製到它自己）函式回傳 ``False`` 並記錄原因；無法理解的位置會
+拋出 ``CrossBackendException``，尚未初始化的後端會拋出
+``StorageUnavailableException``。
+
+新的程式建議使用 ``FA_storage_copy``（:doc:`storage`）：它接受儲存 URI，會回報複製的
+結果，失敗時拋出明確的例外，而不是回傳 ``False``。

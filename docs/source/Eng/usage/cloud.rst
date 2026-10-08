@@ -51,8 +51,11 @@ Cross-backend copy
 ------------------
 
 ``FA_copy_between`` (``copy_between(source, target)``) copies one file from a
-backend to another through a local temporary file and returns ``True`` when
-both halves succeeded:
+location to another and returns ``True`` when it was transferred. It is the
+older spelling of ``File(source).copy_to(target)`` and runs on the storage layer
+(:doc:`storage`): the copy is native where two backends can do it between
+themselves, a file already at the target is replaced, and the operation reaches
+the storage observers and the audit trail.
 
 .. code-block:: python
 
@@ -64,13 +67,27 @@ both halves succeeded:
          "target": "azure://backups/april.csv"}],
    ])
 
-It accepts ``s3://bucket/key``, ``azure://container/blob`` (or ``az://``),
-``dropbox:/path``, ``sftp:/path``, ``ftp:/path``, ``local:/path`` or a plain
-filesystem path, and ``http://`` / ``https://`` as a source only. Each backend
-must be initialised first (``s3_instance.later_init(...)`` and so on). There is
-no Google Drive scheme: Drive addresses files by ID, so use the ``FA_drive_*``
-actions for it.
+It accepts:
 
-For new code prefer the storage layer (:doc:`storage`): ``FA_storage_copy``
-takes the same kind of URIs, reports what it copied, and raises a specific
-error instead of returning ``False``.
+* any storage URI: ``s3://bucket/key``, ``azure://container/blob`` (or
+  ``az://``), ``gdrive:///path``, ``onedrive:///path``, ``dropbox:///path``,
+  ``sftp://host/absolute/path``, ``memory://name/path``, a mounted prefix;
+* a plain filesystem path, ``local:<path>`` or ``local:/path``;
+* the spellings it has always taken: ``s3:bucket/key``, ``azure:container/blob``
+  and ``dropbox:/path``;
+* ``sftp:/path`` and ``ftp:/path`` with one slash or none, where the path is
+  relative to the directory the session logged in to, as it always was. With two
+  slashes (``sftp://host/path``) the URI names a host and an absolute path, and
+  the host must be the one the session is connected to;
+* ``http://`` / ``https://`` as a source only, fetched through the validated
+  downloader (:doc:`transfer`).
+
+Each backend must be initialised first (``s3_instance.later_init(...)`` and so
+on). The function returns ``False`` when the transfer itself fails (a missing
+source, a refused write, a copy of a file onto itself) and logs the reason. It
+raises ``CrossBackendException`` for a location it cannot make sense of and
+``StorageUnavailableException`` for a backend that is not initialised.
+
+For new code prefer ``FA_storage_copy`` (:doc:`storage`): it takes storage
+URIs, reports what it copied, and raises a specific error instead of returning
+``False``.
