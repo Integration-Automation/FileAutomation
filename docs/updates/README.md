@@ -58,6 +58,58 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-38 | 2026-10-08 | Integrate the PyBreeze all-extras dependency before stable release | #done #dependencies | [2026-10](2026-10.md) |
+| U-20261008-37 | 2026-10-08 | Main PR validation passes the full CI and analysis gates | #done #ci #security | [2026-10](2026-10.md) |
+| U-20261008-36 | 2026-10-08 | Keep the GUI on the tested Qt 6.11 series | #incident #gui #ci | [2026-10](2026-10.md) |
+| U-20261008-35 | 2026-10-08 | Share one Qt application and shut it down after GUI tests | #done #tests #gui | [2026-10](2026-10.md) |
+| U-20261008-34 | 2026-10-08 | Lock lint and integration dependencies for the main pull request | #ci #security | [2026-10](2026-10.md) |
+| U-20261008-33 | 2026-10-08 | First CI runs of pull request #109, and what they showed | #ci #storage #incident | [2026-10](2026-10.md) |
+| U-20261008-32 | 2026-10-08 | An intermittent test failure, and its wrong first diagnosis | #tests #incident | [2026-10](2026-10.md) |
+| U-20261008-31 | 2026-10-08 | Migration guide | #docs #migration #roadmap | [2026-10](2026-10.md) |
+| U-20261008-30 | 2026-10-08 | UI 2.0 and the application layer | #ui #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-29 | 2026-10-08 | Scheduler v2 | #scheduler #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-28 | 2026-10-08 | One positioning in the READMEs, the manuals and the metadata | #docs #packaging #roadmap | [2026-10](2026-10.md) |
+| U-20261008-27 | 2026-10-08 | Semantic MCP tools | #mcp #security #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-26 | 2026-10-08 | Production deployment guide | #docs #roadmap | [2026-10](2026-10.md) |
+| U-20261008-25 | 2026-10-08 | Metadata cases in the storage contract | #storage #tests #done | [2026-10](2026-10.md) |
+| U-20261008-24 | 2026-10-08 | A release can raise MINOR or MAJOR | #release #ci #roadmap | [2026-10](2026-10.md) |
+| U-20261008-23 | 2026-10-08 | Integration tests and their workflow | #ci #tests #roadmap | [2026-10](2026-10.md) |
+| U-20261008-22 | 2026-10-08 | Public API and deprecation policy | #decision #docs #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-21 | 2026-10-08 | copy_between runs on the storage layer | #storage #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-20 | 2026-10-08 | CLI subcommands for integrity, pipelines and the audit trail | #cli #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-19 | 2026-10-08 | The action ACL and the MCP server check nested action names | #security #incident | [2026-10](2026-10.md) |
+| U-20261008-18 | 2026-10-08 | Pipeline runtime | #pipeline #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-17 | 2026-10-08 | Notification router and audit schema v2 | #notify #audit #roadmap | [2026-10](2026-10.md) |
+| U-20261008-16 | 2026-10-08 | IntegrityMonitor 2.0 | #integrity #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-15 | 2026-10-08 | The SFTP, OneDrive and SMB clients name the extra to install | #packaging #done | [2026-10](2026-10.md) |
+| U-20261008-14 | 2026-10-08 | The WebDAV client only talks to its own server | #security #incident | [2026-10](2026-10.md) |
+| U-20261008-13 | 2026-10-08 | A move between two views of one store could delete the file | #storage #incident | [2026-10](2026-10.md) |
+| U-20261008-12 | 2026-10-08 | Storage adapters for eight more backends | #storage #roadmap #done | [2026-10](2026-10.md) |
+| U-20261008-11 | 2026-10-08 | A storage subcommand for the CLI | #storage #cli #roadmap | [2026-10](2026-10.md) |
+| U-20261008-10 | 2026-10-08 | Failure cases join the storage contract | #storage #roadmap #tests | [2026-10](2026-10.md) |
+| U-20261008-09 | 2026-10-08 | Backend SDKs and the GUI toolkit become extras | #done #packaging #roadmap #decision | [2026-10](2026-10.md) |
+| U-20261008-08 | 2026-10-08 | Three architecture diagrams still listed drive:// | #incident #docs | [2026-10](2026-10.md) |
+| U-20261008-07 | 2026-10-08 | The cloud pages describe FA_copy_between, not FA_cross_copy | #done #docs | [2026-10](2026-10.md) |
+| U-20261008-06 | 2026-10-08 | Event model, event bus and storage observers | #events #roadmap #storage | [2026-10](2026-10.md) |
+| U-20261008-05 | 2026-10-08 | Streams and directory trees in the storage layer | #storage #roadmap #streams | [2026-10](2026-10.md) |
+| U-20261008-04 | 2026-10-08 | Version directories stay short for long source paths | #done #versioning #windows | [2026-10](2026-10.md) |
+| U-20261008-03 | 2026-10-08 | FA_storage_* actions put the storage layer in the registry | #storage #roadmap #actions #mcp | [2026-10](2026-10.md) |
+| U-20261008-02 | 2026-10-08 | S3 and Azure Blob behind the storage layer | #storage #roadmap #s3 #azure | [2026-10](2026-10.md) |
+| U-20261008-01 | 2026-10-08 | Universal storage layer: contract, URIs, local and memory | #storage #roadmap #tests | [2026-10](2026-10.md) |
+| U-20261001-11 | 2026-10-01 | The publish jobs build with the locked setuptools | #done #ci #security #X-13 | [2026-10](2026-10.md) |
+| U-20261001-10 | 2026-10-01 | The publish jobs install hash-locked build tools | #done #ci #security #deps | [2026-10](2026-10.md) |
+| U-20261001-09 | 2026-10-01 | The source distributions stop carrying the tests | #done #packaging #tests | [2026-10](2026-10.md) |
+| U-20261001-08 | 2026-10-01 | The wheels stop installing the test suite | #done #packaging #tests | [2026-10](2026-10.md) |
+| U-20261001-07 | 2026-10-01 | CI publishes automation_file_dev from the dev branch | #release #ci #X-13 | [2026-10](2026-10.md) |
+| U-20261001-06 | 2026-10-01 | The TCP server moves to je_action_core | #migration #socket-server #L-6 | [2026-10](2026-10.md) |
+| U-20261001-05 | 2026-10-01 | X-12: no action command loads packages, so the gate stays off | #decision #security #X-12 | [2026-10](2026-10.md) |
+| U-20261001-04 | 2026-10-01 | je_action_core comes from PyPI | #done #build #L-6 | [2026-10](2026-10.md) |
+| U-20261001-03 | 2026-10-01 | Registry, executor pipeline and helpers move to je_action_core | #migration #executor #L-6 | [2026-10](2026-10.md) |
+| U-20261001-02 | 2026-10-01 | Workflow-timeout test failed CI lint (ruff B905) | #incident #ci | [2026-10](2026-10.md) |
+| U-20261001-01 | 2026-10-01 | Every workflow job has a timeout | #ci #tests | [2026-10](2026-10.md) |
+| U-20260925-03 | 2026-09-25 | Python classifiers list every version CI tests | #packaging #tests | [2026-09](2026-09.md) |
+| U-20260925-02 | 2026-09-25 | License metadata uses the SPDX expression in both channels | #packaging | [2026-09](2026-09.md) |
+| U-20260925-01 | 2026-09-25 | Dependabot waits 7 days before proposing a new release | #ci #security #deps | [2026-09](2026-09.md) |
 | U-20260924-02 | 2026-09-24 | Keep checkout credentials only in the job that pushes | #ci #security | [2026-09](2026-09.md) |
 | U-20260924-01 | 2026-09-24 | Move CI to Node 24 actions pinned by commit | #ci #security #deps | [2026-09](2026-09.md) |
 | U-20260923-11 | 2026-09-23 | cryptography and sphinx floors from Dependabot | #done #deps | [2026-09](2026-09.md) |
@@ -81,4 +133,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-09.md](2026-09.md) | 2026-09 | 18 |
+| [2026-10.md](2026-10.md) | 2026-10 | 44 |
+| [2026-09.md](2026-09.md) | 2026-09 | 21 |

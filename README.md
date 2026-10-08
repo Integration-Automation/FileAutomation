@@ -2,22 +2,30 @@
 
 **English** | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)
 
-A modular automation framework for local file / directory / ZIP operations,
-SSRF-validated HTTP downloads, remote storage (Google Drive, S3, Azure Blob,
-Dropbox, SFTP), and JSON-driven action execution over embedded TCP / HTTP
-servers. Ships with a PySide6 GUI that exposes every feature through tabs.
-All public functionality is re-exported from the top-level `automation_file`
-facade.
+FileAutomation is a universal file layer and data-pipeline runtime: one API for local and
+remote storage, file integrity monitoring, pipelines with retry and resume, scheduling,
+event-driven notifications, an audit trail, and automation through JSON actions, embedded
+TCP / HTTP servers and MCP. The object API (`File`, `Storage`, `Pipeline`, `IntegrityMonitor`)
+and the `FA_*` JSON actions are two faces of the same operations, and everything public is
+re-exported from the top-level `automation_file` facade. A desktop GUI organised by workflow
+and a read-only web UI are built on one application layer.
+
+```python
+from automation_file import File, IntegrityMonitor, Pipeline, Storage
+
+File("s3://reports/2026/q1.csv").copy_to("sftp://nas.example/archive/q1.csv")
+IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
+```
 
 - Local file / directory / ZIP operations with path traversal guard (`safe_join`)
 - Validated HTTP downloads with SSRF protections, retry, and size / time caps
 - Google Drive CRUD (upload, download, search, delete, share, folders)
-- First-class S3, Azure Blob, Dropbox, and SFTP backends — installed by default
+- S3, Azure Blob, Dropbox, SFTP and seven more remote backends, each installed with its own extra (`pip install "automation_file[s3]"`, or `[all]` for every one)
 - JSON action lists executed by a shared `ActionExecutor` — validate, dry-run, parallel
 - Loopback-first TCP **and** HTTP servers that accept JSON command batches with optional shared-secret auth
 - Reliability primitives: `retry_on_transient` decorator, `Quota` size / time budgets
 - **File-watcher triggers** — run an action list whenever a path changes (`FA_watch_*`)
-- **Cron scheduler** — recurring action lists on a stdlib-only 5-field parser (`FA_schedule_*`)
+- **Scheduler** — runs an action list or a pipeline when a trigger fires: cron with a time zone, a manual call, a file event, an event on the bus, or the end of another pipeline; every run is recorded with its state, overlap is refused by default, and a job can have a timeout and be cancelled (`FA_schedule_*`)
 - **Transfer progress + cancellation** — opt-in `progress_name` hook on HTTP and S3 transfers (`FA_progress_*`)
 - **Fast file search** — OS index fast path (`mdfind` / `locate` / `es.exe`) with a streaming `scandir` fallback (`FA_fast_find`)
 - **Checksums + integrity verification** — streaming `file_checksum` / `verify_checksum` with any `hashlib` algorithm; `download_file(expected_sha256=...)` verifies after transfer (`FA_file_checksum`, `FA_verify_checksum`)
@@ -32,13 +40,13 @@ facade.
 - **Config hot reload** — `ConfigWatcher` polls `automation_file.toml` and re-applies sinks / defaults on change without restart
 - **Shell / grep / JSON edit / tar / backup rotation** — `FA_run_shell` (argument-list subprocess with timeout), `FA_grep` (streaming text search), `FA_json_get` / `FA_json_set` / `FA_json_delete` (in-place JSON editing), `FA_create_tar` / `FA_extract_tar`, `FA_rotate_backups`
 - **FTP / FTPS backend** — plain FTP or explicit FTPS via `FTP_TLS.auth()`; auto-registered as `FA_ftp_*`
-- **Cross-backend copy** — `FA_copy_between` moves data between any two backends via `local://`, `s3://`, `azure://`, `dropbox://`, `sftp://`, `ftp://` URIs
+- **Cross-backend copy** — `FA_copy_between` copies a file between any two storage locations (`local://`, `s3://`, `azure://`, `gdrive://`, `dropbox://`, `sftp://`, `ftp://`, a mount, or an `http(s)://` source) on the storage layer; the older `s3:bucket/key` and `sftp:/path` spellings still work
 - **Scheduler overlap guard** — running jobs are skipped on the next fire unless `allow_overlap=True`
 - **Server action ACL** — `allowed_actions=(...)` restricts which commands TCP / HTTP servers will dispatch
 - **Variable substitution** — opt-in `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}` expansion in action arguments via `execute_action(..., substitute=True)`
 - **Conditional execution** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` run a nested action list only when a guard passes
 - **SQLite audit log** — `AuditLog(db_path)` records every action execution with actor / status / duration; query via `recent` / `count` / `purge`
-- **File integrity monitor** — `IntegrityMonitor` polls a tree against a manifest and fires a callback + notification on drift
+- **File integrity monitoring** — `IntegrityMonitor` keeps a versioned baseline of a tree in any storage backend, detects created / modified / deleted / renamed files and metadata or permission changes, publishes drift as an event, and quarantines or restores only when a policy asks for it
 - **HTTPActionClient SDK** — typed Python client for the HTTP action server with shared-secret auth, loopback guard, and OPTIONS-based ping
 - **AES-256-GCM file encryption** — `encrypt_file` / `decrypt_file` with `generate_key()` / `key_from_password()` (PBKDF2-HMAC-SHA256); JSON actions `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics exporter** — `start_metrics_server()` exposes `automation_file_actions_total{action,status}` counters and `automation_file_action_duration_seconds{action}` histograms
@@ -46,9 +54,16 @@ facade.
 - **SMB / CIFS backend** — `SMBClient` over `smbprotocol`'s high-level `smbclient` API; UNC-based, encrypted sessions by default
 - **fsspec bridge** — drive any `fsspec`-backed filesystem (memory, local, s3, gcs, abfs, …) through the action registry with `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` etc.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
-- **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
+- **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, pipeline runs, integrity, events, storage, audit, progress, registry) rendered from the application layer; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
-- PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
+- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `gdrive://…`, `sftp://…`, …), one `StorageBackend` contract and one error hierarchy; twelve backends are built in (local, in-memory, S3, Azure Blob, Google Drive, Dropbox, OneDrive, SFTP, FTP / FTPS, WebDAV, SMB, fsspec), and an 88-case contract suite checks any backend
+- **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
+- **Notification router** — routes decide which sinks hear about which events (by type, source and minimum severity), with deduplication and rate limiting per route; declare them in code, in `automation_file.toml` or with `FA_notify_route_*`
+- **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
+- **Pipelines** — `Pipeline` runs tasks (callables or `FA_*` actions) in dependency order, independent ones in parallel, with retry, timeout, cancellation, conditions, idempotency keys, checkpoint and resume, a dry run and an execution history; definitions in Python, YAML or JSON
+- **Semantic MCP tools** — fourteen tools with stable names (`file_read`, `file_copy`, `storage_list`, `pipeline_run`, `integrity_status`, `audit_search`, …) for AI hosts, confined to the roots you name, read-only until you allow writing, with a dry run for everything that changes something; the `FA_*` bridge stays available
+- PySide6 GUI (`python -m automation_file ui`) organised by workflow — Dashboard, Files, Storage, Pipelines (a visual editor), Scheduler, Integrity, Audit, Notifications, Settings — with the per-backend tools under Advanced
+- **Application layer** — `automation_file.app` has one plain-Python service per navigation entry; both user interfaces call it, and so can yours
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
 
@@ -117,7 +132,8 @@ flowchart TD
     end
 
     subgraph UI["<b>ui (PySide6)</b>"]
-        MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+        MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings · Advanced"]
+        AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
         Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
     end
 
@@ -146,6 +162,12 @@ flowchart TD
         Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
+    subgraph StorageLayer["<b>storage (universal layer)</b>"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// s3:// azure:// gdrive:// sftp:// …"]
+        Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
+        Backends["<b>StorageBackend</b> contract<br/>Local · Memory · S3 · Azure · Drive · Dropbox<br/>OneDrive · SFTP · FTP · WebDAV · SMB · fsspec"]
+    end
+
     subgraph Notify["<b>notifications</b>"]
         NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
         Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
@@ -167,6 +189,9 @@ flowchart TD
     Plugins ==> Loader
 
     MainWin ==> Worker
+    Worker ==> AppLayer
+    WebUI ==> AppLayer
+    AppLayer ==> PublicAPI
     Worker ==> PublicAPI
 
     PublicAPI ==> Executor
@@ -177,6 +202,21 @@ flowchart TD
     PublicAPI ==> NM
     PublicAPI ==> Trigger
     PublicAPI ==> Sched
+    PublicAPI ==> FileAPI
+    FileAPI ==> Resolver
+    Resolver ==> Backends
+    Backends ==> SafeP
+    Backends ==> Check
+    Backends ==> S3M
+    Backends ==> Azure
+    Backends ==> Drive
+    Backends ==> Dropbox
+    Backends ==> OneD
+    Backends ==> SFTP
+    Backends ==> FTP
+    Backends ==> WebDAV
+    Backends ==> SMB
+    Backends ==> Fsspec
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -268,6 +308,7 @@ flowchart TD
     classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
     classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
     classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+    classDef storage fill:#D4E6F1,stroke:#1A5276,stroke-width:3px,color:#000,font-weight:bold;
 
     class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
     class PublicAPI facade;
@@ -277,11 +318,12 @@ flowchart TD
     class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
     class Trigger,Sched event;
     class TCP,HTTPS,MCP,MetSrv,WebUI server;
-    class MainWin,Worker ui;
+    class MainWin,Worker,AppLayer ui;
     class FileOps,Archives,DataOps,TextOps,Misc localOps;
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
     class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+    class FileAPI,Resolver,Backends storage;
 
     linkStyle default stroke:#1F2A44,stroke-width:2.5px;
 ```
@@ -294,23 +336,46 @@ through the same shared registry instance exposed as `executor.registry`.
 ## Installation
 
 ```bash
-pip install automation_file
+pip install automation_file                 # the base: no cloud SDK, no GUI toolkit
+pip install "automation_file[s3,sftp]"      # add the backends you use
+pip install "automation_file[all]"          # every backend and the GUI
 ```
 
-A single install pulls in every backend (Google Drive, S3, Azure Blob, Dropbox,
-SFTP, OneDrive, Box) and the PySide6 GUI — no extras required for day-to-day use.
+The base install runs JSON actions, local file operations, HTTP downloads, the storage
+layer's local and in-memory backends, pipelines, events, triggers, the scheduler and the
+servers. Each backend's SDK and the GUI toolkit live in an extra, imported only when the
+feature is used. Calling a feature whose extra is missing raises
+`OptionalDependencyException` with the command to run.
+
+| Extra | Installs | Gives you |
+|---|---|---|
+| `s3` | `boto3` | S3 (`FA_s3_*`, `s3://`) |
+| `azure` | `azure-storage-blob` | Azure Blob (`FA_azure_blob_*`, `azure://`) |
+| `gdrive` | `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib` | Google Drive (`FA_drive_*`) |
+| `dropbox` | `dropbox` | Dropbox (`FA_dropbox_*`) |
+| `sftp` | `paramiko` | SFTP (`FA_sftp_*`) |
+| `ftp` | — | FTP / FTPS (`FA_ftp_*`); standard library only |
+| `webdav` | — | WebDAV (`WebDAVClient`); the base dependencies suffice |
+| `smb` | `smbprotocol` | SMB / CIFS (`SMBClient`) |
+| `fsspec` | `fsspec` | The fsspec bridge |
+| `onedrive` | `msal` | OneDrive (`FA_onedrive_*`) |
+| `box` | `boxsdk` | Box (`FA_box_*`) |
+| `parquet` | `pyarrow` | Parquet data operations (`FA_parquet_*`, `FA_csv_to_parquet`) |
+| `gui` | `PySide6` | The desktop GUI (`python -m automation_file ui`) |
+| `all` | everything above | Every backend and the GUI, as before the split |
 
 ```bash
-pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
+pip install "automation_file[all,dev]"   # plus ruff, mypy, pre-commit, pytest-cov, build, twine
 ```
+
+Upgrading from a release that bundled everything: install `automation_file[all]` to keep
+what you had.
 
 Requirements:
 - Python 3.10+
-- Bundled dependencies: `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`, `requests`,
-  `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`,
-  `paramiko`, `msal`, `boxsdk`, `PySide6`,
-  `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
-  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`
+- Base dependencies: `requests`, `tqdm`, `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
+  `PyYAML`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
+  shared with APITestka, LoadDensity and MailThunder)
 
 ## Usage
 
@@ -420,6 +485,221 @@ All backends (`s3`, `azure_blob`, `dropbox_api`, `sftp`) expose the same five
 operations: `upload_file`, `upload_dir`, `download_file`, `delete_*`, `list_*`.
 SFTP uses `paramiko.RejectPolicy` — unknown hosts are rejected, not auto-added.
 
+### Universal storage layer (File / Storage)
+One URI syntax, one set of operations and one set of errors for every storage.
+`File` is a single file, `Storage` a directory, and `StorageBackend` the contract a
+backend implements. The `FA_*` actions and the per-backend functions keep working
+unchanged next to it.
+
+```python
+from automation_file import File, LocalStorage, Storage
+
+report = File("local:///data/reports/q1.csv")      # a plain path works too
+report.write("region,total\nEMEA,42\n")
+report.size, report.modified_at, report.content_type
+report.checksum()                                   # Checksum("sha256", "…")
+report.copy_to("memory://scratch/archive/q1.csv")   # any backend to any backend
+report.move_to("local:///data/done/q1.csv")
+
+reports = Storage("local:///data/reports")
+for info in reports.list_dir(recursive=True):
+    print(info.path, info.size)
+
+# Confine untrusted paths: nothing under sandbox://jobs/ can leave /srv/jobs.
+Storage.mount("sandbox://jobs", LocalStorage("/srv/jobs"))
+File("sandbox://jobs/42/out.csv").write(b"done")
+```
+
+- **URIs** — `<scheme>://<authority>/<path>`: `local:///data/a.csv`, `s3://bucket/a.csv`,
+  `sftp://server/data/a.csv`. The path is literal (nothing is percent-decoded), `..` segments
+  are rejected, and credentials in the authority are refused. Text without `://` is a local path.
+- **Operations** — `exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`,
+  `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`, identical on every backend.
+  Downloads and local writes are atomic, deleting a directory with entries needs
+  `recursive=True`, and the storage root is never deleted.
+- **Streams and trees** — `File.open_read()` / `open_write()` / `iter_chunks()` for content too
+  large for memory; `Storage.copy_to(target)` copies a directory tree to any backend and
+  `Storage.sync_to(target, delete=False, checksum=False, dry_run=False)` copies only what changed.
+- **Errors** — `StorageException` and its subclasses: `StorageNotFoundException`,
+  `StorageAlreadyExistsException`, `StoragePathTypeException`, `StorageNotEmptyException`,
+  `StoragePermissionException`, `StorageTransientException`, `StorageUnavailableException`,
+  `StorageUnsupportedException`, `StorageURIException`.
+- **Backends** — twelve are built in. Addressed by URI through the shared clients you already
+  initialise: `local://`, `memory://`, `s3://bucket/key`, `azure://container/blob`, `gdrive://<root>/path`,
+  `dropbox:///path`, `onedrive:///path`, `sftp://host/path`, `ftp://host/path` and `ftps://host/path`.
+  Mounted, because they need a client or a filesystem of their own: `WebDAVStorage`, `SMBStorage` and
+  `FsspecStorage` (`Storage.mount("webdav://files.example.com", WebDAVStorage(client))`). Each remote
+  backend needs its extra (`pip install "automation_file[sftp]"`). An `sftp://` or `ftp://` URI must
+  name the host the session is connected to, so a typo cannot write to another server. Box has no
+  adapter and stays on its `FA_box_*` actions. Write your own by subclassing `StorageBackend`
+  (`ObjectStorage` for an object store, `SessionStorage` for a login session) and check it with the
+  88-case contract suite in `tests/storage_contract.py`.
+
+- **Actions** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
+  `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
+  `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
+  `FA_storage_write_text`, `FA_storage_copy_tree`, `FA_storage_sync`, `FA_storage_schemes`. They take URIs
+  as strings and return JSON-friendly values, so the layer works from action files, the CLI, the
+  TCP and HTTP servers and as MCP tools. Restrict them on a server with `ActionACL`, as for any
+  file action.
+
+```json
+[
+  ["FA_storage_copy", {"source": "s3://reports/q1.csv", "target": "local:///backup/q1.csv"}],
+  ["FA_storage_verify", {"uri": "local:///backup/q1.csv", "expected": "sha256:9f86d081884c7d65…"}],
+  ["FA_storage_list", {"uri": "s3://reports", "recursive": true}]
+]
+```
+
+The API is new and may still change before 1.0. Full reference: the *Universal Storage Layer*
+chapter of the documentation.
+
+### Events
+Every component reports through one event model instead of calling a sink or the audit log itself.
+
+```python
+from automation_file import Severity, actor_scope, correlation_scope, event_bus
+
+event_bus.subscribe(print, types=["pipeline.*", "integrity.violation"])
+event_bus.subscribe(alert, min_severity=Severity.ERROR)
+
+with actor_scope("scheduler"), correlation_scope() as run_id:
+    ...   # every event and storage operation in here carries run_id and the actor
+event_bus.recent(limit=20, correlation_id=run_id)
+```
+
+- **Core events** — `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`, `TaskStarted`,
+  `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
+  `SystemErrorEvent`. Each has a `type` (`pipeline.failed`), a `severity`, a `source`, a `subject`,
+  a structured `payload`, a `correlation_id` and an `actor`, and turns into JSON with `to_dict()`.
+- **Bus** — `event_bus.subscribe(handler, types=..., min_severity=...)` by class, type name or
+  prefix; a handler that raises is logged and skipped; `event_bus.recent()` returns the latest events.
+- **Storage operations** — uploads, downloads, reads, deletes, copies and moves are reported to
+  `automation_file.storage.observe` listeners, and a failing backend becomes a `StorageError` event.
+
+### Notification router
+Notifications are driven by events: a module publishes an event, and routes decide which
+sinks hear about it.
+
+```python
+from automation_file import Route, Severity, notification_router
+
+notification_router.add_route(Route(
+    "pipeline-failures",
+    sinks=("team-alerts",),                  # empty = every registered sink
+    types=("pipeline.*", "task.failed"),     # event class, type name or prefix
+    min_severity=Severity.ERROR,
+    dedup_seconds=600, rate_limit=10, rate_period=60,
+))
+notification_router.start()                  # subscribe on the event bus
+```
+
+- **Routes** — by event type, source and minimum severity, to named sinks. Declare them in
+  code, as `[[notify.routes]]` tables in `automation_file.toml` (hot-reloaded with the sinks),
+  or with `FA_notify_route_add` / `FA_notify_route_remove` / `FA_notify_route_list`.
+- **Deduplication and rate limiting** — per route and sink: a repeat of the same type, source
+  and subject within `dedup_seconds` is dropped, and at most `rate_limit` messages go out per
+  `rate_period`.
+- **Structured messages** — the subject and the body are built from the event: severity,
+  source, correlation ID, actor and the JSON of `event.to_dict()`. `critical` is sent at the
+  sinks' `error` level.
+- **Failure isolation** — one failing sink never affects another. The failure is published as
+  a `system.error` event from the source `notify`, which the router never routes, so a broken
+  sink cannot feed a loop.
+- **`notify_on_failure`** — always publishes an event. With the router active the routes
+  deliver it; otherwise the direct notification is sent as before, so nobody is notified twice
+  and nobody stops being notified.
+
+### Audit trail (schema v2)
+The audit trail records who did what, when, against which resource, using which backend and
+with what result: one record per event and per storage operation.
+
+```python
+from automation_file import audit_search, configure_audit, correlation_scope
+
+configure_audit("audit.sqlite")              # SQLite store; starts recording
+
+with correlation_scope() as run_id:
+    ...                                      # events and storage operations are recorded
+audit_search(correlation_id=run_id)          # the whole run, newest first
+audit_search(status="error", resource_prefix="s3://reports/", limit=20)
+```
+
+- **Record** — `id`, `timestamp` (UTC), `actor`, `source`, `pipeline`, `task`, `action`,
+  `resource`, `backend`, `status`, `duration_ms`, `error`, `metadata`, `correlation_id`.
+- **Search** — by `since` / `until`, `actor`, `source`, `pipeline`, `task`, `action`,
+  `resource_prefix`, `backend`, `status`, `correlation_id` and free `text`; newest first, with
+  `limit` / `offset`.
+- **Stores** — `SQLiteAuditStore` (parameterised SQL, a schema-version table, WAL) and
+  `MemoryAuditStore` for tests; `AuditStore` is the interface a PostgreSQL or remote store
+  implements. `SQLiteAuditStore.import_v1()` copies the rows of a v1 `AuditLog`.
+- **Never in the way** — a record that cannot be written is logged and dropped, never raised
+  into the code being audited. A failed storage operation is recorded once, not twice.
+- **Actions and metrics** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
+  `FA_audit_purge`; `install_operational_metrics()` adds Prometheus counters for events,
+  notifications and storage operations.
+
+### Pipelines
+
+`automation_file.pipeline` runs tasks in dependency order, with independent tasks
+in parallel, and records every step. A task is a Python callable or an `FA_*`
+action; a pipeline is built in Python or loaded from a YAML / JSON definition. A
+run reports only through `pipeline.*` and `task.*` events on the event bus.
+
+```python
+from automation_file import Pipeline, RetryPolicy, SQLiteRunStore
+
+def check(ctx):
+    if ctx.results["download"]["size"] == 0:
+        raise ValueError("the report is empty")
+
+pipeline = Pipeline("daily-report", max_workers=4)
+pipeline.task(
+    "download",
+    ["FA_storage_copy", {"source": "s3://input/${params.date}.csv",
+                         "target": "local:///tmp/report.csv"}],
+    retry=RetryPolicy(max_attempts=3, backoff_base=1.0, backoff_cap=30.0),
+    timeout=300.0,
+)
+pipeline.task("check", check, depends_on=["download"])
+pipeline.task(
+    "publish",
+    ["FA_storage_copy", {"source": "local:///tmp/report.csv",
+                         "target": "azure://reports/${params.date}.csv"}],
+    depends_on=["check"],
+    idempotency_key="publish-${params.date}",        # at most once per date
+)
+pipeline.task(
+    "withdraw",                                      # clean-up when publish failed
+    ["FA_storage_delete", {"uri": "azure://reports/${params.date}.csv",
+                           "missing_ok": True}],
+    depends_on=["publish"],
+    when="on_failure",
+)
+
+store = SQLiteRunStore("pipelines.db")
+run = pipeline.run(params={"date": "2026-10-08"}, store=store)
+if run.status != "succeeded":
+    run = pipeline.resume(run.run_id, store=store)   # keeps what succeeded
+```
+
+- **Retry, timeout, cancellation.** `RetryPolicy` retries transient errors with
+  capped exponential back-off; a task past its `timeout` is marked `timeout` and
+  the run goes on; `pipeline.start()` runs in the background and `run.cancel()`
+  stops it.
+- **Conditions and idempotency.** `when` is `on_success`, `on_failure`, `always`
+  or a callable; an `idempotency_key` skips a task that already succeeded under
+  the same key and reuses its result.
+- **Checkpoint, resume, history.** Every task transition is written to a
+  `RunStore` (`MemoryRunStore`, `SQLiteRunStore`); `resume(run_id)` runs only what
+  did not succeed, and `store.list_runs()` is the execution history.
+- **Definitions.** `Pipeline.from_file("daily-report.yaml")`, `from_dict` /
+  `to_dict`, `validate_definition()` with the path of every problem, and
+  `PIPELINE_SCHEMA` (JSON Schema). `run(dry_run=True)` plans without executing.
+- **Actions.** `FA_pipeline_run`, `FA_pipeline_validate`, `FA_pipeline_status`,
+  `FA_pipeline_history` and `FA_pipeline_resume` for JSON action lists, the CLI,
+  the action servers and MCP.
+
 ### File-watcher triggers
 Run an action list whenever a filesystem event fires on a watched path:
 
@@ -441,24 +721,59 @@ watch_stop("inbox-sweeper")
 `FA_watch_start` / `FA_watch_stop` / `FA_watch_stop_all` / `FA_watch_list`
 surface the same lifecycle to JSON action lists.
 
-### Cron scheduler
-Recurring action lists on a stdlib-only 5-field cron parser:
+### Scheduler
+
+`automation_file.scheduler` runs an action list or a pipeline when something fires
+it: a cron expression with a time zone, a file event, an event on the bus, the end
+of another pipeline's run, or a call. Every firing leaves a run record.
 
 ```python
-from automation_file import schedule_add
+from automation_file.scheduler import PipelineTrigger, scheduler
 
-schedule_add(
-    name="nightly-snapshot",
-    cron_expression="0 2 * * *",        # every day at 02:00 local time
-    action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                 "zip_name": "/backup/data_nightly"}]],
+scheduler.add(
+    "nightly-snapshot",
+    "0 2 * * *",                                 # every day at 02:00 ...
+    [["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                     "zip_name": "/backup/data_nightly"}]],
+    timezone="Asia/Taipei",                      # ... in Taipei; local time without it
+    timeout=1800,
 )
+
+# A pipeline that declares `schedule: {cron: "0 2 * * *", timezone: Asia/Taipei}`
+scheduler.add_pipeline("pipelines/daily-report.yaml",
+                       params={"date": "${date:%Y-%m-%d}"}, timeout=3600)
+# ... and one that runs whenever daily-report has succeeded
+scheduler.add_pipeline("pipelines/publish-summary.yaml",
+                       triggers=PipelineTrigger("daily-report"))
+
+run = scheduler.run_now("nightly-snapshot")      # fire by hand
+run.wait(600)
+scheduler.history(state="failed", limit=10)      # the latest failed runs
 ```
 
-Supports `*`, exact values, `a-b` ranges, comma lists, and `*/n` step
-syntax with `jan..dec` / `sun..sat` aliases. JSON actions:
-`FA_schedule_add`, `FA_schedule_remove`, `FA_schedule_remove_all`,
-`FA_schedule_list`.
+- **Triggers.** `CronTrigger` (5 fields, optional IANA time zone), `FileTrigger`
+  (a watched path), `EventTrigger` (a type, a prefix or a source on the event bus,
+  which is also how a webhook that publishes an event fires a job),
+  `PipelineTrigger` (after another pipeline: `on_success`, `on_failure`,
+  `always`), and `run_now` for a job fired by hand. A job may have several.
+- **Run records.** Every firing is a `JobRun` in one of seven states:
+  `scheduled`, `started`, `completed`, `failed`, `skipped`, `timeout`,
+  `cancelled`, with UTC times, the trigger, the error and a correlation ID.
+  `scheduler.history(job, state, limit)` returns the latest, newest first.
+- **Overlap, timeout, cancellation.** A firing that meets a run still in progress
+  is recorded as `skipped` unless the job has `allow_overlap=True`. A run past its
+  `timeout` is recorded as `timeout` and told to stop; `scheduler.cancel(name)`
+  does the same on request. A pipeline stops through its cancellation token, an
+  action list before its next action.
+- **Time zones.** Zone names come from `zoneinfo` (on Windows: `pip install
+  tzdata`; `UTC` needs nothing). A local time that does not exist on a
+  daylight-saving day is not fired, and one that occurs twice fires once.
+- **Failures are events.** A run that fails or times out is published as
+  `scheduler.error`; route it to a sink with the notification router.
+- **Actions.** `FA_schedule_add`, `FA_schedule_job`, `FA_schedule_pipeline`,
+  `FA_schedule_run`, `FA_schedule_cancel`, `FA_schedule_history`,
+  `FA_schedule_list`, `FA_schedule_remove` and `FA_schedule_remove_all` for JSON
+  action lists, the CLI, the action servers and MCP.
 
 ### Transfer progress + cancellation
 HTTP and S3 transfers accept an opt-in `progress_name` kwarg:
@@ -639,10 +954,10 @@ password = "${file:smtp_password}"
 ```
 
 ```python
-from automation_file import AutomationConfig, notification_manager
+from automation_file import AutomationConfig, notification_manager, notification_router
 
 config = AutomationConfig.load("automation_file.toml")
-config.apply_to(notification_manager)
+config.apply_to(notification_manager, notification_router)   # sinks, and [[notify.routes]]
 ```
 
 Unresolved `${…}` references raise `SecretNotFoundException` rather than
@@ -695,26 +1010,45 @@ for row in audit.recent(limit=50):
     print(row["timestamp"], row["action"], row["status"])
 ```
 
-### File integrity monitor
-Poll a tree against a manifest and fire a callback + notification on drift:
+### File integrity monitoring
+`IntegrityMonitor` checks that a directory tree, in any storage backend, is still what was
+approved: it stores a baseline, compares the tree with it, and publishes every drift as an event.
 
 ```python
-from automation_file import IntegrityMonitor, notification_manager, write_manifest
+from automation_file import IntegrityMonitor
 
-write_manifest("/srv/site", "/srv/MANIFEST.json")
-
-mon = IntegrityMonitor(
-    root="/srv/site",
-    manifest_path="/srv/MANIFEST.json",
-    interval=60.0,
-    manager=notification_manager,
-    on_drift=lambda summary: print("drift:", summary),
-)
-mon.start()
+monitor = IntegrityMonitor("s3://reports/2026",
+                           baseline="local:///var/lib/fa/reports-2026.json")
+monitor.create_baseline()        # approve what is there now
+report = monitor.verify()        # hashes every file; verify(deep=False) is the quick pass
+if not report.ok:
+    print(report.counts)         # {'created': 0, 'modified': 1, 'deleted': 0, ...}
+    monitor.accept(report)       # after review: approve what the report saw
+monitor.start()                  # continuous mode: verify every `interval` seconds
+handle = monitor.watch()         # or react to changes as they happen; handle.stop() ends it
 ```
 
-Manifest-load errors are surfaced as drift so tamper and config issues
-aren't silently different code paths.
+- **Four modes** — `snapshot()`, `verify()`, `watch()` (filesystem events for a local target,
+  polling for any other backend) and continuous `start()` / `stop()`.
+- **Six kinds of change** — `created`, `modified`, `deleted`, `renamed`, `metadata_changed` and
+  `permission_changed`, in a `DriftReport` with counts per kind and `to_dict()`.
+- **Baseline anywhere** — a versioned JSON manifest at any storage URI, written atomically; the
+  `write_manifest` format is still read. SHA-256 by default, `sha512` and `blake2b` on request,
+  `md5` and `sha1` only with `allow_weak=True`.
+- **Events and opt-in remediation** — one `IntegrityViolation` per verification that finds drift
+  (`error` when something was modified or deleted, `warning` for additions and metadata). The
+  monitor only reads unless a `RemediationPolicy` tells it to quarantine or to restore from a
+  mirror, which it verifies by checksum.
+- **Actions** — `FA_integrity_snapshot`, `FA_integrity_baseline`, `FA_integrity_verify`,
+  `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`,
+  `FA_integrity_status`.
+
+Code written for the first monitor keeps working: `IntegrityMonitor(root=..., manifest_path=...,
+interval=..., manager=..., on_drift=...)` reads a manifest written by `write_manifest`, `check_once()`
+returns the same summary, and the notification still goes through `manager` or, when none is passed,
+the process-wide `notification_manager`. While the notification router is active its routes deliver the
+`IntegrityViolation` event in place of that direct notification, so one drift is not announced twice;
+`notify=False` turns the direct notification off altogether.
 
 ### AES-256-GCM file encryption
 Authenticated encryption with a self-describing envelope. Derive a key from
@@ -794,44 +1128,88 @@ curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 spec
 
 ### HTMX Web UI
 A read-only observability dashboard built on stdlib HTTP + HTMX (loaded from
-a pinned CDN URL with SRI). Loopback-only by default; optional shared secret:
+a pinned CDN URL with SRI) and rendered from the application layer, so it shows
+what the desktop window shows. Loopback-only by default; optional shared secret:
 
 ```python
 from automation_file import start_web_ui
 
 server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
-# Browse http://127.0.0.1:9955/ — health, progress, and registry fragments
-# auto-poll every few seconds. Write operations stay on the action servers.
+# Browse http://127.0.0.1:9955/ — health, pipeline runs, integrity, recent
+# events, storage, audit, progress and registry fragments poll every few
+# seconds. Everything is escaped and secrets are masked. Write operations stay
+# on the action servers.
 ```
 
 ### MCP (Model Context Protocol) server
-Expose every registered `FA_*` action to an MCP host (Claude Desktop, MCP
-CLIs) over JSON-RPC 2.0 on stdio:
+
+`MCPServer` speaks MCP over stdio (JSON-RPC 2.0), so an AI client such as Claude
+Desktop or Claude Code can work with files through this library. It offers
+fourteen **semantic tools** bound to a permission policy, and, for compatibility,
+the **bridge** that exposes every registered `FA_*` action as a tool.
+
+```bash
+# Read-only access to one directory, semantic tools only
+python -m automation_file mcp --root /srv/reports --no-bridge
+
+# Two locations, writing allowed, pipeline definitions kept on disk
+python -m automation_file mcp --root s3://reports-export/daily --root /srv/outbox \
+    --allow-write --pipeline-dir /var/lib/automation_file/pipelines --no-bridge
+```
 
 ```python
 from automation_file import MCPServer
+from automation_file.server.mcp_policy import MCPPolicy
+from automation_file.server.mcp_tools import SemanticToolkit
 
-MCPServer().serve_stdio()          # reads JSON-RPC from stdin, writes to stdout
+policy = MCPPolicy(roots=["s3://reports-export/daily", "sftp://sftp.example.com/inbound"],
+                   allow_write=True, allow_delete=True)
+MCPServer(policy=policy, bridge=False).serve_stdio()      # blocks until stdin closes
+
+# The same tools without JSON-RPC, for tests and embedding
+toolkit = SemanticToolkit(MCPPolicy(roots=["/srv/reports"], allow_write=True))
+outcome = toolkit.call(
+    "file_copy",
+    {"source": "/srv/reports/in/a.csv", "target": "/srv/reports/out/a.csv", "dry_run": True},
+)
+outcome.is_error, outcome.payload["overwrites"], outcome.correlation_id
 ```
 
-`pip install` exposes an `automation_file_mcp` console script (via
-`[project.scripts]`) so MCP hosts can launch the bridge without any Python
-glue. Three equivalent launch styles:
+- **Fourteen stable tools.** `file_read`, `file_write`, `file_copy`, `file_move`,
+  `file_search`, `file_checksum`, `file_verify`, `storage_list`, `storage_copy`,
+  `pipeline_create`, `pipeline_run`, `pipeline_status`, `integrity_status` and
+  `audit_search`. They take storage URIs, have hand-written input schemas, and
+  answer with one JSON document.
+- **Safe defaults.** No location is allowed until `--root` names one; the server is
+  read-only until `--allow-write`; replacing a file and deleting (a move deletes
+  its source) need `--allow-overwrite` and `--allow-delete`. Reads, listings,
+  searches and written content are capped (`--max-read-bytes`, `--max-results`,
+  `--max-search-bytes`, `--max-write-bytes`).
+- **Roots that hold.** A local root is served by a `LocalStorage` confined to it,
+  so a symbolic link or an absolute path that leaves it is refused by `safe_join`.
+  Other backends are compared by scheme, authority and whole path segments:
+  `s3://bucket/team` does not allow `s3://bucket/team-b`.
+- **Dry run.** Every tool that changes something takes `dry_run` and returns what it
+  would do: source, target, sizes, whether something would be replaced.
+- **Pipelines under the policy.** A pipeline created or run through MCP may call
+  only the `FA_storage_*` actions the permissions cover, in guarded versions that
+  check the roots when each task runs. `--pipeline-actions` lists other actions
+  explicitly; `FA_run_shell` is never available unless it is listed.
+- **Traceable.** Each call runs under a correlation ID and an `mcp` actor and is
+  published as `mcp.tool.completed` or `mcp.tool.failed`, so `audit_search` returns
+  what a call did and a notification route can alert on refusals and failures.
+- **The `FA_*` bridge.** On by default, as before, with `--allowed-actions` to
+  narrow it. The policy does not bind it: use `--no-bridge` for an AI client.
 
-```bash
-automation_file_mcp                                      # installed console script
-python -m automation_file mcp                            # CLI subcommand
-python examples/mcp/run_mcp.py                           # standalone launcher
-```
+`pip install` provides the `automation_file_mcp` console script, which takes the
+same flags as `python -m automation_file mcp`. See the
+[MCP manual](docs/source/Eng/usage/mcp.rst) for the permission model, the example
+workflow (S3 to SFTP, verified, audited, alert on failure) and the security
+guidance, and [`examples/mcp/`](examples/mcp) for host configurations.
 
-All three accept `--name`, `--version`, and `--allowed-actions` (comma-
-separated whitelist — strongly recommended since the default registry
-includes high-privilege actions like `FA_run_shell`). See
-[`examples/mcp/`](examples/mcp) for ready-to-copy Claude Desktop config.
+Suggested feature bullet:
 
-Tool descriptors are generated on the fly by introspecting each action's
-signature — parameter names and types become a JSON schema, so hosts can
-render fields without any manual wiring.
+- **MCP (Model Context Protocol) server** — `MCPServer` serves fourteen semantic tools (`file_read`, `file_copy`, `pipeline_run`, `audit_search`, ...) bound to a permission policy with allowed roots, read-only defaults and dry run, next to the bridge that exposes every `FA_*` action, over newline-delimited JSON-RPC 2.0 on stdio
 
 ### DAG action executor
 Run actions in dependency order; independent branches fan out across a
@@ -888,6 +1266,7 @@ break the library.
 
 ### GUI
 ```bash
+pip install "automation_file[gui]"
 python -m automation_file ui        # or: python main_ui.py
 ```
 
@@ -896,8 +1275,60 @@ from automation_file import launch_ui
 launch_ui()
 ```
 
-Tabs: Home, Local, Transfer, Progress, JSON actions, Triggers, Scheduler,
-Servers. A persistent log panel at the bottom streams every result and error.
+The window is organised by workflow. The sidebar has nine pages, each a view
+over one service of the application layer:
+
+| Page | What you do there |
+|---|---|
+| **Dashboard** | Health, running and recent pipeline runs, integrity drift, recent events, storage status |
+| **Files** | Browse a storage URI, preview a file, copy, move, delete, create a directory |
+| **Storage** | See which backends can be used (and the `pip install` command when an extra is missing); mount a local directory |
+| **Pipelines** | Visual editor: drag actions onto a canvas, connect tasks, edit parameters, validate, dry-run, test one task, run, resume, retry, follow the run |
+| **Scheduler** | List, add and remove cron jobs |
+| **Integrity** | Baseline, verify and accept a tree; start and stop monitors |
+| **Audit** | Point the audit trail at a database; search and count records |
+| **Notifications** | Registered sinks, routes, a test message |
+| **Settings** | Preview and apply `automation_file.toml`; installed extras; environment |
+
+**Advanced** keeps the earlier tabs unchanged: Local, Transfer (one panel per
+backend, where a cloud client gets its credentials), Progress, JSON actions,
+Triggers and Servers.
+
+In the pipeline editor, two tasks are connected by selecting the upstream one,
+`Ctrl`-clicking the dependent one and pressing **Connect**; the order of the
+selection is the direction of the arrow. Node positions are saved next to the
+definition (`<file>.layout.json`), never in it.
+
+A log panel at the bottom records every action and its outcome, and no page
+shows a token, a password or a webhook URL. Background work runs on
+`QThreadPool` through `ActionWorker`, so the window stays responsive.
+
+### Application layer
+`automation_file.app` is what a user interface calls: one plain-Python service
+per navigation entry, with no GUI toolkit and no backend SDK imported. The
+PySide6 window and the Web UI are both built on it, so they show the same state,
+and a third interface needs nothing else.
+
+```python
+from automation_file.app import app_services
+
+services = app_services()
+services.dashboard.summary().status                 # "ok" or "attention"
+services.files.list_dir("s3://reports/2026")
+services.storage.backends()                         # usable? missing extra? install hint
+
+draft = services.pipelines.new_draft("nightly")
+draft.add_task("FA_storage_copy", "download",
+               arguments={"source": "s3://in/a.csv", "target": "local:///tmp/a.csv"})
+services.pipelines.validate(draft)                  # [] or problems, each with its path
+run = services.pipelines.start(draft)               # background; returns at once
+services.pipelines.status(run["run_id"])["status"]
+```
+
+Services return dataclasses, dictionaries and lists that JSON can hold, mask
+secrets in them, and raise `FileAutomationException` subclasses.
+`build_services(ServiceOptions(...))` builds a private set on another run
+store, event bus or resolver.
 
 ### Scaffold an executor-based project
 ```python
@@ -921,6 +1352,20 @@ python -m automation_file drive-upload my.txt --token token.json --credentials c
 python -m automation_file mcp --allowed-actions FA_file_checksum,FA_fast_find
 automation_file_mcp --allowed-actions FA_file_checksum,FA_fast_find  # installed console script
 
+# Storage layer: ls, stat, cat, cp, mv, rm, mkdir, sync, checksum, verify, schemes (JSON output)
+python -m automation_file storage ls s3://reports/2026 --recursive
+python -m automation_file storage cp report.csv s3://reports/2026/report.csv
+python -m automation_file storage sync ./site s3://www --delete --dry-run
+python -m automation_file storage checksum s3://reports/2026/q1.csv
+
+# Integrity, pipelines and the audit trail (JSON output; exit code 1 on drift or a failed run)
+python -m automation_file integrity baseline s3://reports/2026 reports.baseline.json
+python -m automation_file integrity verify s3://reports/2026 reports.baseline.json
+python -m automation_file pipeline run daily.yaml --param date=2026-10-08 --store runs.db
+python -m automation_file pipeline history --store runs.db
+python -m automation_file pipeline --audit audit.sqlite run daily.yaml --store runs.db
+python -m automation_file audit search --db audit.sqlite --status error --limit 20
+
 # Legacy flags (JSON action lists)
 python -m automation_file --execute_file actions.json
 python -m automation_file --execute_dir ./actions/
@@ -940,6 +1385,43 @@ Each entry is either a bare command name, a `[name, kwargs]` pair, or a
   ["FA_drive_search_all_file"]
 ]
 ```
+
+## Deployment
+
+The scheduler, the integrity monitors, the notification router, the audit trail and the servers are
+threads of the process that starts them, so a production deployment is one script under your service
+manager: load the configuration, point the audit trail and the pipeline run store at SQLite files,
+initialise the backends, start what should run, and keep every server on the loopback interface behind
+a shared secret and an action allow list. The manual chapter *Deploying to production*
+(`docs/source/Eng/usage/deployment.rst`) has the script, a systemd unit, what to back up, what to
+watch and how to upgrade.
+
+## Tests
+
+```bash
+pip install -e ".[all,test]"
+python -m pytest tests/                 # unit tests; a backend whose extra is missing is skipped
+
+# The storage contract against a real service in a container (needs Docker)
+eval "$(bash tests/integration/start_service.sh s3)"   # or azure, sftp, ftp, webdav, smb
+python -m pytest tests/integration/test_s3_minio.py
+```
+
+The integration tests are skipped unless their `FA_IT_*` variables are set; see the manual chapter
+*Integration tests*.
+
+## Compatibility
+
+Releases follow semantic versioning. The public surface is everything in `automation_file.__all__`
+and in the `__all__` of the documented packages, the `FA_*` actions, the command line, the storage
+URI syntax, the data formats (each carries a schema version) and the event types. Until 1.0 the
+storage layer, the event bus, pipelines, the integrity monitor, the audit trail, the notification
+router and the semantic MCP tools are provisional: they may still change in a minor release, and
+the release notes say how. A deprecated name keeps working for at least two minor releases, warns
+with its replacement, and is removed only in a major release. The full policy is in the manual:
+*Public API and compatibility* (`docs/source/Eng/usage/api_policy.rst`). Coming from 0.0.x: nothing was
+removed, the cloud SDKs moved into extras (`pip install "automation_file[all]"`), and *Migrating to 1.0*
+(`docs/source/Eng/usage/migration.rst`) lists the few behaviours that changed.
 
 ## Documentation
 

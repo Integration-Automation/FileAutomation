@@ -32,10 +32,14 @@ root (Docker / K8s style):
 
 .. code-block:: python
 
-   from automation_file import AutomationConfig, notification_manager
+   from automation_file import AutomationConfig, notification_manager, notification_router
 
    config = AutomationConfig.load("automation_file.toml")
-   config.apply_to(notification_manager)
+   config.apply_to(notification_manager, notification_router)
+
+``apply_to`` registers the sinks. Given the router as well, it also applies the
+``[[notify.routes]]`` tables and starts the router when the file declares a route
+(:doc:`notifications`); without it the routes are validated and not applied.
 
 Unresolved ``${…}`` references raise
 :class:`~automation_file.SecretNotFoundException` rather than silently

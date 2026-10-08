@@ -7,13 +7,11 @@ import socket
 
 import pytest
 
-from automation_file.server.tcp_server import (
-    _END_MARKER,
-    start_autocontrol_socket_server,
-)
+from automation_file.server.tcp_server import start_autocontrol_socket_server
 from tests._insecure_fixtures import ipv4
 
 _HOST = "127.0.0.1"
+_END_MARKER = b"Return_Data_Over_JE\n"
 
 
 def _free_port() -> int:

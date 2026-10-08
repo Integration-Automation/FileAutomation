@@ -14,6 +14,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # about 3x the slowest recent run, at least 15
     if: "!contains(github.event.head_commit.message, 'chore: bump version')"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -26,50 +27,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      # This job holds the PyPI token, so its tools are hash-locked and wheels only.
+      # .github/requirements/publish.in says how publish.txt is generated.
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+          python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt
 
-      - name: Bump patch version in stable.toml and dev.toml
+      # A patch release unless the pull request raised MAJOR or MINOR in stable.toml and dev.toml.
+      # scripts/stable_release.py says how the two are told apart.
+      - name: Pick the release version in stable.toml and dev.toml
         id: bump
-        run: |
-          python <<'EOF'
-          import os
-          import pathlib
-          import re
-
-          def bump(path: pathlib.Path) -> str:
-              text = path.read_text(encoding="utf-8")
-              match = re.search(r'^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"', text, re.MULTILINE)
-              if not match:
-                  raise SystemExit(f"Could not find version in {path}")
-              major, minor, patch = (int(part) for part in match.groups())
-              new_version = f"{major}.{minor}.{patch + 1}"
-              new_text = re.sub(
-                  r'^(version\s*=\s*)"\d+\.\d+\.\d+"',
-                  rf'\1"{new_version}"',
-                  text,
-                  count=1,
-                  flags=re.MULTILINE,
-              )
-              path.write_text(new_text, encoding="utf-8")
-              return new_version
-
-          stable_version = bump(pathlib.Path("stable.toml"))
-          dev_version = bump(pathlib.Path("dev.toml"))
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"new_version={stable_version}\n")
-              output.write(f"dev_version={dev_version}\n")
-          print(f"stable.toml -> {stable_version}")
-          print(f"dev.toml    -> {dev_version}")
-          EOF
+        run: python scripts/stable_release.py bump
 
       - name: Use stable.toml as pyproject.toml
         run: cp stable.toml pyproject.toml
 
+      # --no-isolation: the backend is the setuptools locked in publish.txt, not a fresh download.
       - name: Build distribution
-        run: python -m build
+        run: python -m build --no-isolation
 
       - name: Publish to PyPI
         env:

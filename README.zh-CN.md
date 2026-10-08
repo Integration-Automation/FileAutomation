@@ -2,20 +2,28 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | **简体中文**
 
-一套模块化的自动化框架，涵盖本地文件 / 目录 / ZIP 操作、经 SSRF 验证的 HTTP
-下载、远程存储（Google Drive、S3、Azure Blob、Dropbox、SFTP），以及通过内嵌
-TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功能都有对应
-页签。所有公开 API 均由顶层 `automation_file` facade 统一导出。
+FileAutomation 是通用的文件层与数据流水线运行环境：以同一套 API 访问本地与远端存储，并提供
+文件完整性监控、具备重试与续跑能力的流水线、调度、事件驱动的通知、审计轨迹，以及通过 JSON
+动作、内嵌 TCP / HTTP 服务器与 MCP 进行的自动化。对象 API（`File`、`Storage`、`Pipeline`、
+`IntegrityMonitor`）与 `FA_*` JSON 动作是同一组操作的两种面貌，所有公开名称均由顶层
+`automation_file` facade 统一导出。另附按工作流组织的桌面 GUI 与只读的 Web UI，两者建立在同一个应用层之上。
+
+```python
+from automation_file import File, IntegrityMonitor, Pipeline, Storage
+
+File("s3://reports/2026/q1.csv").copy_to("sftp://nas.example/archive/q1.csv")
+IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
+```
 
 - 本地文件 / 目录 / ZIP 操作，内置路径穿越防护（`safe_join`）
 - 经 SSRF 验证的 HTTP 下载，支持重试与大小 / 时间上限
 - Google Drive CRUD（上传、下载、搜索、删除、分享、文件夹）
-- 一等公民的 S3、Azure Blob、Dropbox、SFTP 后端 — 默认安装
+- S3、Azure Blob、Dropbox、SFTP 以及另外七种远端后端，各自通过对应的 extra 安装（`pip install "automation_file[s3]"`，或通过 `[all]` 一次安装全部）
 - JSON 动作清单由共享的 `ActionExecutor` 执行 — 支持验证、干跑、并行
 - Loopback 优先的 TCP **与** HTTP 服务器，接受 JSON 指令批量并可选 shared-secret 验证
 - 可靠性原语：`retry_on_transient` 装饰器、`Quota` 大小 / 时间预算
 - **文件监听触发** — 当路径变动时执行动作清单（`FA_watch_*`）
-- **Cron 调度器** — 仅用标准库的 5 字段解析器执行周期性动作清单（`FA_schedule_*`）
+- **调度器** — 在触发条件成立时运行动作列表或流水线：带时区的 cron、手动调用、文件事件、总线上的事件，或另一条流水线结束；每次运行都会记录状态，默认拒绝重叠运行，作业可以设置超时并可取消（`FA_schedule_*`）
 - **传输进度 + 取消** — HTTP 与 S3 传输可选的 `progress_name` 钩子（`FA_progress_*`）
 - **快速文件搜索** — OS 索引快速路径（`mdfind` / `locate` / `es.exe`）搭配流式 `scandir` 回退（`FA_fast_find`）
 - **校验和 + 完整性验证** — 流式 `file_checksum` / `verify_checksum`，支持任何 `hashlib` 算法；`download_file(expected_sha256=...)` 在下载完成后立即验证（`FA_file_checksum`、`FA_verify_checksum`）
@@ -30,13 +38,13 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **配置热加载** — `ConfigWatcher` 轮询 `automation_file.toml`，变更时即时应用 sink / 默认值,无需重启
 - **Shell / grep / JSON 编辑 / tar / 备份轮转** — `FA_run_shell`(参数列表式 subprocess,含超时)、`FA_grep`(流式文本搜索)、`FA_json_get` / `FA_json_set` / `FA_json_delete`(原地 JSON 编辑)、`FA_create_tar` / `FA_extract_tar`、`FA_rotate_backups`
 - **FTP / FTPS 后端** — 纯 FTP 或通过 `FTP_TLS.auth()` 的显式 FTPS;自动注册为 `FA_ftp_*`
-- **跨后端复制** — `FA_copy_between` 通过 `local://`、`s3://`、`azure://`、`dropbox://`、`sftp://`、`ftp://` URI 在任意两个后端之间搬运数据
+- **跨后端复制** — `FA_copy_between` 建立在存储层之上，在任意两个存储位置之间复制文件（`local://`、`s3://`、`azure://`、`gdrive://`、`dropbox://`、`sftp://`、`ftp://`、挂载点，或以 `http(s)://` 作为来源）；旧的 `s3:bucket/key` 与 `sftp:/path` 写法仍然可用
 - **调度器重叠防护** — 正在执行的作业在下次触发时会被跳过,除非显式传入 `allow_overlap=True`
 - **服务器动作 ACL** — `allowed_actions=(...)` 限制 TCP / HTTP 服务器可派发的命令
 - **变量替换** — 动作参数中可选使用 `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}`,通过 `execute_action(..., substitute=True)` 展开
 - **条件执行** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` 仅在路径守卫通过时执行嵌套动作清单
 - **SQLite 审计日志** — `AuditLog(db_path)` 为每个动作记录 actor / status / duration;通过 `recent` / `count` / `purge` 查询
-- **文件完整性监控** — `IntegrityMonitor` 按 manifest 轮询整棵树,检测到 drift 时触发 callback + 通知
+- **文件完整性监控** — `IntegrityMonitor` 为任何存储后端中的目录树保存带版本的基准，检测新增、修改、删除、重命名以及元数据或权限的变更，把偏移发布为事件，并且只在策略要求时才隔离或还原
 - **HTTPActionClient SDK** — HTTP 动作服务器的类型化 Python 客户端,具 shared-secret 认证、loopback 守护与 OPTIONS ping
 - **AES-256-GCM 文件加密** — `encrypt_file` / `decrypt_file` 搭配 `generate_key()` / `key_from_password()`(PBKDF2-HMAC-SHA256);JSON 动作 `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics 导出器** — `start_metrics_server()` 提供 `automation_file_actions_total{action,status}` 计数器与 `automation_file_action_duration_seconds{action}` 直方图
@@ -44,9 +52,16 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **SMB / CIFS 后端** — `SMBClient` 基于 `smbprotocol` 的高阶 `smbclient` API；采用 UNC 路径，默认启用加密会话
 - **fsspec 桥接** — 通过 `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` 等函数，驱动任何 `fsspec` 支持的文件系统（memory、local、s3、gcs、abfs、…）
 - **HTTP 服务器观测端点** — `GET /healthz` / `GET /readyz` 探针、`GET /openapi.json` 规格，以及 `GET /progress`（通过 WebSocket 推送实时传输快照）
-- **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
+- **HTMX Web UI** — `start_web_ui()` 启动只读仪表板（health、流水线运行、完整性、事件、存储、审计、progress、registry），由应用层渲染；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
-- PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
+- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置十二种后端（本地、内存、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），并附带 88 个用例的契约测试套件可检查任何后端
+- **事件总线** — 单一 `Event` 模型与十种核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具备严重程度、关联 ID 与 actor；可以在 `event_bus` 上按类、type 或前缀订阅
+- **通知路由器** — 以路由决定哪些事件（按类型、来源与最低严重程度）发送到哪些 sink，每条路由各自去重与限流；可在代码、`automation_file.toml` 或通过 `FA_notify_route_*` 声明
+- **审计轨迹** — `configure_audit(path)` 为每个事件与每次存储操作记录一条（actor、来源、pipeline、task、动作、资源、后端、状态、耗时、关联 ID），可用 `audit_search` / `FA_audit_search` 查询
+- **流水线（Pipeline）** — `Pipeline` 按依赖顺序执行任务（可调用对象或 `FA_*` 动作），互不依赖者并行执行，并支持重试、超时、取消、条件、幂等键、检查点与续跑、试运行以及执行历史；定义可以用 Python、YAML 或 JSON 编写
+- **语义化 MCP 工具** — 提供给 AI 宿主的十四个名称稳定的工具（`file_read`、`file_copy`、`storage_list`、`pipeline_run`、`integrity_status`、`audit_search` 等），仅限于你指定的根位置，在你允许写入之前均为只读，所有会变更内容的工具都支持试运行；`FA_*` 桥接仍然保留
+- PySide6 GUI（`python -m automation_file ui`）按工作流组织——Dashboard、Files、Storage、Pipelines（可视化编辑器）、Scheduler、Integrity、Audit、Notifications、Settings——各后端专属的工具放在 Advanced 之下
+- **应用层** — `automation_file.app` 为导航中的每个条目提供一个普通的 Python 服务；两种用户界面都调用它，你的界面也可以
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
 
@@ -115,7 +130,8 @@ flowchart TD
     end
 
     subgraph UI["<b>ui (PySide6)</b>"]
-        MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+        MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings · Advanced"]
+        AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
         Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
     end
 
@@ -144,6 +160,12 @@ flowchart TD
         Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
+    subgraph StorageLayer["<b>通用存储层</b>"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// s3:// azure:// gdrive:// sftp:// …"]
+        Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
+        Backends["<b>StorageBackend</b> contract<br/>Local · Memory · S3 · Azure · Drive · Dropbox<br/>OneDrive · SFTP · FTP · WebDAV · SMB · fsspec"]
+    end
+
     subgraph Notify["<b>通知</b>"]
         NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
         Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
@@ -165,6 +187,9 @@ flowchart TD
     Plugins ==> Loader
 
     MainWin ==> Worker
+    Worker ==> AppLayer
+    WebUI ==> AppLayer
+    AppLayer ==> PublicAPI
     Worker ==> PublicAPI
 
     PublicAPI ==> Executor
@@ -175,6 +200,21 @@ flowchart TD
     PublicAPI ==> NM
     PublicAPI ==> Trigger
     PublicAPI ==> Sched
+    PublicAPI ==> FileAPI
+    FileAPI ==> Resolver
+    Resolver ==> Backends
+    Backends ==> SafeP
+    Backends ==> Check
+    Backends ==> S3M
+    Backends ==> Azure
+    Backends ==> Drive
+    Backends ==> Dropbox
+    Backends ==> OneD
+    Backends ==> SFTP
+    Backends ==> FTP
+    Backends ==> WebDAV
+    Backends ==> SMB
+    Backends ==> Fsspec
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -266,6 +306,7 @@ flowchart TD
     classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
     classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
     classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+    classDef storage fill:#D4E6F1,stroke:#1A5276,stroke-width:3px,color:#000,font-weight:bold;
 
     class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
     class PublicAPI facade;
@@ -275,11 +316,12 @@ flowchart TD
     class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
     class Trigger,Sched event;
     class TCP,HTTPS,MCP,MetSrv,WebUI server;
-    class MainWin,Worker ui;
+    class MainWin,Worker,AppLayer ui;
     class FileOps,Archives,DataOps,TextOps,Misc localOps;
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
     class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+    class FileAPI,Resolver,Backends storage;
 
     linkStyle default stroke:#1F2A44,stroke-width:2.5px;
 ```
@@ -292,23 +334,44 @@ flowchart TD
 ## 安装
 
 ```bash
-pip install automation_file
+pip install automation_file                 # 基础安装：不含云端 SDK，也不含 GUI 工具包
+pip install "automation_file[s3,sftp]"      # 加上你会用到的后端
+pip install "automation_file[all]"          # 所有后端与 GUI
 ```
 
-单次安装即涵盖所有后端（Google Drive、S3、Azure Blob、Dropbox、SFTP、OneDrive、Box）以及
-PySide6 GUI — 日常使用不需要任何 extras。
+基础安装即可运行 JSON 动作、本地文件操作、HTTP 下载、存储层的本地与内存后端、pipeline、
+事件、触发器、调度器与各种服务器。各后端的 SDK 与 GUI 工具包都放在 extra 中，只有在用到该
+功能时才会导入。调用缺少 extra 的功能时，会抛出 `OptionalDependencyException`，信息中附有
+要执行的安装命令。
+
+| Extra | 安装的包 | 提供的功能 |
+|---|---|---|
+| `s3` | `boto3` | S3（`FA_s3_*`、`s3://`） |
+| `azure` | `azure-storage-blob` | Azure Blob（`FA_azure_blob_*`、`azure://`） |
+| `gdrive` | `google-api-python-client`、`google-auth-httplib2`、`google-auth-oauthlib` | Google Drive（`FA_drive_*`） |
+| `dropbox` | `dropbox` | Dropbox（`FA_dropbox_*`） |
+| `sftp` | `paramiko` | SFTP（`FA_sftp_*`） |
+| `ftp` | — | FTP / FTPS（`FA_ftp_*`）；只需要标准库 |
+| `webdav` | — | WebDAV（`WebDAVClient`）；基础依赖已足够 |
+| `smb` | `smbprotocol` | SMB / CIFS（`SMBClient`） |
+| `fsspec` | `fsspec` | fsspec 桥接 |
+| `onedrive` | `msal` | OneDrive（`FA_onedrive_*`） |
+| `box` | `boxsdk` | Box（`FA_box_*`） |
+| `parquet` | `pyarrow` | Parquet 数据操作（`FA_parquet_*`、`FA_csv_to_parquet`） |
+| `gui` | `PySide6` | 桌面 GUI（`python -m automation_file ui`） |
+| `all` | 以上全部 | 所有后端与 GUI，与拆分之前相同 |
 
 ```bash
-pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
+pip install "automation_file[all,dev]"   # 另含 ruff、mypy、pre-commit、pytest-cov、build、twine
 ```
+
+从先前包含所有包的版本升级时：安装 `automation_file[all]` 即可保留原有的全部功能。
 
 要求：
 - Python 3.10+
-- 内置依赖：`google-api-python-client`、`google-auth-httplib2`、`google-auth-oauthlib`、`requests`、
-  `tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、
-  `paramiko`、`msal`、`boxsdk`、`PySide6`、
-  `watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
-  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`
+- 基础依赖：`requests`、`tqdm`、`watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
+  `PyYAML`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`（与 APITestka、
+  LoadDensity、MailThunder 共用的 action 执行器）
 
 ## 使用方式
 
@@ -418,6 +481,209 @@ execute_action([
 `upload_file`、`upload_dir`、`download_file`、`delete_*`、`list_*`。
 SFTP 使用 `paramiko.RejectPolicy` — 未知主机会被拒绝，不会自动加入。
 
+### 通用存储层（File / Storage）
+每一种存储都使用同一套 URI 语法、同一组操作和同一组异常。`File` 代表单个文件，
+`Storage` 代表目录，`StorageBackend` 则是后端需要实现的契约。`FA_*` 动作以及各后端原有的
+函数完全不变，可以与本层同时使用。
+
+```python
+from automation_file import File, LocalStorage, Storage
+
+report = File("local:///data/reports/q1.csv")      # 也可以直接写普通路径
+report.write("region,total\nEMEA,42\n")
+report.size, report.modified_at, report.content_type
+report.checksum()                                   # Checksum("sha256", "…")
+report.copy_to("memory://scratch/archive/q1.csv")   # 任何后端到任何后端
+report.move_to("local:///data/done/q1.csv")
+
+reports = Storage("local:///data/reports")
+for info in reports.list_dir(recursive=True):
+    print(info.path, info.size)
+
+# 限制不受信任的路径：sandbox://jobs/ 之下的任何东西都离不开 /srv/jobs。
+Storage.mount("sandbox://jobs", LocalStorage("/srv/jobs"))
+File("sandbox://jobs/42/out.csv").write(b"done")
+```
+
+- **URI** — `<scheme>://<authority>/<path>`：`local:///data/a.csv`、`s3://bucket/a.csv`、
+  `sftp://server/data/a.csv`。路径按字面理解（不做百分号解码），`..` 段会被拒绝，
+  authority 中的凭据也会被拒绝。不含 `://` 的文本视为本地路径。
+- **操作** — `exists`、`stat`、`list_dir`、`mkdir`、`upload`、`download`、`delete`、
+  `checksum`、`read_bytes`、`write_bytes`、`copy_from`、`move_from`，在每个后端上都相同。
+  下载与本地写入均为原子操作，删除内有条目的目录需要 `recursive=True`，存储的根目录
+  永远不会被删除。
+- **流与目录树** — `File.open_read()` / `open_write()` / `iter_chunks()` 用于大到放不进内存的
+  内容；`Storage.copy_to(target)` 把整个目录树复制到任何后端，
+  `Storage.sync_to(target, delete=False, checksum=False, dry_run=False)` 只复制有变动的部分。
+- **异常** — `StorageException` 及其子类：`StorageNotFoundException`、
+  `StorageAlreadyExistsException`、`StoragePathTypeException`、`StorageNotEmptyException`、
+  `StoragePermissionException`、`StorageTransientException`、`StorageUnavailableException`、
+  `StorageUnsupportedException`、`StorageURIException`。
+- **后端** — 内置十二种。可以直接用 URI 访问、并使用你原本就会初始化的共用客户端的有：`local://`、
+  `memory://`、`s3://bucket/key`、`azure://container/blob`、`gdrive://<root>/path`、`dropbox:///path`、
+  `onedrive:///path`、`sftp://host/path`、`ftp://host/path` 与 `ftps://host/path`。需要自己的客户端或
+  文件系统、因此以挂载方式使用的有：`WebDAVStorage`、`SMBStorage` 与 `FsspecStorage`
+  （`Storage.mount("webdav://files.example.com", WebDAVStorage(client))`）。每个远端后端都需要对应的
+  extra（`pip install "automation_file[sftp]"`）。`sftp://` 或 `ftp://` URI 必须写出会话实际连接
+  的主机，打错字就不会写到另一台服务器。Box 没有适配器，仍使用它的 `FA_box_*` 动作。你可以继承
+  `StorageBackend`（对象存储继承 `ObjectStorage`，登录会话继承 `SessionStorage`）编写自己的后端，
+  并用 `tests/storage_contract.py` 中 88 个用例的契约测试套件检查。
+
+- **动作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
+  `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
+  `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
+  `FA_storage_write_text`, `FA_storage_copy_tree`, `FA_storage_sync`, `FA_storage_schemes`。它们以字符串
+  形式接收 URI，并返回可以序列化为 JSON 的值，因此本层可用于动作文件、CLI、TCP 与 HTTP 服务器，
+  也能作为 MCP 工具。在服务器上请像其他文件动作一样用 `ActionACL` 加以限制。
+
+```json
+[
+  ["FA_storage_copy", {"source": "s3://reports/q1.csv", "target": "local:///backup/q1.csv"}],
+  ["FA_storage_verify", {"uri": "local:///backup/q1.csv", "expected": "sha256:9f86d081884c7d65…"}],
+  ["FA_storage_list", {"uri": "s3://reports", "recursive": true}]
+]
+```
+
+此 API 为新功能，在 1.0 之前仍可能调整。完整说明请见文档的“通用存储层”章节。
+
+### 事件
+每个组件都通过同一套事件模型报告，而不是自行调用通知接收端或审计记录。
+
+```python
+from automation_file import Severity, actor_scope, correlation_scope, event_bus
+
+event_bus.subscribe(print, types=["pipeline.*", "integrity.violation"])
+event_bus.subscribe(alert, min_severity=Severity.ERROR)
+
+with actor_scope("scheduler"), correlation_scope() as run_id:
+    ...   # 这里面的每个事件与存储操作都带有 run_id 与 actor
+event_bus.recent(limit=20, correlation_id=run_id)
+```
+
+- **核心事件** — `PipelineStarted`、`PipelineCompleted`、`PipelineFailed`、`TaskStarted`、
+  `TaskCompleted`、`TaskFailed`、`IntegrityViolation`、`StorageError`、`SchedulerError`、
+  `SystemErrorEvent`。每个事件都有 `type`（`pipeline.failed`）、`severity`、`source`、`subject`、
+  结构化的 `payload`、`correlation_id` 与 `actor`，并可以用 `to_dict()` 转成 JSON。
+- **总线** — `event_bus.subscribe(handler, types=..., min_severity=...)` 可以按类、type 名称或
+  前缀订阅；处理函数抛出异常时只会被记录并跳过；`event_bus.recent()` 返回最近的事件。
+- **存储操作** — 上传、下载、读取、删除、复制与移动都会报告给
+  `automation_file.storage.observe` 的监听者，后端失败时会产生 `StorageError` 事件。
+
+### 通知路由器
+通知改由事件驱动：模块发布事件，再由路由决定哪些 sink 会收到。
+
+```python
+from automation_file import Route, Severity, notification_router
+
+notification_router.add_route(Route(
+    "pipeline-failures",
+    sinks=("team-alerts",),                  # 留空 = 所有已注册的 sink
+    types=("pipeline.*", "task.failed"),     # 事件类、type 名称或前缀
+    min_severity=Severity.ERROR,
+    dedup_seconds=600, rate_limit=10, rate_period=60,
+))
+notification_router.start()                  # 在事件总线上订阅
+```
+
+- **路由** — 按事件 type、来源与最低严重程度，送往指定名称的 sink。可以在代码中声明、
+  在 `automation_file.toml` 以 `[[notify.routes]]` 表声明（与 sink 一起热重载），或使用
+  `FA_notify_route_add` / `FA_notify_route_remove` / `FA_notify_route_list`。
+- **去重与速率限制** — 以每条路由、每个 sink 为单位：type、来源与主题都相同的事件在
+  `dedup_seconds` 内重复出现时会被丢弃，每个 `rate_period` 内最多送出 `rate_limit` 条消息。
+- **结构化消息** — 主题与正文由事件组成：严重程度、来源、关联 ID、actor 以及
+  `event.to_dict()` 的 JSON。`critical` 会以 sink 的 `error` 级别发送。
+- **失败隔离** — 单个 sink 失败绝对不会影响其他 sink。失败会以来源为 `notify` 的
+  `system.error` 事件发布，而路由器绝对不会路由这类事件，因此故障的 sink 不会形成循环。
+- **`notify_on_failure`** — 总是会发布事件。路由器工作时由路由投递；否则照旧直接发送通知，
+  因此不会有人收到两次，也不会有人收不到。
+
+### 审计轨迹（schema v2）
+审计轨迹记录谁在什么时候做了什么、对象是哪个资源、使用哪个后端以及结果如何：每个事件与
+每次存储操作各一条记录。
+
+```python
+from automation_file import audit_search, configure_audit, correlation_scope
+
+configure_audit("audit.sqlite")              # SQLite 存储库；开始记录
+
+with correlation_scope() as run_id:
+    ...                                      # 事件与存储操作都会被记录
+audit_search(correlation_id=run_id)          # 整次运行，最新的在前
+audit_search(status="error", resource_prefix="s3://reports/", limit=20)
+```
+
+- **记录** — `id`、`timestamp`（UTC）、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource`、`backend`、`status`、`duration_ms`、`error`、`metadata`、`correlation_id`。
+- **搜索** — 可以按 `since` / `until`、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource_prefix`、`backend`、`status`、`correlation_id` 与自由文本 `text` 筛选；最新的
+  在前，并支持 `limit` / `offset`。
+- **存储库** — `SQLiteAuditStore`（参数化 SQL、模式版本表、WAL）与测试用的
+  `MemoryAuditStore`；`AuditStore` 是 PostgreSQL 或远程存储库要实现的接口。
+  `SQLiteAuditStore.import_v1()` 可以复制 v1 `AuditLog` 的行。
+- **绝不碍事** — 无法写入的记录只会被记录到日志并丢弃，绝对不会抛进被审计的代码。失败的
+  存储操作只记录一次，不会重复。
+- **动作与指标** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
+  `FA_audit_purge`；`install_operational_metrics()` 会加入事件、通知与存储操作的
+  Prometheus 计数器。
+
+### 流水线（Pipeline）
+
+`automation_file.pipeline` 按依赖顺序执行任务，互不依赖的任务并行执行，并记录每一个
+步骤。任务可以是 Python 可调用对象或 `FA_*` 动作；流水线可以用 Python 构建，也可以从
+YAML / JSON 定义载入。一次运行只通过事件总线上的 `pipeline.*` 与 `task.*` 事件报告。
+
+```python
+from automation_file import Pipeline, RetryPolicy, SQLiteRunStore
+
+def check(ctx):
+    if ctx.results["download"]["size"] == 0:
+        raise ValueError("the report is empty")
+
+pipeline = Pipeline("daily-report", max_workers=4)
+pipeline.task(
+    "download",
+    ["FA_storage_copy", {"source": "s3://input/${params.date}.csv",
+                         "target": "local:///tmp/report.csv"}],
+    retry=RetryPolicy(max_attempts=3, backoff_base=1.0, backoff_cap=30.0),
+    timeout=300.0,
+)
+pipeline.task("check", check, depends_on=["download"])
+pipeline.task(
+    "publish",
+    ["FA_storage_copy", {"source": "local:///tmp/report.csv",
+                         "target": "azure://reports/${params.date}.csv"}],
+    depends_on=["check"],
+    idempotency_key="publish-${params.date}",        # 同一个日期最多一次
+)
+pipeline.task(
+    "withdraw",                                      # publish 失败时清理
+    ["FA_storage_delete", {"uri": "azure://reports/${params.date}.csv",
+                           "missing_ok": True}],
+    depends_on=["publish"],
+    when="on_failure",
+)
+
+store = SQLiteRunStore("pipelines.db")
+run = pipeline.run(params={"date": "2026-10-08"}, store=store)
+if run.status != "succeeded":
+    run = pipeline.resume(run.run_id, store=store)   # 保留已成功的部分
+```
+
+- **重试、超时、取消。** `RetryPolicy` 以有上限的指数退避重试暂时性错误；超过
+  `timeout` 的任务会被标记为 `timeout`，运行则继续进行；`pipeline.start()` 在后台
+  运行，`run.cancel()` 可以停止它。
+- **条件与幂等。** `when` 可以是 `on_success`、`on_failure`、`always` 或可调用对象；
+  `idempotency_key` 会跳过已经以相同的键成功过的任务，并沿用它的结果。
+- **检查点、续跑、历史。** 任务的每一次状态转换都会写入 `RunStore`
+  （`MemoryRunStore`、`SQLiteRunStore`）；`resume(run_id)` 只执行尚未成功的部分，
+  `store.list_runs()` 就是运行历史。
+- **定义文件。** `Pipeline.from_file("daily-report.yaml")`、`from_dict` / `to_dict`、
+  会报告每一项问题路径的 `validate_definition()`，以及 `PIPELINE_SCHEMA`
+  （JSON Schema）。`run(dry_run=True)` 只规划而不执行。
+- **动作。** `FA_pipeline_run`、`FA_pipeline_validate`、`FA_pipeline_status`、
+  `FA_pipeline_history` 与 `FA_pipeline_resume`，可用于 JSON 动作列表、CLI、动作
+  服务器与 MCP。
+
 ### 文件监听触发
 每当被监听路径发生文件系统事件，就执行动作清单：
 
@@ -439,23 +705,58 @@ watch_stop("inbox-sweeper")
 `FA_watch_start` / `FA_watch_stop` / `FA_watch_stop_all` / `FA_watch_list`
 让 JSON 动作清单能使用相同的生命周期。
 
-### Cron 调度器
-以纯标准库的 5 字段 cron 解析器执行周期性动作清单：
+### 调度器（Scheduler）
+
+`automation_file.scheduler` 会在某件事触发时执行一份动作列表或一条流水线：带时区的
+cron 表达式、文件事件、事件总线上的事件、另一条流水线的运行结束，或是一次调用。每一次
+触发都会留下一条运行记录。
 
 ```python
-from automation_file import schedule_add
+from automation_file.scheduler import PipelineTrigger, scheduler
 
-schedule_add(
-    name="nightly-snapshot",
-    cron_expression="0 2 * * *",        # 每天本地时间 02:00
-    action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                 "zip_name": "/backup/data_nightly"}]],
+scheduler.add(
+    "nightly-snapshot",
+    "0 2 * * *",                                 # 每天 02:00 ...
+    [["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                     "zip_name": "/backup/data_nightly"}]],
+    timezone="Asia/Taipei",                      # ... 台北时间；不给就是本地时间
+    timeout=1800,
 )
+
+# 声明了 `schedule: {cron: "0 2 * * *", timezone: Asia/Taipei}` 的流水线
+scheduler.add_pipeline("pipelines/daily-report.yaml",
+                       params={"date": "${date:%Y-%m-%d}"}, timeout=3600)
+# ... 以及每当 daily-report 成功就运行的流水线
+scheduler.add_pipeline("pipelines/publish-summary.yaml",
+                       triggers=PipelineTrigger("daily-report"))
+
+run = scheduler.run_now("nightly-snapshot")      # 手动触发
+run.wait(600)
+scheduler.history(state="failed", limit=10)      # 最近失败的运行
 ```
 
-支持 `*`、确切值、`a-b` 范围、逗号列表、`*/n` 步进语法，以及 `jan..dec` /
-`sun..sat` 别名。JSON 动作：`FA_schedule_add`、`FA_schedule_remove`、
-`FA_schedule_remove_all`、`FA_schedule_list`。
+- **触发器。** `CronTrigger`（5 个字段，可选的 IANA 时区）、`FileTrigger`（被监听的
+  路径）、`EventTrigger`（事件总线上的 type、前缀或来源；发布事件的 webhook 也是
+  这样触发作业的）、`PipelineTrigger`（在另一条流水线之后：`on_success`、
+  `on_failure`、`always`），以及用来手动触发作业的 `run_now`。一个作业可以有好几个
+  触发器。
+- **运行记录。** 每一次触发都是一个 `JobRun`，状态是七种之一：`scheduled`、
+  `started`、`completed`、`failed`、`skipped`、`timeout`、`cancelled`，并带有 UTC
+  时间、触发器、错误与关联 ID。`scheduler.history(job, state, limit)` 返回最近的
+  记录，最新的在前。
+- **重叠、超时、取消。** 遇到仍在进行中的运行时，触发会记录为 `skipped`，除非作业
+  设置了 `allow_overlap=True`。超过 `timeout` 的运行会记录为 `timeout` 并被要求
+  停止；`scheduler.cancel(name)` 则是按要求这么做。流水线通过它的取消令牌停止，动作
+  列表则在下一个动作之前停止。
+- **时区。** 时区名称来自 `zoneinfo`（Windows 上请 `pip install tzdata`；`UTC` 不
+  需要任何东西）。在夏令时切换的日子，不存在的本地时间不会触发，出现两次的本地时间
+  只触发一次。
+- **失败就是事件。** 失败或超时的运行会发布成 `scheduler.error`；请用通知路由器把
+  它送到 sink。
+- **动作。** `FA_schedule_add`、`FA_schedule_job`、`FA_schedule_pipeline`、
+  `FA_schedule_run`、`FA_schedule_cancel`、`FA_schedule_history`、
+  `FA_schedule_list`、`FA_schedule_remove` 与 `FA_schedule_remove_all`，可用于 JSON
+  动作列表、CLI、动作服务器与 MCP。
 
 ### 传输进度 + 取消
 HTTP 与 S3 传输支持可选的 `progress_name` 关键字参数：
@@ -629,10 +930,10 @@ password = "${file:smtp_password}"
 ```
 
 ```python
-from automation_file import AutomationConfig, notification_manager
+from automation_file import AutomationConfig, notification_manager, notification_router
 
 config = AutomationConfig.load("automation_file.toml")
-config.apply_to(notification_manager)
+config.apply_to(notification_manager, notification_router)   # sinks, and [[notify.routes]]
 ```
 
 未解析的 `${…}` 引用会抛出 `SecretNotFoundException`，而不是默默变成空
@@ -685,25 +986,42 @@ for row in audit.recent(limit=50):
 ```
 
 ### 文件完整性监控
-按 manifest 轮询整棵树,检测到 drift 时触发 callback + 通知:
+`IntegrityMonitor` 检查任何存储后端中的目录树是否仍然是当初批准的样子：它存储基线、拿目录树与
+基线比较，并把每一次偏移以事件的形式发布。
 
 ```python
-from automation_file import IntegrityMonitor, notification_manager, write_manifest
+from automation_file import IntegrityMonitor
 
-write_manifest("/srv/site", "/srv/MANIFEST.json")
-
-mon = IntegrityMonitor(
-    root="/srv/site",
-    manifest_path="/srv/MANIFEST.json",
-    interval=60.0,
-    manager=notification_manager,
-    on_drift=lambda summary: print("drift:", summary),
-)
-mon.start()
+monitor = IntegrityMonitor("s3://reports/2026",
+                           baseline="local:///var/lib/fa/reports-2026.json")
+monitor.create_baseline()        # 批准当前的内容
+report = monitor.verify()        # 对每个文件计算哈希；verify(deep=False) 是快速验证
+if not report.ok:
+    print(report.counts)         # {'created': 0, 'modified': 1, 'deleted': 0, ...}
+    monitor.accept(report)       # 审查之后：批准这份报告所看到的状态
+monitor.start()                  # 持续模式：每隔 `interval` 秒验证一次
+handle = monitor.watch()         # 或在变更发生时即时响应；handle.stop() 结束监视
 ```
 
-加载 manifest 时的错误也会被视为 drift,让篡改与配置问题走同一条处理
-路径。
+- **四种模式** — `snapshot()`、`verify()`、`watch()`（本地目标使用文件系统事件，其他后端使用
+  轮询）以及持续模式的 `start()` / `stop()`。
+- **六种变更** — `created`、`modified`、`deleted`、`renamed`、`metadata_changed` 与
+  `permission_changed`，汇总在带有各种类数量与 `to_dict()` 的 `DriftReport` 中。
+- **基线可放在任何地方** — 位于任意存储 URI、带有版本的 JSON manifest，以原子方式写入；仍可读取
+  `write_manifest` 的格式。默认使用 SHA-256，可改用 `sha512` 与 `blake2b`，`md5` 与 `sha1` 只有在
+  `allow_weak=True` 时才能使用。
+- **事件与需显式开启的补救** — 每一次发现偏移的验证发布一个 `IntegrityViolation`（有东西被修改
+  或删除时为 `error`，新增与元数据变更为 `warning`）。除非以 `RemediationPolicy` 要求隔离，
+  或要求从镜像还原（会以校验码验证），否则监控器只会读取。
+- **动作** — `FA_integrity_snapshot`、`FA_integrity_baseline`、`FA_integrity_verify`、
+  `FA_integrity_accept`、`FA_integrity_watch_start`、`FA_integrity_watch_stop`、
+  `FA_integrity_status`。
+
+为第一代监控器写的代码照常工作：`IntegrityMonitor(root=..., manifest_path=..., interval=...,
+manager=..., on_drift=...)` 会读取 `write_manifest` 写出的 manifest，`check_once()` 返回同样的摘要，
+通知也仍然通过 `manager` 发送，没有传入时则使用整个进程共用的 `notification_manager`。通知路由器
+启用期间改由路由送达 `IntegrityViolation` 事件，不再另外直接通知，同一次偏移不会被通知两次；
+`notify=False` 会完全关闭这项直接通知。
 
 ### AES-256-GCM 文件加密
 带认证的加密与自描述封包格式。可由密码派生密钥或直接生成密钥:
@@ -780,42 +1098,82 @@ curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 规格
 ```
 
 ### HTMX Web UI
-基于标准库 HTTP + HTMX（以带 SRI 的固定 CDN URL 加载）构建的只读观测仪表板。
-默认仅允许 loopback，可选 shared-secret：
+基于标准库 HTTP + HTMX（以带 SRI 的固定 CDN URL 加载）构建的只读观测仪表板，由应用层
+渲染，所以它显示的就是桌面窗口显示的内容。默认仅允许 loopback，可选 shared-secret：
 
 ```python
 from automation_file import start_web_ui
 
 server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
-# 浏览 http://127.0.0.1:9955/ —— health、progress、registry 片段每几秒
-# 自动轮询一次；写入操作仍然保留在动作服务器。
+# 浏览 http://127.0.0.1:9955/ —— health、流水线运行、完整性、最近的事件、存储、
+# 审计、progress、registry 片段每几秒自动轮询一次。所有内容都经过转义，机密信息
+# 都已屏蔽；写入操作仍然保留在动作服务器。
 ```
 
 ### MCP（Model Context Protocol）服务器
-通过 stdio 上的 JSON-RPC 2.0 把每个已注册的 `FA_*` 动作暴露给 MCP 主机
-（Claude Desktop、MCP CLI）：
+
+`MCPServer` 通过 stdio 上的 JSON-RPC 2.0 提供 MCP，让 Claude Desktop 或 Claude Code
+这类 AI 客户端可以通过本库处理文件。它提供十四个受权限策略约束的 **语义工具**，
+并且为了兼容，保留把每个已注册的 `FA_*` 动作暴露为工具的 **桥接**。
+
+```bash
+# 对单个目录的只读访问，只提供语义工具
+python -m automation_file mcp --root /srv/reports --no-bridge
+
+# 两个位置、允许写入、流水线定义存放在磁盘上
+python -m automation_file mcp --root s3://reports-export/daily --root /srv/outbox \
+    --allow-write --pipeline-dir /var/lib/automation_file/pipelines --no-bridge
+```
 
 ```python
 from automation_file import MCPServer
+from automation_file.server.mcp_policy import MCPPolicy
+from automation_file.server.mcp_tools import SemanticToolkit
 
-MCPServer().serve_stdio()          # 从 stdin 读取 JSON-RPC，写入 stdout
+policy = MCPPolicy(roots=["s3://reports-export/daily", "sftp://sftp.example.com/inbound"],
+                   allow_write=True, allow_delete=True)
+MCPServer(policy=policy, bridge=False).serve_stdio()      # 阻塞到 stdin 关闭为止
+
+# 不经 JSON-RPC 使用同一组工具，适合测试与嵌入
+toolkit = SemanticToolkit(MCPPolicy(roots=["/srv/reports"], allow_write=True))
+outcome = toolkit.call(
+    "file_copy",
+    {"source": "/srv/reports/in/a.csv", "target": "/srv/reports/out/a.csv", "dry_run": True},
+)
+outcome.is_error, outcome.payload["overwrites"], outcome.correlation_id
 ```
 
-`pip install` 后，`[project.scripts]` 会提供 `automation_file_mcp` console
-script，MCP 主机无需编写 Python glue 即可启动桥接器。三种等价的启动方式：
+- **十四个名称稳定的工具。** `file_read`、`file_write`、`file_copy`、`file_move`、
+  `file_search`、`file_checksum`、`file_verify`、`storage_list`、`storage_copy`、
+  `pipeline_create`、`pipeline_run`、`pipeline_status`、`integrity_status` 与
+  `audit_search`。它们接受存储 URI，输入 schema 为手写，并以一份 JSON 文档响应。
+- **安全的默认值。** 在 `--root` 指定位置之前不允许任何位置；在 `--allow-write` 之前
+  服务器是只读的；替换文件与删除（移动会删除来源）分别需要 `--allow-overwrite` 与
+  `--allow-delete`。读取、列表、搜索与写入的内容都有上限（`--max-read-bytes`、
+  `--max-results`、`--max-search-bytes`、`--max-write-bytes`）。
+- **守得住的根位置。** 本地根位置由限制在其内的 `LocalStorage` 提供服务，所以离开它的
+  符号链接或绝对路径会被 `safe_join` 拒绝。其他后端按 scheme、authority 与完整的路径
+  段比较：`s3://bucket/team` 不会允许 `s3://bucket/team-b`。
+- **试运行。** 每个会改动东西的工具都接受 `dry_run`，并返回它将会做的事：来源、目标、
+  大小、是否会替换什么。
+- **受策略约束的流水线。** 通过 MCP 创建或运行的流水线只能调用权限所涵盖的
+  `FA_storage_*` 动作，而且是受防护的版本，会在每个任务运行时检查根位置。
+  `--pipeline-actions` 可以显式列出其他动作；`FA_run_shell` 除非被列出，否则永远
+  无法使用。
+- **可追溯。** 每次调用都带有关联 ID 与 `mcp` actor，并发布为 `mcp.tool.completed` 或
+  `mcp.tool.failed`，所以 `audit_search` 能返回某次调用做了什么，通知路由也能在拒绝与
+  失败时发出告警。
+- **`FA_*` 桥接。** 和以前一样默认开启，可用 `--allowed-actions` 缩小范围。策略不约束
+  它：面对 AI 客户端请使用 `--no-bridge`。
 
-```bash
-automation_file_mcp                                      # 已安装的 console script
-python -m automation_file mcp                            # CLI 子命令
-python examples/mcp/run_mcp.py                           # 独立启动脚本
-```
+`pip install` 会提供 `automation_file_mcp` 控制台脚本，它接受与
+`python -m automation_file mcp` 相同的命令行参数。权限模型、示例流程（S3 到 SFTP、
+验证、审计、失败时告警）与安全指引请见 [MCP 手册](docs/source/Zh-CN/usage/mcp.rst)，
+宿主的配置示例请见 [`examples/mcp/`](examples/mcp)。
 
-三者都支持 `--name`、`--version`、`--allowed-actions`（逗号分隔白名单——
-强烈建议使用，因为默认注册表包含 `FA_run_shell` 等高权限动作）。可直接复制的
-Claude Desktop 示例配置请见 [`examples/mcp/`](examples/mcp)。
+建议的功能条目：
 
-工具描述符在运行时由动作签名自动生成——参数名称与类型会转换为 JSON schema，
-主机无需任何手动配置即可渲染字段。
+- **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上以换行分隔的 JSON-RPC 2.0，提供十四个受权限策略约束的语义工具（`file_read`、`file_copy`、`pipeline_run`、`audit_search` ……；允许的根位置、默认只读、试运行），以及把每个 `FA_*` 动作暴露为工具的桥接
 
 ### DAG 动作执行器
 按依赖顺序执行动作；独立分支通过线程池并行展开。每个节点的形式为
@@ -869,6 +1227,7 @@ execute_action([["FA_greet", {"name": "world"}]])
 
 ### GUI
 ```bash
+pip install "automation_file[gui]"
 python -m automation_file ui        # 或：python main_ui.py
 ```
 
@@ -877,8 +1236,54 @@ from automation_file import launch_ui
 launch_ui()
 ```
 
-页签：Home、Local、Transfer、Progress、JSON actions、Triggers、Scheduler、
-Servers。底部常驻的 log 面板实时流式输出每一笔结果与错误。
+窗口按工作流组织。侧边栏有九个页面，每个都是应用层某一个服务的视图：
+
+| 页面 | 在这里做什么 |
+|---|---|
+| **Dashboard** | 健康状态、运行中与最近的流水线运行、完整性漂移、最近的事件、存储状态 |
+| **Files** | 浏览存储 URI、预览文件、复制、移动、删除、创建目录 |
+| **Storage** | 查看哪些后端可用（缺少 extra 时会显示 `pip install` 命令）；挂载本地目录 |
+| **Pipelines** | 可视化编辑器：把动作拖到画布上、连接任务、编辑参数、验证、试运行、测试单个任务、运行、续跑、重试、跟踪运行 |
+| **Scheduler** | 列出、添加与移除 cron 作业 |
+| **Integrity** | 为目录树建立基线、验证与接受；启动与停止监控器 |
+| **Audit** | 把审计轨迹指向数据库；搜索并统计记录 |
+| **Notifications** | 已注册的 sink、路由、测试消息 |
+| **Settings** | 预览并应用 `automation_file.toml`；已安装的 extra；运行环境 |
+
+**Advanced** 原封不动地保留旧的页签：Local、Transfer（每个后端一个面板，云端 client
+的凭据在这里提供）、Progress、JSON actions、Triggers 与 Servers。
+
+在流水线编辑器中，要连接两个任务，请先选中上游任务，再按住 `Ctrl` 点依赖它的任务，
+然后按 **Connect**；选中的顺序就是箭头的方向。节点位置存在定义旁边
+（`<file>.layout.json`），绝不会存进定义里。
+
+底部的 log 面板记录每个动作与它的结果，而且没有任何页面会显示 token、密码或 webhook
+URL。后台工作通过 `ActionWorker` 在 `QThreadPool` 上运行，窗口始终保持响应。
+
+### 应用层
+`automation_file.app` 是用户界面所调用的那一层：导航中的每个条目各有一个普通的
+Python 服务，不导入任何 GUI 工具包，也不导入任何后端 SDK。PySide6 窗口与 Web UI 都
+建立在它之上，所以两者显示相同的状态，第三种界面也不需要其他东西。
+
+```python
+from automation_file.app import app_services
+
+services = app_services()
+services.dashboard.summary().status                 # "ok" 或 "attention"
+services.files.list_dir("s3://reports/2026")
+services.storage.backends()                         # 可用吗？缺 extra？安装提示
+
+draft = services.pipelines.new_draft("nightly")
+draft.add_task("FA_storage_copy", "download",
+               arguments={"source": "s3://in/a.csv", "target": "local:///tmp/a.csv"})
+services.pipelines.validate(draft)                  # [] 或问题列表，每项都附路径
+run = services.pipelines.start(draft)               # 后台运行；立即返回
+services.pipelines.status(run["run_id"])["status"]
+```
+
+服务返回 JSON 能容纳的 dataclass、字典与列表，并屏蔽其中的机密信息，抛出的则是
+`FileAutomationException` 的子类。`build_services(ServiceOptions(...))` 可以在另一个
+run store、事件总线或 resolver 上构建私有的一组服务。
 
 ### 以 executor 为核心构建项目脚手架
 ```python
@@ -902,6 +1307,20 @@ python -m automation_file drive-upload my.txt --token token.json --credentials c
 python -m automation_file mcp --allowed-actions FA_file_checksum,FA_fast_find
 automation_file_mcp --allowed-actions FA_file_checksum,FA_fast_find  # 已安装的 console script
 
+# 存储层：ls、stat、cat、cp、mv、rm、mkdir、sync、checksum、verify、schemes（输出 JSON）
+python -m automation_file storage ls s3://reports/2026 --recursive
+python -m automation_file storage cp report.csv s3://reports/2026/report.csv
+python -m automation_file storage sync ./site s3://www --delete --dry-run
+python -m automation_file storage checksum s3://reports/2026/q1.csv
+
+# 完整性、流水线与审计轨迹（输出 JSON；出现偏移或运行失败时退出码为 1）
+python -m automation_file integrity baseline s3://reports/2026 reports.baseline.json
+python -m automation_file integrity verify s3://reports/2026 reports.baseline.json
+python -m automation_file pipeline run daily.yaml --param date=2026-10-08 --store runs.db
+python -m automation_file pipeline history --store runs.db
+python -m automation_file pipeline --audit audit.sqlite run daily.yaml --store runs.db
+python -m automation_file audit search --db audit.sqlite --status error --limit 20
+
 # 旧式标志（JSON 动作清单）
 python -m automation_file --execute_file actions.json
 python -m automation_file --execute_dir ./actions/
@@ -921,6 +1340,38 @@ python -m automation_file --create_project ./my_project
   ["FA_drive_search_all_file"]
 ]
 ```
+
+## 部署
+
+调度器、完整性监控、通知路由器、审计轨迹与各个服务器，都是启动它们的那个进程中的线程，因此
+生产环境的部署就是一个交给服务管理器运行的脚本：加载配置、把审计轨迹与流水线运行记录指向 SQLite
+文件、初始化后端、启动该运行的部分，并让每个服务器都只绑定 loopback 接口、设有共享密钥与动作
+允许列表。手册的“部署到生产环境”一章（`docs/source/Zh-CN/usage/deployment.rst`）提供了这个
+脚本、systemd unit、该备份什么、该监控什么，以及如何升级。
+
+## 测试
+
+```bash
+pip install -e ".[all,test]"
+python -m pytest tests/                 # 单元测试；缺少 extra 的后端会被跳过
+
+# 对容器中的真实服务运行存储契约测试（需要 Docker）
+eval "$(bash tests/integration/start_service.sh s3)"   # 或 azure、sftp、ftp、webdav、smb
+python -m pytest tests/integration/test_s3_minio.py
+```
+
+除非设置了对应的 `FA_IT_*` 变量，否则集成测试会被跳过；详见手册的“集成测试”一章。
+
+## 兼容性
+
+版本采用语义化版本。公开接口包含 `automation_file.__all__` 与已写入文档的各个包 `__all__` 中的
+所有名称、`FA_*` 动作、命令行、存储 URI 语法、数据格式（每一种都带有 schema 版本）以及事件类型。
+在 1.0 之前，存储层、事件总线、流水线、完整性监控、审计轨迹、通知路由器与语义化 MCP 工具属于
+暂定功能：仍可能在次版本中变动，版本说明会交代如何应对。被弃用的名称至少会保留两个次版本、
+发出附带替代方案的警告，并且只会在主版本中移除。完整的政策请见手册的“公开 API 与兼容性”
+（`docs/source/Zh-CN/usage/api_policy.rst`）。从 0.0.x 升级时：没有任何东西被移除，云端 SDK 改放到
+extra（`pip install "automation_file[all]"`），少数有所改变的行为列在“迁移到 1.0”
+（`docs/source/Zh-CN/usage/migration.rst`）。
 
 ## 文档
 

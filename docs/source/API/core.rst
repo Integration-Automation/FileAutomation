@@ -79,6 +79,9 @@ Core
 .. automodule:: automation_file.core.secrets
    :members:
 
+.. automodule:: automation_file.core.deprecation
+   :members:
+
 .. automodule:: automation_file.exceptions
    :members:
 

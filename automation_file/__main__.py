@@ -5,8 +5,8 @@ Supports three invocation styles:
 * Legacy flags (``-e``, ``-d``, ``-c``, ``--execute_str``) — run JSON action
   lists without writing Python.
 * Subcommands (``zip``, ``unzip``, ``download``, ``server``, ``http-server``,
-  ``drive-upload``, ``ui``) — wrap the most common facade calls so users do
-  not need to hand-author JSON for one-shot operations.
+  ``drive-upload``, ``ui``, ``mcp``, ``storage``) — wrap the most common facade
+  calls so users do not need to hand-author JSON for one-shot operations.
 * No arguments — prints help and exits non-zero.
 """
 
@@ -19,6 +19,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from automation_file.cli_operations import add_operation_commands
+from automation_file.cli_storage import add_storage_commands
 from automation_file.core.action_executor import execute_action, execute_files
 from automation_file.core.json_store import read_action_json
 from automation_file.exceptions import ArgparseException
@@ -111,12 +113,21 @@ def _cmd_ui(_args: argparse.Namespace) -> int:
     return launch_ui()
 
 
+def _add_mcp_policy_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the roots, permissions and limits of the semantic MCP tools."""
+    from automation_file.server.mcp_server import add_semantic_arguments
+
+    add_semantic_arguments(parser)
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     from automation_file.server.mcp_server import _cli as mcp_cli
+    from automation_file.server.mcp_server import semantic_argv
 
     forwarded: list[str] = ["--name", args.name, "--version", args.version]
     if args.allowed_actions:
         forwarded.extend(["--allowed-actions", args.allowed_actions])
+    forwarded.extend(semantic_argv(args))
     return mcp_cli(forwarded)
 
 
@@ -201,6 +212,7 @@ def _add_integration_commands(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="comma-separated allow list (default: expose every registered action)",
     )
+    _add_mcp_policy_arguments(mcp_parser)
     mcp_parser.set_defaults(handler=_cmd_mcp)
 
     drive_parser = subparsers.add_parser("drive-upload", help="upload a file to Google Drive")
@@ -224,6 +236,8 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_file_commands(subparsers)
     _add_server_commands(subparsers)
     _add_integration_commands(subparsers)
+    add_storage_commands(subparsers)
+    add_operation_commands(subparsers)
     return parser
 
 

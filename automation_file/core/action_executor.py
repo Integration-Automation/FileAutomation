@@ -20,6 +20,18 @@ from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+from je_action_core import (
+    ActionExecutor as _CoreActionExecutor,
+)
+from je_action_core import (
+    ActionListRules,
+    BoundAction,
+    ExecutorSettings,
+    ParsedAction,
+    StrictActionParser,
+    indexed_record_key,
+)
+
 from automation_file.core.action_registry import ActionRegistry, build_default_registry
 from automation_file.core.json_store import read_action_json
 from automation_file.core.metrics import record_action
@@ -27,12 +39,32 @@ from automation_file.core.substitution import substitute as substitute_payload
 from automation_file.exceptions import ExecuteActionException, ValidationException
 from automation_file.logging_config import file_automation_logger
 
+_PARSER = StrictActionParser(error=ExecuteActionException)
+# The document key FileAutomation inherited from AutoControl, and its list errors.
+_SETTINGS = ExecutorSettings(
+    rules=ActionListRules(
+        "auto_control",
+        error=ExecuteActionException,
+        missing_message="dict action list missing {key!r}",
+        not_list_message="action_list must be list, got {type}",
+        empty_message="action_list is empty",
+    ),
+    parser=_PARSER,
+    read_json=read_action_json,
+    record_key=indexed_record_key,
+)
 
-class ActionExecutor:
-    """Execute named actions resolved through an :class:`ActionRegistry`."""
+
+class ActionExecutor(_CoreActionExecutor):
+    """Execute named actions resolved through an :class:`ActionRegistry`.
+
+    Uses the shared action executor's implementation.
+    """
+
+    registry: ActionRegistry
 
     def __init__(self, registry: ActionRegistry | None = None) -> None:
-        self.registry: ActionRegistry = registry or build_default_registry()
+        super().__init__(_SETTINGS, registry or build_default_registry())
         self.registry.register_many(
             {
                 "FA_execute_action": self.execute_action,
@@ -43,39 +75,16 @@ class ActionExecutor:
         )
 
     # Template-method: single action ------------------------------------
-    def _execute_event(self, action: list) -> Any:
+    def invoke(self, bound: BoundAction) -> Any:
+        """Call the bound command inside a tracing span named after the action."""
         from automation_file.core.tracing import action_span
 
-        name, payload_kind, payload = self._parse_action(action)
-        command = self.registry.resolve(name)
-        if command is None:
-            raise ExecuteActionException(f"unknown action: {name!r}")
-        with action_span(name):
-            if payload_kind == "none":
-                return command()
-            if payload_kind == "kwargs":
-                return command(**payload)
-            return command(*payload)
+        with action_span(bound.name):
+            return super().invoke(bound)
 
     @staticmethod
-    def _parse_action(action: list) -> tuple[str, str, Any]:
-        if not isinstance(action, list) or not action:
-            raise ExecuteActionException(f"malformed action: {action!r}")
-        name = action[0]
-        if not isinstance(name, str):
-            raise ExecuteActionException(f"action name must be str: {action!r}")
-        if len(action) == 1:
-            return name, "none", None
-        if len(action) == 2:
-            payload = action[1]
-            if isinstance(payload, dict):
-                return name, "kwargs", payload
-            if isinstance(payload, list):
-                return name, "args", payload
-            raise ExecuteActionException(
-                f"action {name!r} payload must be dict or list, got {type(payload).__name__}"
-            )
-        raise ExecuteActionException(f"action has too many elements: {action!r}")
+    def _parse_action(action: list) -> ParsedAction:
+        return _PARSER.parse(action)
 
     # Public API --------------------------------------------------------
     def validate(self, action_list: list | Mapping[str, Any]) -> list[str]:
@@ -147,14 +156,10 @@ class ActionExecutor:
                 results[f"execute[{index}]: {action}"] = future.result()
         return results
 
-    def execute_files(self, execute_files_list: list[str]) -> list[dict[str, Any]]:
-        """Execute every JSON file's action list and return their results."""
-        return [self.execute_action(read_action_json(path)) for path in execute_files_list]
-
     def add_command_to_executor(self, command_dict: Mapping[str, Any]) -> None:
         """Register every ``name -> callable`` pair (Registry facade)."""
         file_automation_logger.info("add_command_to_executor: %s", list(command_dict.keys()))
-        self.registry.register_many(command_dict)
+        super().add_command_to_executor(command_dict)
 
     # Internals ---------------------------------------------------------
     def _run_one(self, action: list, dry_run: bool, display: list | None = None) -> Any:
@@ -196,20 +201,11 @@ class ActionExecutor:
         )
         return f"dry_run:{name}"
 
-    @staticmethod
-    def _coerce(action_list: list | Mapping[str, Any]) -> list:
-        if isinstance(action_list, Mapping):
-            nested = action_list.get("auto_control")
-            if nested is None:
-                raise ExecuteActionException("dict action list missing 'auto_control'")
-            action_list = nested
-        if not isinstance(action_list, list):
-            raise ExecuteActionException(
-                f"action_list must be list, got {type(action_list).__name__}"
-            )
-        if not action_list:
+    def _coerce(self, action_list: list | Mapping[str, Any]) -> list:
+        actions = self.settings.rules.extract(action_list)
+        if actions is None:  # EmptyListPolicy.RAISE: extract raises instead
             raise ExecuteActionException("action_list is empty")
-        return action_list
+        return actions
 
 
 def _safe_action_name(action: Any) -> str:

@@ -4,17 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from automation_file.core.optional import require_module
 from automation_file.logging_config import file_automation_logger
 
 
 def _import_boto3() -> Any:
-    try:
-        import boto3
-    except ImportError as error:
-        raise RuntimeError(
-            "boto3 import failed — reinstall `automation_file` to restore the S3 backend"
-        ) from error
-    return boto3
+    return require_module("boto3", extra="s3")
 
 
 class S3Client:

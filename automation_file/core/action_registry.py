@@ -8,8 +8,10 @@ commands at runtime without touching the executor class.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
+
+from je_action_core import CommandPolicy, CommandRegistry
 
 from automation_file.exceptions import AddCommandException
 from automation_file.logging_config import file_automation_logger
@@ -17,52 +19,15 @@ from automation_file.logging_config import file_automation_logger
 Command = Callable[..., Any]
 
 
-class ActionRegistry:
-    """Mapping of action name -> callable."""
+def _not_callable(name: str) -> AddCommandException:
+    return AddCommandException(f"{name!r} is not callable")
+
+
+class ActionRegistry(CommandRegistry):
+    """Mapping of action name -> callable: je_action_core's registry, accepting any callable."""
 
     def __init__(self, initial: Mapping[str, Command] | None = None) -> None:
-        self._commands: dict[str, Command] = {}
-        if initial:
-            for name, command in initial.items():
-                self.register(name, command)
-
-    def register(self, name: str, command: Command) -> None:
-        """Add or overwrite a command. Raises if ``command`` is not callable."""
-        if not callable(command):
-            raise AddCommandException(f"{name!r} is not callable")
-        self._commands[name] = command
-
-    def register_many(self, mapping: Mapping[str, Command]) -> None:
-        """Register every ``name -> command`` pair in ``mapping``."""
-        for name, command in mapping.items():
-            self.register(name, command)
-
-    def update(self, mapping: Mapping[str, Command]) -> None:
-        """Alias for :meth:`register_many` (dict-compatible)."""
-        self.register_many(mapping)
-
-    def unregister(self, name: str) -> None:
-        self._commands.pop(name, None)
-
-    def resolve(self, name: str) -> Command | None:
-        return self._commands.get(name)
-
-    def __contains__(self, name: object) -> bool:
-        return isinstance(name, str) and name in self._commands
-
-    def __len__(self) -> int:
-        return len(self._commands)
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._commands)
-
-    def names(self) -> Iterable[str]:
-        return self._commands.keys()
-
-    @property
-    def event_dict(self) -> dict[str, Command]:
-        """Backwards-compatible view used by older ``package_manager`` style code."""
-        return self._commands
+        super().__init__(initial, policy=CommandPolicy.ANY_CALLABLE, rejection=_not_callable)
 
 
 def _local_commands() -> dict[str, Command]:
@@ -253,6 +218,30 @@ def _register_notify_ops(registry: ActionRegistry) -> None:
     register_notify_ops(registry)
 
 
+def _register_storage_ops(registry: ActionRegistry) -> None:
+    from automation_file.storage.actions import register_storage_ops
+
+    register_storage_ops(registry)
+
+
+def _register_pipeline_ops(registry: ActionRegistry) -> None:
+    from automation_file.pipeline.actions import register_pipeline_ops
+
+    register_pipeline_ops(registry)
+
+
+def _register_audit_ops(registry: ActionRegistry) -> None:
+    from automation_file.audit.actions import register_audit_ops
+
+    register_audit_ops(registry)
+
+
+def _register_integrity_ops(registry: ActionRegistry) -> None:
+    from automation_file.integrity.actions import register_integrity_ops
+
+    register_integrity_ops(registry)
+
+
 def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action.
 
@@ -270,6 +259,10 @@ def build_default_registry() -> ActionRegistry:
     _register_scheduler_ops(registry)
     _register_progress_ops(registry)
     _register_notify_ops(registry)
+    _register_storage_ops(registry)
+    _register_integrity_ops(registry)
+    _register_audit_ops(registry)
+    _register_pipeline_ops(registry)
     _load_plugins(registry)
     # DEBUG, not INFO: this runs at import, and INFO is mirrored to stderr, so every import --
     # `python -m automation_file --help` included -- printed it.

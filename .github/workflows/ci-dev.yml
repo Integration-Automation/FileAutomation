@@ -14,6 +14,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # about 3x the slowest recent run, at least 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -24,8 +25,8 @@ jobs:
           cache: pip
       - name: Install tooling
         run: |
-          python -m pip install --upgrade pip
-          pip install ruff mypy
+          # mypy reads the action engine types from the hash-locked tooling.
+          python -m pip install --require-hashes --only-binary :all: -r .github/requirements/lint.txt
       - name: Ruff check
         run: ruff check automation_file tests
       - name: Ruff format check
@@ -36,6 +37,7 @@ jobs:
   pytest:
     needs: lint
     runs-on: windows-latest
+    timeout-minutes: 15  # about 3x the slowest recent run, at least 15
     strategy:
       fail-fast: false
       matrix:
@@ -53,8 +55,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel
           Copy-Item dev.toml pyproject.toml -Force
-          pip install -e .
-          pip install pytest pytest-cov
+          # Every extra, so every backend's tests run. The minimal job runs without any.
+          pip install -e ".[all,test]"
       - name: Run pytest with coverage
         run: python -m pytest tests/ -v --tb=short --cov=automation_file --cov-report=term-missing --cov-report=xml
       - name: Upload coverage artifact
@@ -63,3 +65,124 @@ jobs:
         with:
           name: coverage-xml
           path: coverage.xml
+
+  minimal:
+    # The base install: no cloud SDK and no GUI toolkit. The tests of a backend whose extra is
+    # missing skip; everything else, the import guard included, has to pass.
+    needs: lint
+    runs-on: windows-latest
+    timeout-minutes: 15  # no run yet: the floor of 15 minutes, to revisit after the first runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install the base package
+        run: |
+          python -m pip install --upgrade pip wheel
+          Copy-Item dev.toml pyproject.toml -Force
+          pip install -e ".[test]"
+      - name: Run pytest
+        run: python -m pytest tests/ -v --tb=short
+
+  extras:
+    # Each extra on its own: it installs, and its backend's tests run with no other SDK present.
+    needs: lint
+    runs-on: windows-latest
+    timeout-minutes: 15  # no run yet: the floor of 15 minutes, to revisit after the first runs
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [ s3, azure, gdrive, dropbox, sftp, ftp, webdav, smb, fsspec, onedrive, box, parquet, gui ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install the package with one extra
+        run: |
+          python -m pip install --upgrade pip wheel
+          Copy-Item dev.toml pyproject.toml -Force
+          pip install -e ".[${{ matrix.extra }},test]"
+      - name: Run pytest
+        run: python -m pytest tests/ -v --tb=short
+
+  package:
+    # The sdist and the wheel build from dev.toml and their metadata renders, before anything is
+    # merged. It gates nothing: the publish job builds again from the locked tools.
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # no run yet: the floor of 15 minutes, to revisit after the first runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build the distribution and check its metadata
+        run: |
+          # The locked, wheels-only tools the publish jobs build with.
+          python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt
+          cp dev.toml pyproject.toml
+          python -m build --no-isolation
+          twine check dist/*
+
+  publish-dev:
+    # The dev channel. A push to dev that passes lint and the tests is built from dev.toml and uploaded
+    # when it is still the tip of dev and ships something the newest automation_file_dev does not.
+    # scripts/dev_release.py picks the version from PyPI, so nothing is committed back.
+    name: Publish automation_file_dev to PyPI
+    needs: [lint, pytest, minimal, extras]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # about 3x the slowest recent run, at least 15
+    concurrency:
+      group: publish-dev
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      # This job holds the PyPI token, so its tools are hash-locked and wheels only.
+      # .github/requirements/publish.in says how publish.txt is generated.
+      - name: Install build tools
+        run: |
+          python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt
+      - name: Write pyproject.toml from dev.toml with the next version
+        run: python scripts/dev_release.py prepare
+      # --no-isolation: the backend is the setuptools locked in publish.txt, not a fresh download.
+      - name: Build distribution
+        run: python -m build --no-isolation
+      - name: Verify distribution metadata
+        run: python -m twine check dist/*
+      - name: Compare with the newest published wheel
+        id: compare
+        run: python scripts/dev_release.py changed dist
+      # A run that finishes after a newer push would otherwise publish older code as the newest release.
+      - name: Check that this commit is still the tip of dev
+        id: tip
+        run: |
+          tip="$(git ls-remote origin refs/heads/dev | cut -f1)"
+          if [ "$tip" = "$GITHUB_SHA" ]; then current=true; else current=false; fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+      - name: Publish to PyPI
+        if: steps.compare.outputs.changed == 'true' && steps.tip.outputs.current == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload --non-interactive dist/*

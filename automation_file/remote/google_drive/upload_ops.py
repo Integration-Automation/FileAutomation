@@ -5,12 +5,13 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
-
 from automation_file.exceptions import FileNotExistsException
 from automation_file.logging_config import file_automation_logger
-from automation_file.remote.google_drive.client import driver_instance
+from automation_file.remote.google_drive.client import (
+    drive_http_error,
+    drive_media,
+    driver_instance,
+)
 
 
 def _guess_mime(path: Path) -> str:
@@ -19,8 +20,9 @@ def _guess_mime(path: Path) -> str:
 
 
 def _upload(path: Path, metadata: dict, description: str) -> dict | None:
+    http_error = drive_http_error()
     try:
-        media = MediaFileUpload(str(path), mimetype=_guess_mime(path), resumable=True)
+        media = drive_media().MediaFileUpload(str(path), mimetype=_guess_mime(path), resumable=True)
         response = (
             driver_instance.require_service()
             .files()
@@ -29,7 +31,7 @@ def _upload(path: Path, metadata: dict, description: str) -> dict | None:
         )
         file_automation_logger.info("drive_upload (%s): %s", description, path)
         return response
-    except HttpError as error:
+    except http_error as error:
         file_automation_logger.error("drive_upload (%s) failed: %r", description, error)
         return None
 

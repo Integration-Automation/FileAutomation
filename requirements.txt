@@ -1,8 +1,8 @@
-automation_file
+automation_file[all]
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
-PySide6
+PySide6>=6.11.2,<6.12
 requests
 protobuf
 tqdm

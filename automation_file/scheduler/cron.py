@@ -7,18 +7,53 @@ day-of-month (1-31), month (1-12), day-of-week (0-6, Sunday = 0 or 7). Names
 
 Explicitly *not* supported: ``@yearly`` / ``@reboot`` aliases, ``L``/``W``
 modifiers, seconds. Callers needing that should use a dedicated cron library.
+
+An expression carries no time zone: :meth:`CronExpression.matches` compares the
+fields of the moment it is given. :func:`resolve_timezone` turns an IANA name
+into the ``tzinfo`` a caller converts the moment with.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import zoneinfo
 from dataclasses import dataclass
 
 from automation_file.exceptions import FileAutomationException
 
+_UTC = "UTC"
+_HOURS_PER_DAY = 24
+
 
 class CronException(FileAutomationException):
-    """Raised when a cron expression cannot be parsed."""
+    """Raised when a cron expression or its time zone cannot be understood."""
+
+
+def resolve_timezone(name: str | None) -> dt.tzinfo | None:
+    """Return the ``tzinfo`` of the IANA time zone ``name``; ``None`` stays ``None``.
+
+    ``"UTC"`` needs no zone data. Any other name is looked up with
+    :mod:`zoneinfo`, which on Windows reads the ``tzdata`` package: a name that
+    cannot be found raises :class:`CronException` saying so.
+    """
+    if name is None:
+        return None
+    if not isinstance(name, str) or not name.strip():
+        raise CronException(
+            f"cron: a time zone is an IANA name such as 'Asia/Taipei', got {name!r}"
+        )
+    key = name.strip()
+    if key.upper() == _UTC:
+        return dt.timezone.utc
+    try:
+        return zoneinfo.ZoneInfo(key)
+    except zoneinfo.ZoneInfoNotFoundError as error:
+        raise CronException(
+            f"cron: unknown time zone {key!r}: no IANA zone data was found for it "
+            "(on Windows, install the 'tzdata' package)"
+        ) from error
+    except (ValueError, OSError) as error:
+        raise CronException(f"cron: {key!r} is not a time zone name") from error
 
 
 _FIELD_BOUNDS = (
@@ -139,6 +174,11 @@ class CronExpression:
         months = _parse_field(fields[3], 3)
         weekdays = _parse_field(fields[4], 4)
         return cls(minutes, hours, days, months, weekdays, expression.strip())
+
+    @property
+    def every_hour(self) -> bool:
+        """Whether the hour field leaves no hour of the day out (``*`` or its equal)."""
+        return len(self.hours) == _HOURS_PER_DAY
 
     def matches(self, moment: dt.datetime) -> bool:
         """Return ``True`` when ``moment`` satisfies every field."""

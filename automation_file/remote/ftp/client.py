@@ -37,7 +37,23 @@ class FTPClient:
 
     def __init__(self) -> None:
         self._ftp: FTP | None = None
-        self._host: str = ""
+        self._host: str | None = None
+        self._port: int | None = None
+
+    @property
+    def host(self) -> str | None:
+        """The host of the open session, or ``None`` while there is none."""
+        return self._host
+
+    @property
+    def port(self) -> int | None:
+        """The port of the open session, or ``None`` while there is none."""
+        return self._port
+
+    @property
+    def tls(self) -> bool:
+        """Whether the open session is an FTPS (``FTP_TLS``) session."""
+        return isinstance(self._ftp, FTP_TLS)
 
     def later_init(self, options: FTPConnectOptions | None = None, **kwargs: Any) -> FTP:
         """Open an FTP control connection. TLS is negotiated when ``tls=True``."""
@@ -62,6 +78,7 @@ class FTPClient:
             raise FTPException(f"FTP connect failed: {err}") from err
         self._ftp = ftp
         self._host = opts.host
+        self._port = opts.port
         file_automation_logger.info(
             "FTPClient: connected to %s@%s:%d (tls=%s)",
             opts.username,
@@ -77,6 +94,8 @@ class FTPClient:
         return self._ftp
 
     def close(self) -> bool:
+        self._host = None
+        self._port = None
         if self._ftp is not None:
             try:
                 self._ftp.quit()
