@@ -207,7 +207,9 @@ Options
      - Default parameters; ``run(params=...)`` adds to them and overrides them.
    * - ``schedule``
      - A ``Schedule(cron, timezone=None)``. It is kept on ``pipeline.schedule``
-       for the scheduler and not acted on by the pipeline.
+       for the scheduler and not acted on by the pipeline:
+       ``scheduler.add_pipeline(pipeline)`` turns it into a cron trigger
+       (:doc:`scheduler`).
    * - ``registry``
      - Where action names are looked up. Default: the shared executor's registry.
 

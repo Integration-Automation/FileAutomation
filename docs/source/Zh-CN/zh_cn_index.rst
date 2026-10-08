@@ -181,6 +181,7 @@ cron 风格调度器（``FA_schedule_*``）按调度周期性运行动作列表�
    :caption: 触发器与调度
 
    usage/events
+   usage/scheduler
 
 .. _zh-cn-notifications:
 

@@ -196,7 +196,8 @@
      - 默认参数；``run(params=...)`` 会加入并覆盖它们。
    * - ``schedule``
      - ``Schedule(cron, timezone=None)``。保存在 ``pipeline.schedule`` 供调度器
-       使用，流水线本身不会据此行动。
+       使用，流水线本身不会据此行动：``scheduler.add_pipeline(pipeline)`` 会把它
+       变成 cron 触发器（见 :doc:`scheduler`）。
    * - ``registry``
      - 查找动作名称的地方。默认：共享执行器的注册表。
 

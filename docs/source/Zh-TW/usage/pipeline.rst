@@ -196,7 +196,8 @@
      - 預設參數；``run(params=...)`` 會加入並覆寫它們。
    * - ``schedule``
      - ``Schedule(cron, timezone=None)``。保存在 ``pipeline.schedule`` 供排程器
-       使用，管線本身不會據此行動。
+       使用，管線本身不會據此行動：``scheduler.add_pipeline(pipeline)`` 會把它
+       變成 cron 觸發器（見 :doc:`scheduler`）。
    * - ``registry``
      - 查找動作名稱的地方。預設：共用執行器的註冊表。
 

@@ -23,7 +23,7 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - Loopback 優先的 TCP **與** HTTP 伺服器，接受 JSON 指令批次並可選 shared-secret 驗證
 - 可靠性原語：`retry_on_transient` 裝飾器、`Quota` 大小 / 時間預算
 - **檔案監看觸發** — 當路徑變動時執行動作清單（`FA_watch_*`）
-- **Cron 排程器** — 僅用標準函式庫的 5 欄位解析器執行週期性動作清單（`FA_schedule_*`）
+- **排程器** — 在觸發條件成立時執行動作清單或管線：帶時區的 cron、手動呼叫、檔案事件、匯流排上的事件，或另一條管線結束；每次執行都會記錄狀態，預設拒絕重疊執行，工作可設定逾時並可取消（`FA_schedule_*`）
 - **傳輸進度 + 取消** — HTTP 與 S3 傳輸可選的 `progress_name` 掛鉤（`FA_progress_*`）
 - **快速檔案搜尋** — OS 索引快速路徑（`mdfind` / `locate` / `es.exe`）搭配串流式 `scandir` 備援（`FA_fast_find`）
 - **檢查碼 + 完整性驗證** — 串流式 `file_checksum` / `verify_checksum`，支援任何 `hashlib` 演算法；`download_file(expected_sha256=...)` 於下載完成後立即驗證（`FA_file_checksum`、`FA_verify_checksum`）
@@ -700,23 +700,58 @@ watch_stop("inbox-sweeper")
 `FA_watch_start` / `FA_watch_stop` / `FA_watch_stop_all` / `FA_watch_list`
 讓 JSON 動作清單能使用相同的生命週期。
 
-### Cron 排程器
-以純標準函式庫的 5 欄位 cron 解析器執行週期性動作清單：
+### 排程器（Scheduler）
+
+`automation_file.scheduler` 會在某件事觸發時執行一份動作清單或一條管線：帶時區的 cron
+運算式、檔案事件、事件匯流排上的事件、另一條管線的執行結束，或是一次呼叫。每一次觸發
+都會留下一筆執行紀錄。
 
 ```python
-from automation_file import schedule_add
+from automation_file.scheduler import PipelineTrigger, scheduler
 
-schedule_add(
-    name="nightly-snapshot",
-    cron_expression="0 2 * * *",        # 每天本地時間 02:00
-    action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                 "zip_name": "/backup/data_nightly"}]],
+scheduler.add(
+    "nightly-snapshot",
+    "0 2 * * *",                                 # 每天 02:00 ...
+    [["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                     "zip_name": "/backup/data_nightly"}]],
+    timezone="Asia/Taipei",                      # ... 台北時間；不給就是本地時間
+    timeout=1800,
 )
+
+# 宣告了 `schedule: {cron: "0 2 * * *", timezone: Asia/Taipei}` 的管線
+scheduler.add_pipeline("pipelines/daily-report.yaml",
+                       params={"date": "${date:%Y-%m-%d}"}, timeout=3600)
+# ... 以及每當 daily-report 成功就執行的管線
+scheduler.add_pipeline("pipelines/publish-summary.yaml",
+                       triggers=PipelineTrigger("daily-report"))
+
+run = scheduler.run_now("nightly-snapshot")      # 手動觸發
+run.wait(600)
+scheduler.history(state="failed", limit=10)      # 最近失敗的執行
 ```
 
-支援 `*`、確切值、`a-b` 範圍、逗號清單、`*/n` 步進語法，以及 `jan..dec` /
-`sun..sat` 別名。JSON 動作：`FA_schedule_add`、`FA_schedule_remove`、
-`FA_schedule_remove_all`、`FA_schedule_list`。
+- **觸發器。** `CronTrigger`（5 個欄位，可選的 IANA 時區）、`FileTrigger`（被監看的
+  路徑）、`EventTrigger`（事件匯流排上的 type、前綴或來源；發布事件的 webhook 也是
+  這樣觸發工作的）、`PipelineTrigger`（在另一條管線之後：`on_success`、
+  `on_failure`、`always`），以及用來手動觸發工作的 `run_now`。一個工作可以有好幾個
+  觸發器。
+- **執行紀錄。** 每一次觸發都是一個 `JobRun`，狀態是七種之一：`scheduled`、
+  `started`、`completed`、`failed`、`skipped`、`timeout`、`cancelled`，並帶有 UTC
+  時間、觸發器、錯誤與關聯 ID。`scheduler.history(job, state, limit)` 回傳最近的
+  紀錄，最新的在前。
+- **重疊、逾時、取消。** 遇到仍在進行中的執行時，觸發會記錄為 `skipped`，除非工作
+  設定了 `allow_overlap=True`。超過 `timeout` 的執行會記錄為 `timeout` 並被要求
+  停止；`scheduler.cancel(name)` 則是應要求這麼做。管線透過它的取消權杖停止，動作
+  清單則在下一個動作之前停止。
+- **時區。** 時區名稱來自 `zoneinfo`（Windows 上請 `pip install tzdata`；`UTC` 不
+  需要任何東西）。在日光節約時間切換的日子，不存在的本地時間不會觸發，出現兩次的
+  本地時間只觸發一次。
+- **失敗就是事件。** 失敗或逾時的執行會發布成 `scheduler.error`；請用通知路由器把
+  它送到 sink。
+- **動作。** `FA_schedule_add`、`FA_schedule_job`、`FA_schedule_pipeline`、
+  `FA_schedule_run`、`FA_schedule_cancel`、`FA_schedule_history`、
+  `FA_schedule_list`、`FA_schedule_remove` 與 `FA_schedule_remove_all`，可用於 JSON
+  動作清單、CLI、動作伺服器與 MCP。
 
 ### 傳輸進度 + 取消
 HTTP 與 S3 傳輸支援可選的 `progress_name` 關鍵字參數：

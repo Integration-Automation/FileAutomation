@@ -181,6 +181,7 @@ cron 風格排程器（``FA_schedule_*``）會依排程定期執行動作清單�
    :caption: 觸發器與排程
 
    usage/events
+   usage/scheduler
 
 .. _zh-tw-notifications:
 

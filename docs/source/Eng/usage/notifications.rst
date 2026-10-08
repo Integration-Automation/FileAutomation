@@ -215,3 +215,8 @@ a ``SystemErrorEvent`` otherwise. Then:
 With the router active, the routes decide: a failure that no route matches is
 not delivered. A route such as ``Route("failures", types=("scheduler.error",
 "system.error"))`` keeps those alerts coming.
+
+The scheduler calls ``notify_on_failure`` for an action list it cannot dispatch.
+A scheduled run that fails in any other way, or runs past its timeout, is
+published by the scheduler itself as a ``scheduler.error`` event and reaches a
+sink only through a route: see :doc:`scheduler`.

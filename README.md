@@ -25,7 +25,7 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - Loopback-first TCP **and** HTTP servers that accept JSON command batches with optional shared-secret auth
 - Reliability primitives: `retry_on_transient` decorator, `Quota` size / time budgets
 - **File-watcher triggers** — run an action list whenever a path changes (`FA_watch_*`)
-- **Cron scheduler** — recurring action lists on a stdlib-only 5-field parser (`FA_schedule_*`)
+- **Scheduler** — runs an action list or a pipeline when a trigger fires: cron with a time zone, a manual call, a file event, an event on the bus, or the end of another pipeline; every run is recorded with its state, overlap is refused by default, and a job can have a timeout and be cancelled (`FA_schedule_*`)
 - **Transfer progress + cancellation** — opt-in `progress_name` hook on HTTP and S3 transfers (`FA_progress_*`)
 - **Fast file search** — OS index fast path (`mdfind` / `locate` / `es.exe`) with a streaming `scandir` fallback (`FA_fast_find`)
 - **Checksums + integrity verification** — streaming `file_checksum` / `verify_checksum` with any `hashlib` algorithm; `download_file(expected_sha256=...)` verifies after transfer (`FA_file_checksum`, `FA_verify_checksum`)
@@ -716,24 +716,59 @@ watch_stop("inbox-sweeper")
 `FA_watch_start` / `FA_watch_stop` / `FA_watch_stop_all` / `FA_watch_list`
 surface the same lifecycle to JSON action lists.
 
-### Cron scheduler
-Recurring action lists on a stdlib-only 5-field cron parser:
+### Scheduler
+
+`automation_file.scheduler` runs an action list or a pipeline when something fires
+it: a cron expression with a time zone, a file event, an event on the bus, the end
+of another pipeline's run, or a call. Every firing leaves a run record.
 
 ```python
-from automation_file import schedule_add
+from automation_file.scheduler import PipelineTrigger, scheduler
 
-schedule_add(
-    name="nightly-snapshot",
-    cron_expression="0 2 * * *",        # every day at 02:00 local time
-    action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                 "zip_name": "/backup/data_nightly"}]],
+scheduler.add(
+    "nightly-snapshot",
+    "0 2 * * *",                                 # every day at 02:00 ...
+    [["FA_zip_dir", {"dir_we_want_to_zip": "/data",
+                     "zip_name": "/backup/data_nightly"}]],
+    timezone="Asia/Taipei",                      # ... in Taipei; local time without it
+    timeout=1800,
 )
+
+# A pipeline that declares `schedule: {cron: "0 2 * * *", timezone: Asia/Taipei}`
+scheduler.add_pipeline("pipelines/daily-report.yaml",
+                       params={"date": "${date:%Y-%m-%d}"}, timeout=3600)
+# ... and one that runs whenever daily-report has succeeded
+scheduler.add_pipeline("pipelines/publish-summary.yaml",
+                       triggers=PipelineTrigger("daily-report"))
+
+run = scheduler.run_now("nightly-snapshot")      # fire by hand
+run.wait(600)
+scheduler.history(state="failed", limit=10)      # the latest failed runs
 ```
 
-Supports `*`, exact values, `a-b` ranges, comma lists, and `*/n` step
-syntax with `jan..dec` / `sun..sat` aliases. JSON actions:
-`FA_schedule_add`, `FA_schedule_remove`, `FA_schedule_remove_all`,
-`FA_schedule_list`.
+- **Triggers.** `CronTrigger` (5 fields, optional IANA time zone), `FileTrigger`
+  (a watched path), `EventTrigger` (a type, a prefix or a source on the event bus,
+  which is also how a webhook that publishes an event fires a job),
+  `PipelineTrigger` (after another pipeline: `on_success`, `on_failure`,
+  `always`), and `run_now` for a job fired by hand. A job may have several.
+- **Run records.** Every firing is a `JobRun` in one of seven states:
+  `scheduled`, `started`, `completed`, `failed`, `skipped`, `timeout`,
+  `cancelled`, with UTC times, the trigger, the error and a correlation ID.
+  `scheduler.history(job, state, limit)` returns the latest, newest first.
+- **Overlap, timeout, cancellation.** A firing that meets a run still in progress
+  is recorded as `skipped` unless the job has `allow_overlap=True`. A run past its
+  `timeout` is recorded as `timeout` and told to stop; `scheduler.cancel(name)`
+  does the same on request. A pipeline stops through its cancellation token, an
+  action list before its next action.
+- **Time zones.** Zone names come from `zoneinfo` (on Windows: `pip install
+  tzdata`; `UTC` needs nothing). A local time that does not exist on a
+  daylight-saving day is not fired, and one that occurs twice fires once.
+- **Failures are events.** A run that fails or times out is published as
+  `scheduler.error`; route it to a sink with the notification router.
+- **Actions.** `FA_schedule_add`, `FA_schedule_job`, `FA_schedule_pipeline`,
+  `FA_schedule_run`, `FA_schedule_cancel`, `FA_schedule_history`,
+  `FA_schedule_list`, `FA_schedule_remove` and `FA_schedule_remove_all` for JSON
+  action lists, the CLI, the action servers and MCP.
 
 ### Transfer progress + cancellation
 HTTP and S3 transfers accept an opt-in `progress_name` kwarg:

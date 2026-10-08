@@ -63,7 +63,7 @@
 
        subgraph Events["<b>事件驅動</b>"]
            Trigger["<b>TriggerManager</b><br/>watchdog 檔案監聽"]
-           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+           Sched["<b>Scheduler</b><br/>cron · file · event · pipeline triggers<br/>run records + overlap guard"]
        end
 
        subgraph Servers["<b>伺服器</b>"]
@@ -318,8 +318,13 @@
    ├── trigger/
    │   └── manager.py           # FileWatcher + TriggerManager（以 watchdog 為底層）
    ├── scheduler/
-   │   ├── cron.py              # 5 欄位 cron 表達式解析器
-   │   └── manager.py           # Scheduler 背景執行緒 + ScheduledJob
+   │   ├── cron.py              # 5 欄位 cron 表達式解析器、時區
+   │   ├── triggers.py          # cron / 檔案 / 事件 / 管線觸發器
+   │   ├── job.py               # ScheduledJob
+   │   ├── runs.py              # JobRun、RunState、RunHistory
+   │   ├── targets.py           # 執行動作清單或管線
+   │   ├── dispatch.py          # 重疊、逾時、取消、scheduler.error
+   │   └── manager.py           # Scheduler 背景執行緒 + FA_schedule_* 動作
    ├── notify/
    │   ├── sinks.py             # Webhook / Slack / Email sink
    │   └── manager.py           # NotificationManager（扇出 + 去重 + auto-notify hook）
@@ -398,9 +403,12 @@
   轉送給共享登錄表調度的動作清單。
   :data:`~automation_file.trigger.trigger_manager` 擁有 name → watcher
   對應表，讓 GUI 與 JSON 動作共享同一個生命週期。
-* :mod:`automation_file.scheduler` 執行一個背景執行緒，在分鐘邊界甦醒、
-  走訪已登錄的 :class:`~automation_file.scheduler.ScheduledJob`，並在
-  短生命週期的工作執行緒上調度每個相符的任務，避免慢動作拖累後續任務。
+* :mod:`automation_file.scheduler` 執行一個背景執行緒，每秒甦醒一次，觸發
+  cron 觸發器在目前這一分鐘到期的
+  :class:`~automation_file.scheduler.ScheduledJob`，並讓每次執行使用自己的
+  短生命週期工作執行緒，避免慢動作拖累後續任務。工作可以執行動作清單或管線，
+  也可以由檔案事件、事件匯流排上的事件、另一條管線的執行結束或手動觸發；每次
+  觸發都會留下一筆執行紀錄。詳見 :doc:`usage/scheduler`。
 
 當動作清單拋出 :class:`~automation_file.exceptions.FileAutomationException`
 時，兩個調度器都會呼叫

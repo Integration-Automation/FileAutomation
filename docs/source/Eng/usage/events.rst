@@ -28,31 +28,21 @@ lifecycle.
 Or drive it from a JSON action list with ``FA_watch_start`` /
 ``FA_watch_stop`` / ``FA_watch_stop_all`` / ``FA_watch_list``.
 
-Cron scheduler
---------------
+Scheduler
+---------
 
-Run an action list on a recurring schedule. The 5-field cron parser supports
-``*``, exact values, ``a-b`` ranges, comma-separated lists, and ``*/n`` step
-syntax with ``jan``..``dec`` / ``sun``..``sat`` aliases.
+Running an action list or a pipeline on a cron expression with a time zone, on
+a file event, on an event from the bus, after another pipeline or by hand is
+described in :doc:`scheduler`, together with the run records, overlap
+protection, timeouts and the ``FA_schedule_*`` actions. A job that should run on
+a file event and leave a record of every run uses the scheduler's
+``FileTrigger`` instead of ``FA_watch_start``.
 
-.. code-block:: python
-
-   from automation_file import schedule_add
-
-   schedule_add(
-       name="nightly-snapshot",
-       cron_expression="0 2 * * *",           # every day at 02:00 local time
-       action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                    "zip_name": "/backup/data_nightly"}]],
-   )
-
-A background thread wakes on minute boundaries, so expressions with
-sub-minute precision are not supported. JSON forms: ``FA_schedule_add`` /
-``FA_schedule_remove`` / ``FA_schedule_remove_all`` / ``FA_schedule_list``.
-
-Both dispatchers call
-:func:`~automation_file.notify.manager.notify_on_failure` when an action
+A watcher calls
+:func:`~automation_file.notify.manager.notify_on_failure` when its action
 list raises :class:`~automation_file.exceptions.FileAutomationException`.
 The helper is a no-op when no sinks are registered, so auto-notification
 is an opt-in side effect of registering any
-:class:`~automation_file.NotificationSink` — see :doc:`notifications`.
+:class:`~automation_file.NotificationSink` — see :doc:`notifications`. The
+scheduler does the same for an action list it cannot dispatch, and publishes
+every other failed run as a ``scheduler.error`` event.

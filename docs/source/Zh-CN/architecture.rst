@@ -63,7 +63,7 @@
 
        subgraph Events["<b>事件驱动</b>"]
            Trigger["<b>TriggerManager</b><br/>watchdog 文件监听"]
-           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+           Sched["<b>Scheduler</b><br/>cron · file · event · pipeline triggers<br/>run records + overlap guard"]
        end
 
        subgraph Servers["<b>服务器</b>"]
@@ -318,8 +318,13 @@
    ├── trigger/
    │   └── manager.py           # FileWatcher + TriggerManager（基于 watchdog）
    ├── scheduler/
-   │   ├── cron.py              # 5 字段 cron 表达式解析器
-   │   └── manager.py           # Scheduler 后台线程 + ScheduledJob
+   │   ├── cron.py              # 5 字段 cron 表达式解析器、时区
+   │   ├── triggers.py          # cron / 文件 / 事件 / 流水线触发器
+   │   ├── job.py               # ScheduledJob
+   │   ├── runs.py              # JobRun、RunState、RunHistory
+   │   ├── targets.py           # 执行动作列表或流水线
+   │   ├── dispatch.py          # 重叠、超时、取消、scheduler.error
+   │   └── manager.py           # Scheduler 后台线程 + FA_schedule_* 动作
    ├── notify/
    │   ├── sinks.py             # Webhook / Slack / Email sink
    │   └── manager.py           # NotificationManager（扇出 + 去重 + auto-notify hook）
@@ -398,9 +403,12 @@
   转发给共享注册表调度的动作列表。
   :data:`~automation_file.trigger.trigger_manager` 持有 name → watcher
   映射，让 GUI 与 JSON 动作共享同一个生命周期。
-* :mod:`automation_file.scheduler` 运行一个后台线程，在分钟边界唤醒、
-  遍历已注册的 :class:`~automation_file.scheduler.ScheduledJob`，并在
-  短生命周期的工作线程上调度每个匹配的任务，避免慢动作拖累后续任务。
+* :mod:`automation_file.scheduler` 运行一个后台线程，每秒唤醒一次，触发
+  cron 触发器在当前这一分钟到期的
+  :class:`~automation_file.scheduler.ScheduledJob`，并让每次运行使用自己的
+  短生命周期工作线程，避免慢动作拖累后续任务。作业可以运行动作列表或流水线，
+  也可以由文件事件、事件总线上的事件、另一条流水线的运行结束或手动触发；每次
+  触发都会留下一条运行记录。详见 :doc:`usage/scheduler`。
 
 当动作列表抛出 :class:`~automation_file.exceptions.FileAutomationException`
 时，两个调度器都会调用

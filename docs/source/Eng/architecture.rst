@@ -66,7 +66,7 @@ dispatchers.
 
        subgraph Events["<b>event-driven</b>"]
            Trigger["<b>TriggerManager</b><br/>watchdog file watcher"]
-           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+           Sched["<b>Scheduler</b><br/>cron · file · event · pipeline triggers<br/>run records + overlap guard"]
        end
 
        subgraph Servers["<b>servers</b>"]
@@ -325,8 +325,13 @@ Module layout
    ├── trigger/
    │   └── manager.py           # FileWatcher + TriggerManager (watchdog-backed)
    ├── scheduler/
-   │   ├── cron.py              # 5-field cron expression parser
-   │   └── manager.py           # Scheduler background thread + ScheduledJob
+   │   ├── cron.py              # 5-field cron expression parser, time zones
+   │   ├── triggers.py          # cron / file / event / pipeline triggers
+   │   ├── job.py               # ScheduledJob
+   │   ├── runs.py              # JobRun, RunState, RunHistory
+   │   ├── targets.py           # running an action list or a pipeline
+   │   ├── dispatch.py          # overlap, timeout, cancellation, scheduler.error
+   │   └── manager.py           # Scheduler background thread + FA_schedule_* actions
    ├── notify/
    │   ├── sinks.py             # Webhook / Slack / Email sinks
    │   └── manager.py           # NotificationManager (fanout + dedup + auto-notify hook)
@@ -413,11 +418,13 @@ their own dispatch paths:
   events to an action list dispatched through the shared registry.
   :data:`~automation_file.trigger.trigger_manager` owns the name → watcher
   map so the GUI and JSON actions share one lifecycle.
-* :mod:`automation_file.scheduler` runs one background thread that wakes on
-  minute boundaries, iterates registered
-  :class:`~automation_file.scheduler.ScheduledJob` instances, and dispatches
-  every matching job on a short-lived worker thread so a slow action can't
-  starve subsequent jobs.
+* :mod:`automation_file.scheduler` runs one background thread that wakes
+  every second, fires the :class:`~automation_file.scheduler.ScheduledJob`
+  instances whose cron trigger is due in the current minute, and gives every
+  run a short-lived worker thread so a slow action can't starve subsequent
+  jobs. A job runs an action list or a pipeline, and can also be fired by a
+  file event, an event on the bus, the end of another pipeline's run, or by
+  hand; every firing leaves a run record. See :doc:`usage/scheduler`.
 
 Both dispatchers call
 :func:`automation_file.notify.manager.notify_on_failure` when an action

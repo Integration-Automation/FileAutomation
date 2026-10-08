@@ -204,3 +204,7 @@ sink 收到的內容
 路由器運作時由路由決定：沒有任何路由符合的失敗不會被投遞。像
 ``Route("failures", types=("scheduler.error", "system.error"))`` 這樣的路由可以
 讓這些告警持續送達。
+
+排程器會為它無法分派的動作清單呼叫 ``notify_on_failure``。以其他任何方式失敗、或
+超過逾時的排程執行，則由排程器自己發布成 ``scheduler.error`` 事件，只有透過路由才會
+送到 sink：見 :doc:`scheduler`。

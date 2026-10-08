@@ -27,32 +27,19 @@
 也可以在 JSON 動作清單中呼叫 ``FA_watch_start`` /
 ``FA_watch_stop`` / ``FA_watch_stop_all`` / ``FA_watch_list``。
 
-Cron 排程器
------------
+排程器
+------------
 
-依重複時刻執行動作清單。5 欄位 cron 解析器支援
-``*``、精確值、``a-b`` 區間、逗號分隔清單與 ``*/n`` 步長，
-也支援 ``jan``..``dec`` / ``sun``..``sat`` 別名。
-
-.. code-block:: python
-
-   from automation_file import schedule_add
-
-   schedule_add(
-       name="nightly-snapshot",
-       cron_expression="0 2 * * *",           # 每天本地時間 02:00
-       action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                    "zip_name": "/backup/data_nightly"}]],
-   )
-
-背景執行緒在每分鐘邊界喚醒，因此不支援小於一分鐘的精度。
-JSON 形式：``FA_schedule_add`` / ``FA_schedule_remove`` /
-``FA_schedule_remove_all`` / ``FA_schedule_list``。
+依帶時區的 cron 運算式、檔案事件、事件匯流排上的事件、另一條管線結束之後，或以手動
+方式執行動作清單或管線，都寫在 :doc:`scheduler` 中，其中也說明了執行紀錄、重疊保護、
+逾時與 ``FA_schedule_*`` 動作。需要在檔案事件發生時執行並為每次執行留下紀錄的工作，
+請使用排程器的 ``FileTrigger``，而不是 ``FA_watch_start``。
 
 當動作清單擲出
 :class:`~automation_file.exceptions.FileAutomationException` 時，
-兩個排程器都會呼叫
+監看器會呼叫
 :func:`~automation_file.notify.manager.notify_on_failure`。
 若未註冊任何 sink，該輔助函式即為 no-op，因此自動通知是
 註冊 :class:`~automation_file.NotificationSink` 的可選副作用——
-詳見 :doc:`notifications`。
+詳見 :doc:`notifications`。排程器對它無法分派的動作清單也會這麼做，其他每一次
+失敗的執行則發布成 ``scheduler.error`` 事件。

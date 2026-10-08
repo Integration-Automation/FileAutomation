@@ -179,14 +179,17 @@ Chapter 11 — Triggers and Scheduler
 ===================================
 
 File-watcher triggers (``FA_watch_*``) run an action list on a filesystem
-event; the cron-style scheduler (``FA_schedule_*``) runs an action list on
-a recurring schedule with overlap protection.
+event. The scheduler (``FA_schedule_*``) runs an action list or a pipeline
+when a trigger fires: a cron expression with a time zone, a manual call, a
+file event, an event on the bus or the end of another pipeline. It records
+every run and protects against overlap.
 
 .. toctree::
    :maxdepth: 2
    :caption: Triggers and Scheduler
 
    usage/events
+   usage/scheduler
 
 .. _eng-notifications:
 
