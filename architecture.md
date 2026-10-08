@@ -11,6 +11,10 @@ Dropbox, SFTP, FTP, OneDrive, Box, plus SMB and WebDAV clients). Every operation
 command in one `ActionRegistry`, so JSON action lists run the same way in-process, from files, from
 the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GUI.
 
+Next to the actions, `automation_file.storage` is the universal storage layer: one URI syntax, one
+`StorageBackend` contract and one error hierarchy, used through `File` and `Storage`. It is the first
+piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what is still open is in `progress.md`.
+
 ## 2. Layers and directories
 
 | Path | Responsibility |
@@ -20,6 +24,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
+| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`). It imports only `exceptions`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
 | `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
@@ -41,6 +46,11 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
   `executor`, `callback_executor`, `package_manager`, `ActionRegistry`, `build_default_registry`,
   `driver_instance` (Google Drive), `start_autocontrol_socket_server`, `start_http_action_server`,
   `HTTPActionClient`, `MCPServer`, `create_project_dir`, `launch_ui` (lazy).
+- **Storage layer** (same facade): `File`, `Storage`, `StorageBackend`, `StorageResolver`, `StorageURI`,
+  `parse_storage_uri`, `FileInfo`, `Checksum`, `StorageCapabilities`, `LocalStorage`, `MemoryStorage`, and
+  `StorageException` with its nine subclasses. Storage URIs are `<scheme>://<authority>/<path>`; the built-in
+  schemes are `local` (alias `file`) and `memory`, and text without `://` is a local path. The API is
+  provisional until 1.0. It is not reachable through `FA_*` actions yet.
 - **Action format**: an action is `[name]`, `[name, {kwargs}]` or `[name, [args]]`. A file holds a
   list of actions or `{"auto_control": [...]}`.
 - **CLI** (`python -m automation_file`; no console script for it):
@@ -103,6 +113,16 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   → executor adds FA_execute_action, FA_execute_files, FA_execute_action_parallel, FA_validate
 ```
 
+**Storage URI → backend**
+
+```
+File(uri) / Storage(uri) → parse_storage_uri (scheme alias, authority check, path normalised, ".." refused)
+  → StorageResolver.resolve: longest mount at or above the URI, else the scheme's factory → (backend, path)
+  → StorageBackend public method: normalise, check what exists, make parents → _primitive of the backend
+  → FileInfo / Checksum / bytes, or a StorageException subclass
+copy_to / move_to → target_backend.copy_from(source_backend, ...) → native (_copy_from / _move_from) or a local staging file
+```
+
 ## 5. Extension points
 
 - **New local or utility action**: function in `local/<x>_ops.py` (or `utils/`, `core/`) using
@@ -117,6 +137,17 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   3. Add the SDK to `dependencies` in both `stable.toml` and `dev.toml`, then add facade exports.
   4. Add `ui/tabs/<backend>_tab.py` and wire it into `ui/tabs/transfer_tab.py`.
   5. Add tests; paths that need the network are not exercised in CI.
+- **New storage backend** (the universal layer; separate from the `FA_*` backend above):
+  1. Subclass `StorageBackend` in `storage/<name>_storage.py`: set `scheme` and `capabilities`, implement
+     `_stat`, `_list_dir`, `_upload`, `_download`, `_delete_file`, plus `_mkdir` and `_rmdir` when
+     `capabilities.directories` is true. Map the SDK's errors to the `StorageException` subclasses and
+     import the SDK lazily.
+  2. Register its factory in `register_default_schemes` (`storage/resolver.py`), or leave it to callers
+     to `Storage.mount(...)` when it needs connection arguments.
+  3. Add `tests/test_storage_<name>.py` with a `StorageContract` subclass (`tests/storage_contract.py`);
+     every backend passes the same suite.
+  4. Export it from `storage/__init__.py` and the facade, and document its URI form in the three
+     `usage/storage.rst` pages and the READMEs.
 - **Outbound HTTP**: always call `validate_http_url` (`remote/url_validator.py`) first.
 - **Plugins**: an entry point in the group `automation_file.actions` (`core/plugins.py`), or
   `add_command_to_executor({...})` at runtime. `package_manager.add_package_to_executor` registers a
@@ -174,6 +205,9 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   TCP reads one `recv(8192)` payload; HTTP bodies are capped at 1 MB (§ Security › TCP server; › HTTP server).
 - Resolve user paths through `safe_join` / `is_within` (§ Security › Path traversal). SFTP keeps
   `paramiko.RejectPolicy()` (§ Security › SFTP host verification).
+- The storage layer does not import the registry, the GUI or a backend SDK at import time. Storage paths
+  never contain `..`, storage URIs never carry credentials, `delete` never removes a storage root and
+  never follows a symbolic link, and every backend passes `tests/storage_contract.py`.
 - `retry_on_transient` retries only the listed exception types (§ Security › Reliability (retry / quota)).
   `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading). No `FA_*`
   command reaches it, so je_action_core's package gate is off here (`tests/test_package_loader.py` fails if one
@@ -194,6 +228,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - How either PyPI package is built or published changes.
 - The action format, the `auto_control` key, the registry build order, or plugin override semantics change.
 - Server defaults (host, port, auth, ACL, terminator) or HTTP routes change.
+- The storage URI syntax, the `StorageBackend` contract, the built-in schemes or the resolver order change.
 - A §6 contract changes: PyBreeze invocation, the Windows double decode, the facade names TestPioneer uses.
 - A CLAUDE.md section referenced in §7 is renamed or its rule changes.
 - Refresh the "Last verified" line whenever this file is re-checked against HEAD.

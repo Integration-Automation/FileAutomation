@@ -46,6 +46,7 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **HTTP 伺服器觀測端點** — `GET /healthz` / `GET /readyz` 探針、`GET /openapi.json` 規格、以及 `GET /progress`（以 WebSocket 推送即時傳輸快照）
 - **HTMX Web UI** — `start_web_ui()` 啟動唯讀觀測儀表板（health、progress、registry），以 HTML 片段輪詢；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
+- **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`memory://…`）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建 `LocalStorage` 與 `MemoryStorage`，並附 70 個案例的契約測試套件可檢查任何後端
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -144,6 +145,12 @@ flowchart TD
         Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
+    subgraph StorageLayer["<b>通用儲存層</b>"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// memory:// …"]
+        Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
+        Backends["<b>StorageBackend</b> contract<br/>LocalStorage · MemoryStorage"]
+    end
+
     subgraph Notify["<b>通知</b>"]
         NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
         Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
@@ -175,6 +182,11 @@ flowchart TD
     PublicAPI ==> NM
     PublicAPI ==> Trigger
     PublicAPI ==> Sched
+    PublicAPI ==> FileAPI
+    FileAPI ==> Resolver
+    Resolver ==> Backends
+    Backends ==> SafeP
+    Backends ==> Check
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -266,6 +278,7 @@ flowchart TD
     classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
     classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
     classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+    classDef storage fill:#D4E6F1,stroke:#1A5276,stroke-width:3px,color:#000,font-weight:bold;
 
     class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
     class PublicAPI facade;
@@ -280,6 +293,7 @@ flowchart TD
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
     class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+    class FileAPI,Resolver,Backends storage;
 
     linkStyle default stroke:#1F2A44,stroke-width:2.5px;
 ```
@@ -418,6 +432,48 @@ execute_action([
 所有後端（`s3`、`azure_blob`、`dropbox_api`、`sftp`）都對外提供相同的五組
 操作：`upload_file`、`upload_dir`、`download_file`、`delete_*`、`list_*`。
 SFTP 使用 `paramiko.RejectPolicy` — 未知主機會被拒絕，不會自動加入。
+
+### 通用儲存層（File / Storage）
+每一種儲存都使用同一套 URI 語法、同一組操作與同一組例外。`File` 代表單一檔案，
+`Storage` 代表目錄，`StorageBackend` 則是後端要實作的契約。`FA_*` 動作與各後端原有的
+函式完全不變，可與本層並用。
+
+```python
+from automation_file import File, LocalStorage, Storage
+
+report = File("local:///data/reports/q1.csv")      # 也可以直接寫一般路徑
+report.write("region,total\nEMEA,42\n")
+report.size, report.modified_at, report.content_type
+report.checksum()                                   # Checksum("sha256", "…")
+report.copy_to("memory://scratch/archive/q1.csv")   # 任何後端到任何後端
+report.move_to("local:///data/done/q1.csv")
+
+reports = Storage("local:///data/reports")
+for info in reports.list_dir(recursive=True):
+    print(info.path, info.size)
+
+# 限制不受信任的路徑：sandbox://jobs/ 之下的任何東西都離不開 /srv/jobs。
+Storage.mount("sandbox://jobs", LocalStorage("/srv/jobs"))
+File("sandbox://jobs/42/out.csv").write(b"done")
+```
+
+- **URI** — `<scheme>://<authority>/<path>`：`local:///data/a.csv`、`s3://bucket/a.csv`、
+  `sftp://server/data/a.csv`。路徑按字面解讀（不做百分比解碼），`..` 區段會被拒絕，
+  authority 中的憑證也會被拒絕。不含 `://` 的文字視為本機路徑。
+- **操作** — `exists`、`stat`、`list_dir`、`mkdir`、`upload`、`download`、`delete`、
+  `checksum`、`read_bytes`、`write_bytes`、`copy_from`、`move_from`，在每個後端上都相同。
+  下載與本機寫入皆為原子操作，刪除內有項目的目錄需要 `recursive=True`，儲存的根目錄
+  永遠不會被刪除。
+- **例外** — `StorageException` 及其子類別：`StorageNotFoundException`、
+  `StorageAlreadyExistsException`、`StoragePathTypeException`、`StorageNotEmptyException`、
+  `StoragePermissionException`、`StorageTransientException`、`StorageUnavailableException`、
+  `StorageUnsupportedException`、`StorageURIException`。
+- **目前的後端** — `LocalStorage`（`local://`，可透過 `safe_join` 限制在某個根目錄內）與
+  `MemoryStorage`（`memory://`，用於測試與試跑）。雲端與 SFTP 後端目前仍透過各自的用戶端與
+  `FA_*` 動作使用，接上本層的轉接器尚未完成。你可以繼承 `StorageBackend` 撰寫自己的後端，
+  並用 `tests/storage_contract.py` 中 70 個案例的契約測試套件檢查。
+
+此 API 為新功能，在 1.0 之前仍可能調整。完整說明請見文件的「通用儲存層」章節。
 
 ### 檔案監看觸發
 每當被監看路徑發生檔案系統事件，就執行動作清單：

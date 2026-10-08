@@ -143,6 +143,46 @@ class TracingException(FileAutomationException):
     """Raised when OpenTelemetry tracing setup cannot be completed."""
 
 
+class StorageException(FileAutomationException):
+    """Root of the errors raised by the universal storage layer (``automation_file.storage``)."""
+
+
+class StorageURIException(StorageException):
+    """Raised when a storage URI or path is malformed, ambiguous, or has no backend."""
+
+
+class StorageNotFoundException(StorageException, FileNotExistsException):
+    """Raised when a storage path, or the local source of an upload, does not exist."""
+
+
+class StorageAlreadyExistsException(StorageException):
+    """Raised when a write would replace a path and ``overwrite`` / ``exist_ok`` is off."""
+
+
+class StoragePathTypeException(StorageException):
+    """Raised when a file operation targets a directory, or a directory operation a file."""
+
+
+class StorageNotEmptyException(StorageException):
+    """Raised when a directory with entries is deleted without ``recursive=True``."""
+
+
+class StoragePermissionException(StorageException):
+    """Raised when the backend denies access to a path."""
+
+
+class StorageTransientException(StorageException):
+    """Raised for failures worth retrying: timeouts, dropped connections, throttling."""
+
+
+class StorageUnavailableException(StorageException):
+    """Raised when a backend is not initialised or its SDK is not installed."""
+
+
+class StorageUnsupportedException(StorageException):
+    """Raised when a backend cannot perform the requested operation."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"

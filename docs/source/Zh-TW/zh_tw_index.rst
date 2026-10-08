@@ -237,3 +237,18 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 外掛
 
    usage/plugins
+
+.. _zh-tw-storage:
+
+第 16 章 — 通用儲存層
+=====================
+
+``File`` 與 ``Storage`` 以同一套 URI 語法存取本機與遠端儲存；
+``StorageBackend`` 是後端要實作的唯一契約，提供共用的操作、共用的例外，
+以及可重複使用的契約測試套件。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 通用儲存層
+
+   usage/storage

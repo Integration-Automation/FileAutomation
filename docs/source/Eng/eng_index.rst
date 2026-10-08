@@ -242,3 +242,18 @@ imports a Python package and registers its top-level members as
    :caption: Plugins
 
    usage/plugins
+
+.. _eng-storage:
+
+Chapter 16 — Universal Storage Layer
+====================================
+
+``File`` and ``Storage`` address local and remote storage through one URI
+syntax; ``StorageBackend`` is the single contract a backend implements, with
+shared operations, shared errors and a reusable contract test suite.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Universal Storage Layer
+
+   usage/storage

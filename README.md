@@ -48,6 +48,7 @@ facade.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
 - **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
+- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; `LocalStorage` and `MemoryStorage` are built in, and a 70-case contract suite checks any backend
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -146,6 +147,12 @@ flowchart TD
         Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
     end
 
+    subgraph StorageLayer["<b>storage (universal layer)</b>"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// memory:// …"]
+        Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
+        Backends["<b>StorageBackend</b> contract<br/>LocalStorage · MemoryStorage"]
+    end
+
     subgraph Notify["<b>notifications</b>"]
         NM["<b>NotificationManager</b><br/>fanout · dedup · SSRF guard"]
         Sinks["<b>Sinks</b><br/>Webhook · Slack · Email<br/>Telegram · Discord · Teams · PagerDuty"]
@@ -177,6 +184,11 @@ flowchart TD
     PublicAPI ==> NM
     PublicAPI ==> Trigger
     PublicAPI ==> Sched
+    PublicAPI ==> FileAPI
+    FileAPI ==> Resolver
+    Resolver ==> Backends
+    Backends ==> SafeP
+    Backends ==> Check
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -268,6 +280,7 @@ flowchart TD
     classDef remote fill:#D5F5E3,stroke:#196F3D,stroke-width:3px,color:#000,font-weight:bold;
     classDef notify fill:#F9E79F,stroke:#7D6608,stroke-width:3px,color:#000,font-weight:bold;
     classDef utils fill:#EAEDED,stroke:#212F3C,stroke-width:3px,color:#000,font-weight:bold;
+    classDef storage fill:#D4E6F1,stroke:#1A5276,stroke-width:3px,color:#000,font-weight:bold;
 
     class CLI,GUIUser,ClientSDK,MCPHost,Plugins entry;
     class PublicAPI facade;
@@ -282,6 +295,7 @@ flowchart TD
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
     class Fast,Dedup,Grep,Rotate,Discovery,Builder utils;
+    class FileAPI,Resolver,Backends storage;
 
     linkStyle default stroke:#1F2A44,stroke-width:2.5px;
 ```
@@ -420,6 +434,51 @@ execute_action([
 All backends (`s3`, `azure_blob`, `dropbox_api`, `sftp`) expose the same five
 operations: `upload_file`, `upload_dir`, `download_file`, `delete_*`, `list_*`.
 SFTP uses `paramiko.RejectPolicy` — unknown hosts are rejected, not auto-added.
+
+### Universal storage layer (File / Storage)
+One URI syntax, one set of operations and one set of errors for every storage.
+`File` is a single file, `Storage` a directory, and `StorageBackend` the contract a
+backend implements. The `FA_*` actions and the per-backend functions keep working
+unchanged next to it.
+
+```python
+from automation_file import File, LocalStorage, Storage
+
+report = File("local:///data/reports/q1.csv")      # a plain path works too
+report.write("region,total\nEMEA,42\n")
+report.size, report.modified_at, report.content_type
+report.checksum()                                   # Checksum("sha256", "…")
+report.copy_to("memory://scratch/archive/q1.csv")   # any backend to any backend
+report.move_to("local:///data/done/q1.csv")
+
+reports = Storage("local:///data/reports")
+for info in reports.list_dir(recursive=True):
+    print(info.path, info.size)
+
+# Confine untrusted paths: nothing under sandbox://jobs/ can leave /srv/jobs.
+Storage.mount("sandbox://jobs", LocalStorage("/srv/jobs"))
+File("sandbox://jobs/42/out.csv").write(b"done")
+```
+
+- **URIs** — `<scheme>://<authority>/<path>`: `local:///data/a.csv`, `s3://bucket/a.csv`,
+  `sftp://server/data/a.csv`. The path is literal (nothing is percent-decoded), `..` segments
+  are rejected, and credentials in the authority are refused. Text without `://` is a local path.
+- **Operations** — `exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`,
+  `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`, identical on every backend.
+  Downloads and local writes are atomic, deleting a directory with entries needs
+  `recursive=True`, and the storage root is never deleted.
+- **Errors** — `StorageException` and its subclasses: `StorageNotFoundException`,
+  `StorageAlreadyExistsException`, `StoragePathTypeException`, `StorageNotEmptyException`,
+  `StoragePermissionException`, `StorageTransientException`, `StorageUnavailableException`,
+  `StorageUnsupportedException`, `StorageURIException`.
+- **Backends today** — `LocalStorage` (`local://`, optionally confined to a root through
+  `safe_join`) and `MemoryStorage` (`memory://`, for tests and dry runs). The cloud and SFTP
+  backends are still used through their own clients and `FA_*` actions; their adapters for
+  this layer are not written yet. Write your own by subclassing `StorageBackend` and check it with
+  the 70-case contract suite in `tests/storage_contract.py`.
+
+The API is new and may still change before 1.0. Full reference: the *Universal Storage Layer*
+chapter of the documentation.
 
 ### File-watcher triggers
 Run an action list whenever a filesystem event fires on a watched path:

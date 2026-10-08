@@ -172,3 +172,17 @@ File-discovery, fast-find, deduplicate, grep, and rotate helpers.
    :caption: Utils
 
    utils
+
+.. _api-storage:
+
+Chapter M — Universal Storage Layer
+===================================
+
+``File``, ``Storage``, the ``StorageBackend`` contract, storage URIs, the
+resolver, and the built-in local and in-memory backends.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Universal Storage Layer
+
+   storage
