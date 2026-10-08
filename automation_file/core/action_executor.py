@@ -56,7 +56,10 @@ _SETTINGS = ExecutorSettings(
 
 
 class ActionExecutor(_CoreActionExecutor):
-    """Execute named actions resolved through an :class:`ActionRegistry` (je_action_core's executor)."""
+    """Execute named actions resolved through an :class:`ActionRegistry`.
+
+    Uses the shared action executor's implementation.
+    """
 
     registry: ActionRegistry
 

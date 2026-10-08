@@ -202,6 +202,43 @@ def _is_locked(requirement: Requirement, pins: dict[str, str]) -> bool:
     return version is not None and requirement.specifier.contains(version)
 
 
+@pytest.mark.parametrize("workflow", _WORKFLOWS, ids=lambda path: path.name)
+def test_lint_and_integration_jobs_cannot_resolve_unlocked_dependencies(workflow):
+    jobs = dict(_jobs(workflow))
+    for name in ("lint", "services", "platforms"):
+        if name not in jobs:
+            continue
+        commands = _commands(jobs[name], _PIP_INSTALL)
+        assert commands
+        for command in commands:
+            if "-e ." in command:
+                assert "--no-deps" in command
+                assert "--no-build-isolation" in command
+            else:
+                assert "--require-hashes" in command
+                assert "--only-binary :all:" in command
+
+
+def test_integration_lock_covers_the_package_and_its_build_backend():
+    text = (_REQUIREMENTS / "integration.txt").read_text(encoding="utf-8")
+    pins = {canonicalize_name(name): version for name, version in _PIN.findall(text)}
+    with (_ROOT / "dev.toml").open("rb") as handle:
+        metadata = tomllib.load(handle)
+    project = metadata["project"]
+    requirements = (
+        project["dependencies"]
+        + project["optional-dependencies"]["all"]
+        + project["optional-dependencies"]["test"]
+        + metadata["build-system"]["requires"]
+    )
+    for item in requirements:
+        requirement = Requirement(item)
+        # The integration runners all use Python 3.12.
+        if requirement.marker and 'python_version < "3.11"' in str(requirement.marker):
+            continue
+        assert _is_locked(requirement, pins), item
+
+
 def test_the_publish_jobs_are_the_two_known_ones():
     # A new job that is given the token has to be looked at against the rule below.
     assert [name for name, _body in _publish_jobs()] == [
@@ -221,7 +258,7 @@ def test_publish_jobs_install_only_hash_locked_tools(job):
 
 @pytest.mark.parametrize("job", _publish_jobs(), ids=lambda job: job[0])
 def test_publish_jobs_build_with_the_locked_backend(job):
-    # An isolated build downloads the newest setuptools of that minute, outside publish.txt, and runs
+    # An isolated build downloads the newest setuptools outside publish.txt and runs
     # it beside the token. --no-isolation builds with the backend the locked install put in the job.
     _name, body = job
     builds = _commands(body, _BUILD)

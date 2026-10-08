@@ -41,6 +41,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
 | `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
 | `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`, and the build backend `setuptools`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
+| `.github/requirements/lint.in`, `lint.txt`, `integration.in`, `integration.txt` | Hash-locked wheel dependencies for lint and Python 3.12 integration jobs. The editable package uses the locked build backend without dependency resolution or build isolation. |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
