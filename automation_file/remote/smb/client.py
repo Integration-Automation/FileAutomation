@@ -1,20 +1,23 @@
 """SMB / CIFS client built on ``smbprotocol``'s high-level ``smbclient`` API.
 
 Scope mirrors :mod:`automation_file.remote.webdav.client` — existence check,
-upload, download, delete, directory create, and shallow listing. The
-underlying session is registered per ``(server, username)`` pair and torn
+stat, upload, download, delete, rename, directory create, and shallow listing.
+The underlying session is registered per ``(server, username)`` pair and torn
 down when :meth:`SMBClient.close` runs. ``smbprotocol`` is imported lazily so
 importing this module never touches the optional dependency.
 """
 
 from __future__ import annotations
 
+import errno
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from stat import S_ISDIR
 from types import TracebackType
 from typing import Any
 
+from automation_file.core.optional import install_hint
 from automation_file.exceptions import SMBException
 
 _DEFAULT_PORT = 445
@@ -23,11 +26,15 @@ _CHUNK_SIZE = 1 << 16
 
 @dataclass(frozen=True)
 class SMBEntry:
-    """A single directory listing entry returned by :meth:`SMBClient.list_dir`."""
+    """One file or directory, from :meth:`SMBClient.list_dir` or :meth:`SMBClient.stat`.
+
+    ``mtime`` is the modification time in seconds since the epoch.
+    """
 
     name: str
     is_dir: bool
     size: int | None
+    mtime: float | None = None
 
 
 def _import_smbclient() -> Any:
@@ -35,9 +42,32 @@ def _import_smbclient() -> Any:
         import smbclient
     except ImportError as error:
         raise SMBException(
-            "smbprotocol import failed — install `smbprotocol` to use the SMB backend"
+            f"smbprotocol is not installed; the SMB backend needs it: {install_hint('smb')}"
         ) from error
     return smbclient
+
+
+def _is_missing(error: OSError) -> bool:
+    """smbprotocol reports a missing path as an ``OSError`` subclass of its own with ``ENOENT``."""
+    return isinstance(error, FileNotFoundError) or error.errno == errno.ENOENT
+
+
+def _entry(name: str, is_dir: bool, details: Any) -> SMBEntry:
+    return SMBEntry(
+        name=name,
+        is_dir=is_dir,
+        size=None if is_dir else int(details.st_size),
+        mtime=float(details.st_mtime),
+    )
+
+
+def _listed(item: Any) -> SMBEntry:
+    is_dir = bool(item.is_dir())
+    try:
+        details = item.stat()
+    except OSError:
+        return SMBEntry(name=item.name, is_dir=is_dir, size=None)
+    return _entry(item.name, is_dir, details)
 
 
 class SMBClient:
@@ -76,6 +106,16 @@ class SMBClient:
         tb: TracebackType | None,
     ) -> None:
         self.close()
+
+    @property
+    def server(self) -> str:
+        """The host this client connects to."""
+        return self._server
+
+    @property
+    def share(self) -> str:
+        """The share every remote path is resolved against."""
+        return self._share
 
     def close(self) -> None:
         if not self._registered:
@@ -119,12 +159,23 @@ class SMBClient:
         self._ensure_session()
         smbclient = _import_smbclient()
         try:
-            smbclient.stat(self._unc(remote_path))
-        except FileNotFoundError:
-            return False
+            smbclient.stat(self._unc(remote_path), port=self._port)
         except OSError as error:
+            if _is_missing(error):
+                return False
             raise SMBException(f"stat failed for {remote_path}: {error}") from error
         return True
+
+    def stat(self, remote_path: str) -> SMBEntry:
+        """Return the kind, size and modification time of ``remote_path``."""
+        self._ensure_session()
+        smbclient = _import_smbclient()
+        try:
+            details = smbclient.stat(self._unc(remote_path), port=self._port)
+        except OSError as error:
+            raise SMBException(f"stat failed for {remote_path}: {error}") from error
+        name = remote_path.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+        return _entry(name, S_ISDIR(details.st_mode), details)
 
     def upload(self, local_path: str | os.PathLike[str], remote_path: str) -> None:
         """Copy the contents of ``local_path`` to ``remote_path`` on the share."""
@@ -136,7 +187,7 @@ class SMBClient:
         try:
             with (
                 open(source, "rb") as src,
-                smbclient.open_file(self._unc(remote_path), mode="wb") as dst,
+                smbclient.open_file(self._unc(remote_path), mode="wb", port=self._port) as dst,
             ):
                 while True:
                     chunk = src.read(_CHUNK_SIZE)
@@ -154,7 +205,7 @@ class SMBClient:
         smbclient = _import_smbclient()
         try:
             with (
-                smbclient.open_file(self._unc(remote_path), mode="rb") as src,
+                smbclient.open_file(self._unc(remote_path), mode="rb", port=self._port) as src,
                 open(dest, "wb") as out,
             ):
                 while True:
@@ -170,16 +221,30 @@ class SMBClient:
         self._ensure_session()
         smbclient = _import_smbclient()
         try:
-            smbclient.remove(self._unc(remote_path))
+            smbclient.remove(self._unc(remote_path), port=self._port)
         except OSError as error:
             raise SMBException(f"delete failed for {remote_path}: {error}") from error
+
+    def rename(self, remote_path: str, new_path: str, *, overwrite: bool = False) -> None:
+        """Rename ``remote_path`` to ``new_path`` on the share.
+
+        ``overwrite=True`` replaces a file already at ``new_path``; otherwise that
+        is an error.
+        """
+        self._ensure_session()
+        smbclient = _import_smbclient()
+        rename = smbclient.replace if overwrite else smbclient.rename
+        try:
+            rename(self._unc(remote_path), self._unc(new_path), port=self._port)
+        except OSError as error:
+            raise SMBException(f"rename failed for {remote_path}: {error}") from error
 
     def mkdir(self, remote_path: str) -> None:
         """Create the remote directory at ``remote_path`` (parents must exist)."""
         self._ensure_session()
         smbclient = _import_smbclient()
         try:
-            smbclient.makedirs(self._unc(remote_path), exist_ok=True)
+            smbclient.makedirs(self._unc(remote_path), exist_ok=True, port=self._port)
         except OSError as error:
             raise SMBException(f"mkdir failed for {remote_path}: {error}") from error
 
@@ -188,7 +253,7 @@ class SMBClient:
         self._ensure_session()
         smbclient = _import_smbclient()
         try:
-            smbclient.rmdir(self._unc(remote_path))
+            smbclient.rmdir(self._unc(remote_path), port=self._port)
         except OSError as error:
             raise SMBException(f"rmdir failed for {remote_path}: {error}") from error
 
@@ -197,19 +262,7 @@ class SMBClient:
         self._ensure_session()
         smbclient = _import_smbclient()
         try:
-            dir_entries = list(smbclient.scandir(self._unc(remote_path)))
+            dir_entries = list(smbclient.scandir(self._unc(remote_path), port=self._port))
         except OSError as error:
             raise SMBException(f"list_dir failed for {remote_path}: {error}") from error
-        entries: list[SMBEntry] = []
-        for item in dir_entries:
-            is_dir = bool(item.is_dir())
-            size: int | None
-            if is_dir:
-                size = None
-            else:
-                try:
-                    size = int(item.stat().st_size)
-                except OSError:
-                    size = None
-            entries.append(SMBEntry(name=item.name, is_dir=is_dir, size=size))
-        return entries
+        return [_listed(item) for item in dir_entries]

@@ -11,18 +11,28 @@ Dropbox, SFTP, FTP, OneDrive, Box, plus SMB and WebDAV clients). Every operation
 command in one `ActionRegistry`, so JSON action lists run the same way in-process, from files, from
 the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GUI.
 
+Next to the actions, `automation_file.storage` is the universal storage layer: one URI syntax, one
+`StorageBackend` contract and one error hierarchy, used through `File` and `Storage`. It is the first
+piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what is still open is in `progress.md`.
+
 ## 2. Layers and directories
 
 | Path | Responsibility |
 | --- | --- |
 | `automation_file/__init__.py` | Public facade (`__all__`). Wires the shared `executor`, `callback_executor` and `package_manager` over one registry. `launch_ui` is loaded lazily through `__getattr__` |
-| `automation_file/__main__.py` | CLI: legacy flags plus subcommands |
-| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
+| `automation_file/__main__.py`, `cli_*.py` | CLI: legacy flags plus subcommands. `cli_storage.py` holds `storage`, `cli_operations.py` holds `integrity`, `pipeline` and `audit`, `cli_common.py` what they share (JSON output, `--init`, `--audit`, the `cli:<user>` actor) |
+| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `optional` (`require_module`, the extras table), `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
-| `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
+| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `session_storage.py` (`SessionStorage`: one login session, one operation at a time, and `require_session_host`), `sftp_storage.py` (`SFTPStorage`), `ftp_storage.py` (`FTPStorage`, for `ftp` and `ftps`), `gdrive_storage.py` (`GoogleDriveStorage`: paths resolved to file IDs, duplicate names refused), `onedrive_storage.py` (`OneDriveStorage`, Microsoft Graph), `dropbox_storage.py` (`DropboxStorage`), `webdav_storage.py` (`WebDAVStorage`), `smb_storage.py` (`SMBStorage`), `fsspec_storage.py` (`FsspecStorage`, any fsspec filesystem), `timestamps.py` (RFC 3339 parsing), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`), `observe.py` (listeners for `upload`, `download`, `read`, `delete`, `mkdir`, `copy`, `move`), `streams.py` (staged file objects behind `open_read` / `open_write`), `tree.py` (`copy_tree`, `sync_tree`, `TreeResult`), `actions.py` (the `FA_storage_*` functions and `register_storage_ops`). At module level it imports only `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
+| `automation_file/events/` | The event model every component reports through. `model.py` (`Event`, `Severity`, the ten core events), `bus.py` (`EventBus`, the process-wide `event_bus`, `emit`), `context.py` (`correlation_scope`, `actor_scope`), `storage_bridge.py` (failed storage operations become `StorageError` events; installed when the package is imported). It imports only the standard library, `logging_config` and `storage.observe` |
+| `automation_file/integrity/` | IntegrityMonitor 2.0, on the storage layer and the event bus. `target.py` (`Target`: the monitored tree behind a storage URI), `hashing.py` (`HashEngine`; `md5` and `sha1` only with `allow_weak`), `snapshot.py` (`Snapshot`, `SnapshotEntry`, `build_snapshot`), `manifest.py` (schema version 2; the `write_manifest` format is read and converted), `baseline.py` (`BaselineManager`: an atomic write at any storage URI), `detector.py` (`Change`, `ChangeKind`, `detect_changes`: six kinds of change), `report.py` (`DriftReport`), `alerts.py` (`AlertEngine`, `AlertPolicy`: one `IntegrityViolation` per pass that finds drift), `remediation.py` (`RemediationPolicy`, `Remediator`: quarantine or restore, opt-in), `watcher.py` and `local_watcher.py` (polling, and watchdog events for a local target), `legacy.py` (the first monitor's summary, callback and notification), `monitor.py` (`IntegrityMonitor`), `actions.py` (`FA_integrity_*`). `core/fim.py` re-exports the class |
+| `automation_file/app/` | The application layer both user interfaces call: plain Python, no Qt and no SDK at import. `services.py` (`AppServices`, `app_services`, `build_services`, `NAVIGATION`), one `*_service.py` per navigation entry (dashboard, files, storage, pipelines, scheduler, integrity, audit, notifications, settings), `pipeline_draft.py` (`PipelineDraft`: the editable definition behind the pipeline editor; canvas positions go to a `<file>.layout.json` sidecar), `arguments.py`, `masking.py` (secrets are masked before anything is shown), `errors.py` (`AppException`) |
+| `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py` (JSON-RPC over stdio: the semantic tools first, then the `FA_*` bridge), `mcp_policy.py` (`MCPPolicy`, `StorageGuard`: roots, read-only by default, limits), `mcp_tools.py` and `mcp_*_tools.py` (`SemanticToolkit` and the fourteen tools), `mcp_pipeline_actions.py` (the guarded `FA_storage_*` set pipelines made through MCP run), `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
-| `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
+| `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, the scheduler, notification sinks. Each registers its own `FA_*` ops. `scheduler/`: `cron.py` (`CronExpression`), `triggers.py` (`CronTrigger` with a time zone, `FileTrigger`, `EventTrigger`, `PipelineTrigger`), `job.py`, `targets.py` (an action list or a pipeline), `runs.py` (`JobRun`, `RunState`, a bounded `RunHistory`), `dispatch.py`, `manager.py` (`Scheduler`, the process-wide `scheduler`; `tick(now)` drives it in tests). `notify/router.py` (`Route`, `NotificationRouter`, the process-wide `notification_router`) subscribes on the event bus and delivers events to named sinks by type, source and minimum severity, with deduplication and a rate limit per route and sink; a failing sink becomes a `system.error` event from the source `notify`, which is never routed |
+| `automation_file/pipeline/` | The pipeline runtime. `model.py` (`Task`, `TaskContext`, `RetryPolicy`, `Schedule`, `PipelineRun`, `TaskRun`, `RunStatus`, `TaskStatus`), `graph.py` (dependency order, cycles), `pipeline.py` (`Pipeline`: `task`, `run`, `start`, `resume`, `from_file` / `from_dict` / `to_dict`, `problems` / `validate`), `runner.py` and `worker.py` (one daemon thread per running task, capped at `max_workers`; retry, timeout, cancellation, conditions, idempotency), `substitution.py` (`${params.x}`, `${tasks.id.result}`), `store.py` (`RunStore`, `MemoryRunStore`, `SQLiteRunStore`: checkpoints and history), `definition.py` (`load_definition`, `validate_definition`, `PIPELINE_SCHEMA`), `reporting.py` (the `pipeline.*` and `task.*` events), `actions.py` (`FA_pipeline_*`). `core/dag_executor.py` is the older, unrecorded DAG helper and is unchanged |
+| `automation_file/audit/` | Audit schema v2. `record.py` (`AuditRecord`, built from an event or from a storage operation), `store.py` (`AuditStore`, `AuditQuery`, `MemoryAuditStore`), `sqlite_store.py` (`SQLiteAuditStore`: parameterised SQL, a schema-version table, `import_v1`), `trail.py` (`AuditTrail`, the process-wide `audit_trail`, `configure_audit`), `actions.py` (`FA_audit_*`). The trail records nothing until it is configured; the v1 `core/audit.py` `AuditLog` is unchanged |
 | `automation_file/project/` | `ProjectBuilder`, `create_project_dir` |
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
@@ -31,8 +41,9 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
 | `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
 | `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`, and the build backend `setuptools`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
+| `.github/requirements/lint.in`, `lint.txt`, `integration.in`, `integration.txt` | Hash-locked wheel dependencies for lint and Python 3.12 integration jobs. The editable package uses the locked build backend without dependency resolution or build isolation. |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
-| `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
+| `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures, including the shared Qt application lifecycle, in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
 ## 3. Entry points and public interfaces
 
@@ -41,12 +52,72 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
   `executor`, `callback_executor`, `package_manager`, `ActionRegistry`, `build_default_registry`,
   `driver_instance` (Google Drive), `start_autocontrol_socket_server`, `start_http_action_server`,
   `HTTPActionClient`, `MCPServer`, `create_project_dir`, `launch_ui` (lazy).
+- **Storage layer** (same facade): `File`, `Storage`, `StorageBackend`, `StorageResolver`, `StorageURI`,
+  `parse_storage_uri`, `FileInfo`, `Checksum`, `StorageCapabilities`, `LocalStorage`, `MemoryStorage`,
+  `ObjectStorage`, `S3Storage`, `AzureStorage`, `SessionStorage`, `SFTPStorage`, `FTPStorage`,
+  `GoogleDriveStorage`, `OneDriveStorage`, `DropboxStorage`, `WebDAVStorage`, `SMBStorage`,
+  `FsspecStorage`, and
+  `StorageException` with its nine subclasses. Storage URIs are `<scheme>://<authority>/<path>`; the built-in
+  schemes are `local` (alias `file`), `memory`, `s3`, `azure` (alias `az`), `gdrive`, `dropbox`, `onedrive`, `sftp`, `ftp` and `ftps`, each through its shared client singleton; text without `://` is a local path. WebDAV, SMB and fsspec backends are mounted with `Storage.mount`. An `sftp://` or `ftp://` URI with a host is refused unless the session is connected to that host. The API is
+  provisional until 1.0. Sixteen `FA_storage_*` actions (`exists`, `stat`, `list`, `mkdir`, `upload`,
+  `download`, `delete`, `checksum`, `verify`, `copy`, `move`, `read_text`, `write_text`, `copy_tree`,
+  `sync`, `schemes`) put
+  it in the default registry; `register_storage_ops` adds them to another one.
+- **Integrity** (same facade): `IntegrityMonitor`, `DriftReport`, `BaselineManager`, `AlertPolicy`,
+  `RemediationPolicy`, `IntegrityRemediated`, `IntegrityException`, `register_integrity_ops`; the
+  rest (`Snapshot`, `Change`, `HashEngine`, the manifest functions) is in `automation_file.integrity`.
+  Seven actions: `FA_integrity_snapshot`, `FA_integrity_baseline`, `FA_integrity_verify`,
+  `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`, `FA_integrity_status`.
+  The first monitor's call, `IntegrityMonitor(root, manifest_path, interval=, on_drift=, manager=,
+  alert_on_extra=)`, and its `check_once()` summary are kept.
+- **Pipelines** (same facade): `Pipeline`, `Task`, `TaskContext`, `RetryPolicy`, `PipelineRun`, `TaskRun`,
+  `RunStatus`, `TaskStatus`, `RunStore`, `MemoryRunStore`, `SQLiteRunStore`, `PipelineException`,
+  `PipelineDefinitionException`, `register_pipeline_ops`; `Schedule`, `load_definition`,
+  `validate_definition` and `PIPELINE_SCHEMA` are in `automation_file.pipeline`. Actions:
+  `FA_pipeline_run`, `FA_pipeline_validate`, `FA_pipeline_status`, `FA_pipeline_history`,
+  `FA_pipeline_resume`. A run reports only through `pipeline.*` and `task.*` events, with the run ID as
+  the correlation ID.
+- **Notification routes and audit** (same facade): `Route`, `NotificationRouter`, `notification_router`;
+  `AuditRecord`, `AuditQuery`, `AuditStore`, `SQLiteAuditStore`, `MemoryAuditStore`, `AuditTrail`,
+  `audit_trail`, `configure_audit`, `audit_search`, `register_audit_ops`; `install_operational_metrics`
+  and the counters `EVENT_COUNT`, `NOTIFICATION_COUNT`, `STORAGE_OPERATION_COUNT`,
+  `STORAGE_OPERATION_DURATION`. Actions: `FA_notify_route_add` / `_remove` / `_list`,
+  `FA_audit_configure` / `_search` / `_count` / `_purge`. Both are opt-in: the router delivers
+  nothing until it has a route and is started, and the trail records nothing until it has a store.
+- **Semantic MCP tools**: `file_read`, `file_write`, `file_copy`, `file_move`, `file_search`,
+  `file_checksum`, `file_verify`, `storage_list`, `storage_copy`, `pipeline_create`, `pipeline_run`,
+  `pipeline_status`, `integrity_status`, `audit_search`. Names, arguments and result shapes are public.
+  `MCPPolicy` and `SemanticToolkit` are on the facade; flags: `--root`, `--allow-write`,
+  `--allow-overwrite`, `--allow-delete`, `--max-read-bytes`, `--max-write-bytes`, `--max-results`,
+  `--max-search-bytes`, `--pipeline-dir`, `--pipeline-actions`, `--tools`, `--no-bridge`.
+- **Scheduler** (same facade): `Scheduler`, `scheduler`, `CronExpression`, `CronTrigger`, `FileTrigger`,
+  `EventTrigger`, `PipelineTrigger`, `JobRun`, `RunState`, `ScheduledJob`, `SchedulerException`, and
+  `schedule_add` / `_remove` / `_remove_all` / `_list`. Actions: `FA_schedule_add`, `_remove`,
+  `_remove_all`, `_list` (unchanged), and `FA_schedule_job`, `FA_schedule_pipeline`, `FA_schedule_run`,
+  `FA_schedule_history`, `FA_schedule_cancel`. The keys of `ScheduledJob.as_dict()` are relied on by
+  the GUI and by action lists.
+- **Application layer** (`automation_file.app`; `AppServices`, `PipelineDraft`, `app_services` and
+  `build_services` are also on the facade): the services the GUI pages and the Web UI fragments call.
+  A third interface builds on these, not on the Qt widgets.
+- **Events** (same facade): `Event`, `Severity`, `EventBus`, `event_bus`, `emit`, `correlation_scope`,
+  `actor_scope`, and the core events `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`,
+  `TaskStarted`, `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
+  `SystemErrorEvent`. Event `type` names (`pipeline.failed`, ...) and the payload keys in
+  `events.model.PAYLOAD_KEYS` are what consumers match on.
 - **Action format**: an action is `[name]`, `[name, {kwargs}]` or `[name, [args]]`. A file holds a
   list of actions or `{"auto_control": [...]}`.
 - **CLI** (`python -m automation_file`; no console script for it):
   - legacy flags `-e/--execute_file`, `-d/--execute_dir`, `-c/--create_project` and `--execute_str`.
     `_execute_str` decodes a second time when the first `json.loads` yields a string;
-  - subcommands `zip`, `unzip`, `download`, `create-file`, `server`, `http-server`, `ui`, `mcp`, `drive-upload`.
+  - subcommands `zip`, `unzip`, `download`, `create-file`, `server`, `http-server`, `ui`, `mcp`, `drive-upload`;
+  - `storage` with its own subcommands `ls`, `stat`, `cat`, `cp`, `mv`, `rm`, `mkdir`, `sync`, `checksum`,
+    `verify`, `schemes` (`cli_storage.py`): one JSON document per call, and `--init <action list>` to
+    initialise a backend's client first;
+  - `integrity` (`snapshot`, `baseline`, `verify`, `accept`), `pipeline` (`validate`, `run`, `status`,
+    `history`, `resume`; `--store <sqlite>` keeps runs between commands) and `audit` (`search`,
+    `count`, `purge`; `--db <sqlite>`) in `cli_operations.py`. `integrity verify` exits 1 on drift,
+    `pipeline validate` on an invalid definition, `pipeline run` / `resume` unless the run succeeded;
+  - `--audit <sqlite>` on `storage`, `integrity` and `pipeline` records the command in an audit trail.
 - **MCP**: `automation_file_mcp` (`automation_file.server.mcp_server:_cli`) or
   `python -m automation_file mcp [--allowed-actions ...]`. It is a standard-library JSON-RPC stdio
   server whose tools come from the registry (`tools_from_registry`).
@@ -99,8 +170,29 @@ MCP host → automation_file_mcp (stdio JSON-RPC) → tools/call → MCPServer r
 ```
 ActionExecutor() → build_default_registry(): local + http + utils + drive commands
   → _register_cloud_backends (register_<backend>_ops) → trigger / scheduler / progress / notify ops
+  → storage ops (FA_storage_*) → integrity ops (FA_integrity_*) → audit ops (FA_audit_*)
+  → pipeline ops (FA_pipeline_*)
   → _load_plugins (entry points; may override built-ins)
   → executor adds FA_execute_action, FA_execute_files, FA_execute_action_parallel, FA_validate
+```
+
+**Storage URI → backend**
+
+```
+File(uri) / Storage(uri) → parse_storage_uri (scheme alias, authority check, path normalised, ".." refused)
+  → StorageResolver.resolve: longest mount at or above the URI, else the scheme's factory → (backend, path)
+  → StorageBackend public method: normalise, check what exists, make parents → _primitive of the backend
+  → FileInfo / Checksum / bytes, or a StorageException subclass
+copy_to / move_to → target_backend.copy_from(source_backend, ...) → native (_copy_from / _move_from) or a local staging file
+every upload / download / read / delete / mkdir / copy / move → storage.observe listeners (StorageOperation)
+```
+
+**Event → consumers**
+
+```
+component → Event (type, severity, source, subject, payload, correlation_id, actor) → event_bus.publish
+  → each matching subscriber, in the publisher's thread; one that raises is logged and skipped
+storage.observe → events.storage_bridge → StorageError (only for a failing backend, not a caller mistake)
 ```
 
 ## 5. Extension points
@@ -114,9 +206,22 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   1. `remote/<backend>/` with `client.py` (module singleton `<backend>_instance` with `later_init`,
      plus `close` where relevant), the `*_ops.py` modules, and `register_<backend>_ops(registry)` in `__init__.py`.
   2. Call it from `_register_cloud_backends`.
-  3. Add the SDK to `dependencies` in both `stable.toml` and `dev.toml`, then add facade exports.
+  3. Add the SDK as an extra in both `stable.toml` and `dev.toml` (and to `all`), name it in
+     `core.optional.EXTRAS`, import it with `require_module` where it is used, then add facade exports.
   4. Add `ui/tabs/<backend>_tab.py` and wire it into `ui/tabs/transfer_tab.py`.
   5. Add tests; paths that need the network are not exercised in CI.
+- **New storage backend** (the universal layer; separate from the `FA_*` backend above):
+  1. Subclass `StorageBackend` in `storage/<name>_storage.py`: set `scheme` and `capabilities`, implement
+     `_stat`, `_list_dir`, `_upload`, `_download`, `_delete_file`, plus `_mkdir` and `_rmdir` when
+     `capabilities.directories` is true. Map the SDK's errors to the `StorageException` subclasses and
+     import the SDK lazily. An object store subclasses `ObjectStorage` and implements `_head`, `_scan`,
+     `_put`, `_get`, `_remove` instead.
+  2. Register its factory in `register_default_schemes` (`storage/resolver.py`), or leave it to callers
+     to `Storage.mount(...)` when it needs connection arguments.
+  3. Add `tests/test_storage_<name>.py` with a `StorageContract` subclass (`tests/storage_contract.py`);
+     every backend passes the same suite.
+  4. Export it from `storage/__init__.py` and the facade, and document its URI form in the three
+     `usage/storage.rst` pages and the READMEs.
 - **Outbound HTTP**: always call `validate_http_url` (`remote/url_validator.py`) first.
 - **Plugins**: an entry point in the group `automation_file.actions` (`core/plugins.py`), or
   `add_command_to_executor({...})` at runtime. `package_manager.add_package_to_executor` registers a
@@ -131,7 +236,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   (`PyBreeze/pybreeze/extend/process_executor/python_task_process_manager.py`; the package name is in
   `.../process_executor/file_automation/file_automation_process.py`). PyBreeze double-encodes the JSON
   on Windows, so `_execute_str`'s `isinstance`-guarded second decode and the legacy flag names are a
-  contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze also declares `automation-file` as
+  contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze declares `automation-file` and, now that the SDKs and the GUI are extras, needs `automation-file[all]` to keep what it had (`progress.md` #29); it lists the package as
   a dependency.
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
   (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
@@ -164,6 +269,10 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 
 ## 7. Design constraints
 
+- The public surface (facade and package `__all__`s, `FA_*` actions, CLI, storage URIs, versioned data
+  formats, event types, the exception hierarchy) changes only by deprecation: `core/deprecation.py`
+  warns, the name stays for at least two minor releases, a major release removes it
+  (`docs/source/Eng/usage/api_policy.rst`; CLAUDE.md § Conventions).
 - Only the three action shapes in §3. Extend through the registry, not by subclassing the executor.
   Python 3.10+, `X | Y` unions, `from __future__ import annotations` (CLAUDE.md § Conventions).
 - Exceptions derive from `FileAutomationException`. Log through `file_automation_logger`; no
@@ -174,14 +283,18 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   TCP reads one `recv(8192)` payload; HTTP bodies are capped at 1 MB (§ Security › TCP server; › HTTP server).
 - Resolve user paths through `safe_join` / `is_within` (§ Security › Path traversal). SFTP keeps
   `paramiko.RejectPolicy()` (§ Security › SFTP host verification).
+- The storage layer does not import the registry, the GUI or a backend SDK at import time. Storage paths
+  never contain `..`, storage URIs never carry credentials, `delete` never removes a storage root and
+  never follows a symbolic link, and every backend passes `tests/storage_contract.py`.
 - `retry_on_transient` retries only the listed exception types (§ Security › Reliability (retry / quota)).
   `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading). No `FA_*`
   command reaches it, so je_action_core's package gate is off here (`tests/test_package_loader.py` fails if one
   is added; workspace X-12).
 - No `shell=True`; subprocesses use argument lists and a timeout (§ Security › General rules; › Subprocess execution).
-- Backends and PySide6 are first-class runtime dependencies. Keep `stable.toml` and `dev.toml`
-  in sync (`tests/test_dev_toml_parity.py`), and let CI number both channels: never bump a version by
-  hand (§ Branching & CI).
+- The base install has no cloud SDK and no GUI toolkit: each lives in an extra and is imported at the
+  moment of use through `core.optional.require_module` (`tests/test_optional_dependencies.py`). Keep
+  `stable.toml` and `dev.toml` in sync (`tests/test_dev_toml_parity.py`), and let CI number both
+  channels: never bump a version by hand (§ Branching & CI).
 - Limits: cyclomatic complexity ≤ 15 (hard cap 20), cognitive complexity ≤ 15, functions ≤ 75 lines,
   ≤ 7 parameters, nesting ≤ 4, files ≤ 1000 lines (§ Code quality › Complexity & size).
 - Run `ruff check`, `ruff format --check`, `mypy` and `pytest` before committing (§ Development).
@@ -194,6 +307,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - How either PyPI package is built or published changes.
 - The action format, the `auto_control` key, the registry build order, or plugin override semantics change.
 - Server defaults (host, port, auth, ACL, terminator) or HTTP routes change.
+- The storage URI syntax, the `StorageBackend` contract, the built-in schemes or the resolver order change.
 - A §6 contract changes: PyBreeze invocation, the Windows double decode, the facade names TestPioneer uses.
 - A CLAUDE.md section referenced in §7 is renamed or its rule changes.
 - Refresh the "Last verified" line whenever this file is re-checked against HEAD.

@@ -22,10 +22,12 @@ from collections.abc import MutableMapping, MutableSequence, Sequence
 from pathlib import Path
 from typing import Any
 
+from automation_file.core.optional import require_module
 from automation_file.exceptions import DataOpsException, FileNotExistsException
 from automation_file.logging_config import file_automation_logger
 
 _MISSING = object()
+_PARQUET_EXTRA = "parquet"
 
 
 def csv_filter(
@@ -267,7 +269,7 @@ def parquet_read(
     ``limit`` caps the number of rows returned (reads the whole file but
     slices before conversion — handy for previews of multi-GB files).
     """
-    import pyarrow.parquet as pq
+    pq = require_module("pyarrow.parquet", extra=_PARQUET_EXTRA)
 
     source = Path(path)
     if not source.is_file():
@@ -283,8 +285,8 @@ def parquet_read(
 
 def parquet_write(path: str, records: list[dict[str, Any]]) -> int:
     """Write ``records`` (list of dicts) as a Parquet file; return the row count."""
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    pa = require_module("pyarrow", extra=_PARQUET_EXTRA)
+    pq = require_module("pyarrow.parquet", extra=_PARQUET_EXTRA)
 
     if not isinstance(records, list):
         raise DataOpsException("records must be a list of dicts")

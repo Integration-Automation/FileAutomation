@@ -11,33 +11,31 @@ version = "0.0.33"
 authors = [
     { name = "JE-Chen", email = "jechenmailman@gmail.com" },
 ]
-description = "JSON-driven file, Drive, and cloud automation framework (dev channel)."
+description = "Universal file layer and data-pipeline runtime: one API for local and remote storage, integrity monitoring, pipelines, scheduling, notifications, audit and MCP automation (dev channel)."
+keywords = [
+    "file", "storage", "s3", "azure-blob", "sftp", "webdav", "pipeline", "dag", "scheduler",
+    "file-integrity", "audit", "automation", "mcp",
+]
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
+# The base install: the action engine, local operations, HTTP, the storage layer's local and
+# in-memory backends, pipelines, events, audit, triggers and the servers. No cloud SDK and no GUI
+# toolkit: each of those is an extra below, imported only when its feature is used.
 dependencies = [
-    "google-api-python-client>=2.100.0",
-    "google-auth-httplib2>=0.2.0",
-    "google-auth-oauthlib>=1.2.0",
     "requests>=2.31.0",
     "tqdm>=4.66.0",
-    "boto3>=1.34.0",
-    "azure-storage-blob>=12.19.0",
-    "dropbox>=11.36.2",
-    "paramiko>=3.4.0",
-    "PySide6>=6.6.0",
     "watchdog>=4.0.0",
     "cryptography>=50.0.0",
     "prometheus_client>=0.26.0",
     "defusedxml>=0.7.1",
     "je_action_core>=0.0.2",
     "PyYAML>=6.0.3",
-    "pyarrow>=25.0.1",
+    # zoneinfo has no time-zone database of its own on Windows; a scheduler cron with a zone needs one.
+    "tzdata>=2024.1; platform_system == 'Windows'",
     "opentelemetry-api>=1.44.0",
     "opentelemetry-sdk>=1.44.0",
-    "msal>=1.39.0",
-    "boxsdk>=10.15.0,<11",
     "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [
@@ -54,6 +52,47 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# One extra per backend, so each can be installed on its own. `ftp` and `webdav` need nothing beyond
+# the base install (ftplib is in the standard library; requests and defusedxml are base
+# dependencies); they exist so that every backend has an extra of its name.
+s3 = ["boto3>=1.34.0"]
+azure = ["azure-storage-blob>=12.19.0"]
+gdrive = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0"
+]
+dropbox = ["dropbox>=11.36.2"]
+sftp = ["paramiko>=3.4.0"]
+ftp = []
+webdav = []
+smb = ["smbprotocol>=1.13.0"]
+fsspec = ["fsspec>=2024.2.0"]
+onedrive = ["msal>=1.39.0"]
+box = ["boxsdk>=10.15.0,<11"]
+parquet = ["pyarrow>=25.0.1"]
+gui = ["PySide6>=6.11.2,<6.12"]
+# Everything above. The list is written out because the two channels have different package names,
+# so neither can refer to its own extras by name and stay identical to the other.
+all = [
+    "boto3>=1.34.0",
+    "azure-storage-blob>=12.19.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
+    "dropbox>=11.36.2",
+    "paramiko>=3.4.0",
+    "smbprotocol>=1.13.0",
+    "fsspec>=2024.2.0",
+    "msal>=1.39.0",
+    "boxsdk>=10.15.0,<11",
+    "pyarrow>=25.0.1",
+    "PySide6>=6.11.2,<6.12"
+]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0"
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
@@ -69,6 +108,8 @@ automation_file_mcp = "automation_file.server.mcp_server:_cli"
 
 [project.urls]
 "Homepage" = "https://github.com/Integration-Automation/FileAutomation"
+"Source" = "https://github.com/Integration-Automation/FileAutomation"
+"Issues" = "https://github.com/Integration-Automation/FileAutomation/issues"
 
 [tool.setuptools.packages]
 # Only the library is installed. Without `include`, `tests` (it has an `__init__.py`) ships as a top-level package.

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 
+from automation_file.core import rate_limit
 from automation_file.core.rate_limit import RateLimiter
 from automation_file.exceptions import RateLimitExceededException
 
@@ -59,7 +61,10 @@ def test_wraps_decorator_counts_invocations() -> None:
     assert calls == [0, 1, 2]
 
 
-def test_concurrent_acquires_serialize() -> None:
+def test_concurrent_acquires_serialize(monkeypatch) -> None:
+    # A busy runner may take longer than one refill interval to start the threads.
+    # Freeze only the limiter's clock, preserving real time for thread scheduling.
+    monkeypatch.setattr(rate_limit, "time", SimpleNamespace(monotonic=lambda: 0.0))
     limiter = RateLimiter(rate=20, burst=2)
     results: list[bool] = []
     lock = threading.Lock()

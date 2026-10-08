@@ -34,7 +34,7 @@ Google Drive
 S3
 ---
 
-Bundled with ``automation_file``; registered automatically by
+Its SDK comes with the extra of its name; its actions are registered automatically by
 :func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.s3.client
@@ -55,7 +55,7 @@ Bundled with ``automation_file``; registered automatically by
 Azure Blob
 ----------
 
-Bundled with ``automation_file``; registered automatically by
+Its SDK comes with the extra of its name; its actions are registered automatically by
 :func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.azure_blob.client
@@ -76,7 +76,7 @@ Bundled with ``automation_file``; registered automatically by
 Dropbox
 -------
 
-Bundled with ``automation_file``; registered automatically by
+Its SDK comes with the extra of its name; its actions are registered automatically by
 :func:`automation_file.core.action_registry.build_default_registry`.
 
 .. automodule:: automation_file.remote.dropbox_api.client
@@ -97,7 +97,7 @@ Bundled with ``automation_file``; registered automatically by
 SFTP
 ----
 
-Bundled with ``automation_file``; registered automatically by
+Its SDK comes with the extra of its name; its actions are registered automatically by
 :func:`automation_file.core.action_registry.build_default_registry`. Uses
 :class:`paramiko.RejectPolicy` — unknown hosts are never auto-added.
 
@@ -119,7 +119,7 @@ Bundled with ``automation_file``; registered automatically by
 FTP / FTPS
 ----------
 
-Bundled with ``automation_file``; registered automatically by
+Its SDK comes with the extra of its name; its actions are registered automatically by
 :func:`automation_file.core.action_registry.build_default_registry`.
 Supports plain FTP and explicit FTPS (via ``FTP_TLS`` + ``auth()``).
 

@@ -1,128 +1,159 @@
-"""Cross-backend copy — stream a file from one storage backend to another.
+"""Cross-backend copy: one file from a storage location to another.
 
-``copy_between(source, target)`` resolves each URI to (backend, parameters),
-downloads the source to a private temp file, then uploads from that temp
-file to the target. Every backend already exposes ``*_download_file`` /
-``*_upload_file`` primitives — this module just picks the right pair and
-cleans up the intermediate temp file.
+``copy_between(source, target)`` is the older spelling of
+``File(source).copy_to(target)``. It resolves both locations to a storage
+backend and lets the storage layer do the transfer, so the copy is native where
+two backends can do it between themselves, is reported to the storage
+observers, and shows up in the audit trail.
 
-Supported URI schemes:
+Locations it accepts:
 
-* ``local:/absolute/path`` or a bare filesystem path
-* ``s3://bucket/key``
-* ``azure://container/blob``
-* ``dropbox:/path``
-* ``sftp:/remote/path``
-* ``ftp:/remote/path``
-* ``http://...`` / ``https://...`` (source only)
+* any storage URI (``s3://bucket/key``, ``azure://container/blob``,
+  ``gdrive:///path``, ``sftp://host/absolute/path``, ``memory://name/path``,
+  a mounted prefix, ...), see :mod:`automation_file.storage`;
+* a bare filesystem path, ``local:<path>`` or ``local:/absolute/path``;
+* ``s3:bucket/key`` and ``azure:container/blob`` without the slashes;
+* ``dropbox:/path``;
+* ``sftp:/path`` and ``ftp:/path`` with one slash or none: the path is taken
+  relative to the directory the session logged in to, as it always was. With
+  two slashes (``sftp://host/path``) the URI names a host and an absolute path;
+* ``http://...`` / ``https://...`` as a source only, fetched with
+  :func:`automation_file.remote.http_download.download_file` and its SSRF guard.
 
-Callers must have previously initialised every backend they reference
-(``s3_instance.later_init``, etc.) — this helper does not manage sessions.
+Every backend involved must have been initialised (``s3_instance.later_init``,
+...). The function returns ``False`` when the transfer itself fails (a missing
+source, a refused write), and raises for a location it cannot make sense of
+(:class:`CrossBackendException`) or a backend that is not initialised.
 """
 
 from __future__ import annotations
 
-import shutil
+import os
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-from automation_file.exceptions import FileAutomationException
+from automation_file.exceptions import (
+    FileAutomationException,
+    StorageUnavailableException,
+    StorageURIException,
+)
 from automation_file.logging_config import file_automation_logger
+
+if TYPE_CHECKING:
+    from automation_file.storage.backend import StorageBackend
+
+_LOCAL = "local"
+_SFTP = "sftp"
+_HTTP_SCHEMES = ("http", "https")
+_BUCKET_SCHEMES = ("s3", "azure", "az")
+_SESSION_SCHEMES = (_SFTP, "ftp")
+_STAGED_NAME = "download"
+_AUTHORITY_MARK = "//"
+_KNOWN_SCHEMES = frozenset({_LOCAL, *_BUCKET_SCHEMES, "dropbox", *_SESSION_SCHEMES, *_HTTP_SCHEMES})
 
 
 class CrossBackendException(FileAutomationException):
-    """Raised when a URI is malformed or refers to an unknown backend."""
+    """Raised when a location is malformed or names an unknown backend."""
 
 
 def copy_between(source: str, target: str) -> bool:
-    """Copy the object at ``source`` to ``target`` via a local temp file.
+    """Copy the file at ``source`` to ``target`` and return whether it was transferred.
 
-    Returns True when both the download and the upload reported success.
+    A file already at ``target`` is replaced. ``False`` means the transfer failed
+    and the reason was logged.
     """
-    downloader = _resolve_downloader(source)
-    uploader = _resolve_uploader(target)
-    with tempfile.NamedTemporaryFile(delete=False) as handle:
-        tmp_path = handle.name
+    if _scheme_of(target) in _HTTP_SCHEMES:
+        raise CrossBackendException(f"unknown target backend: {_scheme_of(target)!r}")
     try:
-        if not downloader(tmp_path):
-            file_automation_logger.error("copy_between: download failed (%s)", source)
-            return False
-        if not uploader(tmp_path):
-            file_automation_logger.error("copy_between: upload failed (%s)", target)
-            return False
+        destination, path = _locate(target, "target")
+        if _scheme_of(source) in _HTTP_SCHEMES:
+            transferred = _fetch_into(source, destination, path)
+        else:
+            origin, origin_path = _locate(source, "source")
+            destination.copy_from(origin, origin_path, path)
+            transferred = True
+    except (CrossBackendException, StorageUnavailableException):
+        raise
+    except FileAutomationException as error:
+        file_automation_logger.error(
+            "copy_between: %s -> %s failed: %s: %s", source, target, type(error).__name__, error
+        )
+        return False
+    if transferred:
         file_automation_logger.info("copy_between: %s -> %s", source, target)
-        return True
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    return transferred
 
 
-def _resolve_downloader(uri: str) -> Callable[[str], bool]:
+def _fetch_into(url: str, destination: StorageBackend, path: str) -> bool:
+    """Download ``url`` to a staging file and store it at ``path``."""
+    from automation_file.remote.http_download import download_file
+
+    with tempfile.TemporaryDirectory() as scratch:
+        staged = Path(scratch) / _STAGED_NAME
+        if not download_file(url, str(staged)):
+            file_automation_logger.error("copy_between: download failed (%s)", url)
+            return False
+        destination.upload(staged, path)
+    return True
+
+
+def _scheme_of(uri: str) -> str:
+    """Return the lower-cased scheme of ``uri``; a drive letter or no scheme is ``""``."""
+    scheme = urlparse(uri).scheme.lower()
+    return scheme if len(scheme) > 1 else ""
+
+
+def _locate(uri: str, role: str) -> tuple[StorageBackend, str]:
+    """Return the backend and the path of ``uri``, which is the ``role`` of a copy."""
+    scheme = _scheme_of(uri)
+    if scheme and scheme not in _KNOWN_SCHEMES:
+        return _resolve(uri, role)
+    if scheme in _SESSION_SCHEMES and uri[len(scheme) + 1 :].startswith(_AUTHORITY_MARK):
+        return _resolve(uri, role)
     scheme, remainder = _split(uri)
-    if scheme in ("local", ""):
-        return lambda dest: _local_download(remainder, dest)
-    if scheme == "s3":
-        bucket, key = _split_bucket(remainder, "s3")
-        from automation_file.remote.s3.download_ops import s3_download_file
-
-        return lambda dest: bool(s3_download_file(bucket, key, dest))
-    if scheme in ("azure", "az"):
-        container, blob = _split_bucket(remainder, "azure")
-        from automation_file.remote.azure_blob.download_ops import azure_blob_download_file
-
-        return lambda dest: bool(azure_blob_download_file(container, blob, dest))
-    if scheme == "dropbox":
-        from automation_file.remote.dropbox_api.download_ops import dropbox_download_file
-
-        return lambda dest: bool(dropbox_download_file(remainder, dest))
-    if scheme == "sftp":
-        from automation_file.remote.sftp.download_ops import sftp_download_file
-
-        return lambda dest: bool(sftp_download_file(remainder, dest))
-    if scheme == "ftp":
-        from automation_file.remote.ftp.download_ops import ftp_download_file
-
-        return lambda dest: bool(ftp_download_file(remainder, dest))
-    if scheme in ("http", "https"):
-        from automation_file.remote.http_download import download_file
-
-        return lambda dest: bool(download_file(uri, dest))
-    raise CrossBackendException(f"unknown source backend: {scheme!r}")
+    if scheme in ("", _LOCAL):
+        # abspath folds the '..' segments a storage URI may not contain.
+        return _resolve(os.path.abspath(remainder), role)
+    if scheme in _BUCKET_SCHEMES:
+        container, key = _split_bucket(remainder, scheme)
+        return _resolve(f"{scheme}://{container}/{key}", role)
+    if scheme in _SESSION_SCHEMES:
+        return _in_login_directory(scheme), remainder
+    return _resolve(f"{scheme}:///{remainder}", role)
 
 
-def _resolve_uploader(uri: str) -> Callable[[str], bool]:
-    scheme, remainder = _split(uri)
-    if scheme in ("local", ""):
-        return lambda src: _local_upload(src, remainder)
-    if scheme == "s3":
-        bucket, key = _split_bucket(remainder, "s3")
-        from automation_file.remote.s3.upload_ops import s3_upload_file
+def _resolve(uri: str, role: str) -> tuple[StorageBackend, str]:
+    from automation_file.storage.resolver import default_resolver
 
-        return lambda src: bool(s3_upload_file(src, bucket, key))
-    if scheme in ("azure", "az"):
-        container, blob = _split_bucket(remainder, "azure")
-        from automation_file.remote.azure_blob.upload_ops import azure_blob_upload_file
-
-        return lambda src: bool(azure_blob_upload_file(src, container, blob))
-    if scheme == "dropbox":
-        from automation_file.remote.dropbox_api.upload_ops import dropbox_upload_file
-
-        return lambda src: bool(dropbox_upload_file(src, remainder))
-    if scheme == "sftp":
-        from automation_file.remote.sftp.upload_ops import sftp_upload_file
-
-        return lambda src: bool(sftp_upload_file(src, remainder))
-    if scheme == "ftp":
-        from automation_file.remote.ftp.upload_ops import ftp_upload_file
-
-        return lambda src: bool(ftp_upload_file(src, remainder))
-    raise CrossBackendException(f"unknown target backend: {scheme!r}")
+    try:
+        return default_resolver.resolve(uri)
+    except StorageURIException as error:
+        raise CrossBackendException(f"unknown {role} backend: {error}") from error
 
 
-_KNOWN_SCHEMES = frozenset(
-    {"local", "s3", "azure", "az", "dropbox", "sftp", "ftp", "http", "https"}
-)
+def _in_login_directory(scheme: str) -> StorageBackend:
+    """Return a backend rooted where the open session logged in.
+
+    ``sftp:/path`` and ``ftp:/path`` have always been sent to the server without
+    their leading slash, which a server resolves against the login directory.
+    """
+    if scheme == _SFTP:
+        from automation_file.remote.sftp.client import sftp_instance
+        from automation_file.storage.sftp_storage import SFTPStorage
+
+        try:
+            return SFTPStorage(root=sftp_instance.require_sftp().normalize("."))
+        except RuntimeError as error:
+            raise StorageUnavailableException(str(error)) from error
+    from automation_file.remote.ftp.client import FTPException, ftp_instance
+    from automation_file.storage.ftp_storage import FTPStorage
+
+    try:
+        return FTPStorage(root=ftp_instance.require_ftp().pwd())
+    except FTPException as error:
+        raise StorageUnavailableException(str(error)) from error
 
 
 def _split(uri: str) -> tuple[str, str]:
@@ -134,17 +165,17 @@ def _split(uri: str) -> tuple[str, str]:
         return "", uri
     if scheme not in _KNOWN_SCHEMES:
         raise CrossBackendException(f"unknown backend scheme: {scheme!r}")
-    if scheme in ("http", "https"):
+    if scheme in _HTTP_SCHEMES:
         return scheme, uri
-    if scheme in ("s3", "azure", "az"):
+    if scheme in _BUCKET_SCHEMES:
         if parsed.netloc:
             tail = parsed.path.lstrip("/")
             return scheme, f"{parsed.netloc}/{tail}" if tail else parsed.netloc
         return scheme, parsed.path.lstrip("/")
-    if scheme == "local":
+    if scheme == _LOCAL:
         if parsed.netloc:
-            return "local", f"{parsed.netloc}{parsed.path}"
-        return "local", parsed.path
+            return _LOCAL, f"{parsed.netloc}{parsed.path}"
+        return _LOCAL, parsed.path
     # Generic remote path (dropbox, sftp, ftp) — keep the path as given.
     combined = f"{parsed.netloc}{parsed.path}" if parsed.netloc else parsed.path
     return scheme, combined.lstrip("/")
@@ -157,19 +188,3 @@ def _split_bucket(remainder: str, scheme: str) -> tuple[str, str]:
     if not bucket or not key:
         raise CrossBackendException(f"{scheme} URI must be <container>/<key>: {remainder!r}")
     return bucket, key
-
-
-def _local_download(source_path: str, dest_path: str) -> bool:
-    src = Path(source_path)
-    if not src.is_file():
-        file_automation_logger.error("copy_between: local source missing: %s", src)
-        return False
-    shutil.copyfile(src, dest_path)
-    return True
-
-
-def _local_upload(source_path: str, target_path: str) -> bool:
-    target = Path(target_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source_path, target)
-    return True
