@@ -328,7 +328,9 @@ from automation_file.scheduler import (
 )
 from automation_file.server.action_acl import ActionACL, ActionNotPermittedException
 from automation_file.server.http_server import HTTPActionServer, start_http_action_server
+from automation_file.server.mcp_policy import MCPPolicy
 from automation_file.server.mcp_server import MCPServer, tools_from_registry
+from automation_file.server.mcp_tools import SemanticToolkit
 from automation_file.server.metrics_server import MetricsServer, start_metrics_server
 from automation_file.server.tcp_server import (
     TCPActionServer,
@@ -695,6 +697,8 @@ __all__ = [
     "WebUIServer",
     "start_web_ui",
     "MCPServer",
+    "MCPPolicy",
+    "SemanticToolkit",
     "tools_from_registry",
     # Triggers
     "FileWatcher",

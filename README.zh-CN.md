@@ -51,6 +51,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **通知路由器** — 以路由决定哪些事件（按类型、来源与最低严重程度）发送到哪些 sink，每条路由各自去重与限流；可在代码、`automation_file.toml` 或通过 `FA_notify_route_*` 声明
 - **审计轨迹** — `configure_audit(path)` 为每个事件与每次存储操作记录一条（actor、来源、pipeline、task、动作、资源、后端、状态、耗时、关联 ID），可用 `audit_search` / `FA_audit_search` 查询
 - **流水线（Pipeline）** — `Pipeline` 按依赖顺序执行任务（可调用对象或 `FA_*` 动作），互不依赖者并行执行，并支持重试、超时、取消、条件、幂等键、检查点与续跑、试运行以及执行历史；定义可以用 Python、YAML 或 JSON 编写
+- **语义化 MCP 工具** — 提供给 AI 宿主的十四个名称稳定的工具（`file_read`、`file_copy`、`storage_list`、`pipeline_run`、`integrity_status`、`audit_search` 等），仅限于你指定的根位置，在你允许写入之前均为只读，所有会变更内容的工具都支持试运行；`FA_*` 桥接仍然保留
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -1061,30 +1062,69 @@ server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
 ```
 
 ### MCP（Model Context Protocol）服务器
-通过 stdio 上的 JSON-RPC 2.0 把每个已注册的 `FA_*` 动作暴露给 MCP 主机
-（Claude Desktop、MCP CLI）：
+
+`MCPServer` 通过 stdio 上的 JSON-RPC 2.0 提供 MCP，让 Claude Desktop 或 Claude Code
+这类 AI 客户端可以通过本库处理文件。它提供十四个受权限策略约束的 **语义工具**，
+并且为了兼容，保留把每个已注册的 `FA_*` 动作暴露为工具的 **桥接**。
+
+```bash
+# 对单个目录的只读访问，只提供语义工具
+python -m automation_file mcp --root /srv/reports --no-bridge
+
+# 两个位置、允许写入、流水线定义存放在磁盘上
+python -m automation_file mcp --root s3://reports-export/daily --root /srv/outbox \
+    --allow-write --pipeline-dir /var/lib/automation_file/pipelines --no-bridge
+```
 
 ```python
 from automation_file import MCPServer
+from automation_file.server.mcp_policy import MCPPolicy
+from automation_file.server.mcp_tools import SemanticToolkit
 
-MCPServer().serve_stdio()          # 从 stdin 读取 JSON-RPC，写入 stdout
+policy = MCPPolicy(roots=["s3://reports-export/daily", "sftp://sftp.example.com/inbound"],
+                   allow_write=True, allow_delete=True)
+MCPServer(policy=policy, bridge=False).serve_stdio()      # 阻塞到 stdin 关闭为止
+
+# 不经 JSON-RPC 使用同一组工具，适合测试与嵌入
+toolkit = SemanticToolkit(MCPPolicy(roots=["/srv/reports"], allow_write=True))
+outcome = toolkit.call(
+    "file_copy",
+    {"source": "/srv/reports/in/a.csv", "target": "/srv/reports/out/a.csv", "dry_run": True},
+)
+outcome.is_error, outcome.payload["overwrites"], outcome.correlation_id
 ```
 
-`pip install` 后，`[project.scripts]` 会提供 `automation_file_mcp` console
-script，MCP 主机无需编写 Python glue 即可启动桥接器。三种等价的启动方式：
+- **十四个名称稳定的工具。** `file_read`、`file_write`、`file_copy`、`file_move`、
+  `file_search`、`file_checksum`、`file_verify`、`storage_list`、`storage_copy`、
+  `pipeline_create`、`pipeline_run`、`pipeline_status`、`integrity_status` 与
+  `audit_search`。它们接受存储 URI，输入 schema 为手写，并以一份 JSON 文档响应。
+- **安全的默认值。** 在 `--root` 指定位置之前不允许任何位置；在 `--allow-write` 之前
+  服务器是只读的；替换文件与删除（移动会删除来源）分别需要 `--allow-overwrite` 与
+  `--allow-delete`。读取、列表、搜索与写入的内容都有上限（`--max-read-bytes`、
+  `--max-results`、`--max-search-bytes`、`--max-write-bytes`）。
+- **守得住的根位置。** 本地根位置由限制在其内的 `LocalStorage` 提供服务，所以离开它的
+  符号链接或绝对路径会被 `safe_join` 拒绝。其他后端按 scheme、authority 与完整的路径
+  段比较：`s3://bucket/team` 不会允许 `s3://bucket/team-b`。
+- **试运行。** 每个会改动东西的工具都接受 `dry_run`，并返回它将会做的事：来源、目标、
+  大小、是否会替换什么。
+- **受策略约束的流水线。** 通过 MCP 创建或运行的流水线只能调用权限所涵盖的
+  `FA_storage_*` 动作，而且是受防护的版本，会在每个任务运行时检查根位置。
+  `--pipeline-actions` 可以显式列出其他动作；`FA_run_shell` 除非被列出，否则永远
+  无法使用。
+- **可追溯。** 每次调用都带有关联 ID 与 `mcp` actor，并发布为 `mcp.tool.completed` 或
+  `mcp.tool.failed`，所以 `audit_search` 能返回某次调用做了什么，通知路由也能在拒绝与
+  失败时发出告警。
+- **`FA_*` 桥接。** 和以前一样默认开启，可用 `--allowed-actions` 缩小范围。策略不约束
+  它：面对 AI 客户端请使用 `--no-bridge`。
 
-```bash
-automation_file_mcp                                      # 已安装的 console script
-python -m automation_file mcp                            # CLI 子命令
-python examples/mcp/run_mcp.py                           # 独立启动脚本
-```
+`pip install` 会提供 `automation_file_mcp` 控制台脚本，它接受与
+`python -m automation_file mcp` 相同的命令行参数。权限模型、示例流程（S3 到 SFTP、
+验证、审计、失败时告警）与安全指引请见 [MCP 手册](docs/source/Zh-CN/usage/mcp.rst)，
+宿主的配置示例请见 [`examples/mcp/`](examples/mcp)。
 
-三者都支持 `--name`、`--version`、`--allowed-actions`（逗号分隔白名单——
-强烈建议使用，因为默认注册表包含 `FA_run_shell` 等高权限动作）。可直接复制的
-Claude Desktop 示例配置请见 [`examples/mcp/`](examples/mcp)。
+建议的功能条目：
 
-工具描述符在运行时由动作签名自动生成——参数名称与类型会转换为 JSON schema，
-主机无需任何手动配置即可渲染字段。
+- **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上以换行分隔的 JSON-RPC 2.0，提供十四个受权限策略约束的语义工具（`file_read`、`file_copy`、`pipeline_run`、`audit_search` ……；允许的根位置、默认只读、试运行），以及把每个 `FA_*` 动作暴露为工具的桥接
 
 ### DAG 动作执行器
 按依赖顺序执行动作；独立分支通过线程池并行展开。每个节点的形式为

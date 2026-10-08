@@ -17,12 +17,16 @@ Subcommands for one-shot operations::
    python -m automation_file create-file hello.txt --content "hi"
    python -m automation_file server --host 127.0.0.1 --port 9943
    python -m automation_file http-server --host 127.0.0.1 --port 9944
+   python -m automation_file mcp --root /srv/reports --no-bridge
    python -m automation_file mcp --allowed-actions FA_list_dir,FA_file_checksum
    python -m automation_file drive-upload my.txt --token token.json --credentials creds.json
 
 The ``mcp`` subcommand starts a Model Context Protocol server over stdio so
-hosts such as Claude Desktop can call ``FA_*`` actions as MCP tools — see
-:doc:`mcp` for the full integration guide.
+hosts such as Claude Desktop can work with files: through the semantic tools
+(``file_read``, ``storage_copy``, ``pipeline_run``, ...), which stay inside the
+``--root`` locations and are read-only until ``--allow-write``, and through the
+bridge that offers ``FA_*`` actions as MCP tools. See :doc:`mcp` for the flags,
+the permission model and the full integration guide.
 
 Storage
 -------

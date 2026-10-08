@@ -40,7 +40,8 @@ automation_file/
 ├── integrity/           # IntegrityMonitor 2.0: target, hashing, snapshot, manifest (schema 2), baseline,
 │                        # detector, report, alerts, remediation, watcher / local_watcher, legacy, monitor,
 │                        # actions (FA_integrity_*); core/fim.py re-exports IntegrityMonitor
-├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
+├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), mcp_policy (MCPPolicy),
+│                        # mcp_tools + mcp_*_tools (the fourteen semantic tools), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)
 ├── client/              # HTTPActionClient for the HTTP action server
 ├── pipeline/            # Pipeline runtime: model (Task, RetryPolicy, PipelineRun, ...), graph, pipeline
@@ -175,6 +176,12 @@ All code must follow secure-by-default principles. Review every change against t
 - `HTTPActionServer` / `start_http_action_server` mirror the TCP server's posture: loopback-only by default, `allow_non_loopback=True` required to bind elsewhere, optional `shared_secret` enforced as `Authorization: Bearer <secret>` using `hmac.compare_digest`.
 - `POST /actions` is the only endpoint that runs anything; the `GET` routes (`/healthz`, `/readyz`, `/openapi.json`, `/progress`) only report. Request body capped at 1 MB — do not raise without also switching to a streaming parser.
 - Responses are JSON. Auth failures return `401`; malformed JSON returns `400`; unknown paths return `404`.
+
+### MCP server
+- The semantic tools work only below the roots of the server's `MCPPolicy`, and with no root they refuse. A local root is enforced by `LocalStorage(root)` / `safe_join`, never by comparing strings; a remote root by scheme, exact authority and a path prefix that ends at a segment boundary.
+- The default policy is read-only. Writing, overwriting and deleting are three separate permissions; never fold one into another, and never make a new changing tool available without `dry_run`.
+- A pipeline made or run through MCP uses the guarded action set of `mcp_pipeline_actions.py`. An action added with `--pipeline-actions` runs unconfined, and the manual says so: keep it that explicit.
+- A refused call is logged without argument values, and returned as a tool result with `isError`.
 
 ### Path traversal
 - Any caller resolving a user-supplied path against a trusted root must go through `automation_file.local.safe_paths.safe_join` (raises `PathTraversalException`) or the `is_within` check. Never concatenate + `Path.resolve()` yourself and skip the containment check — symlinks and `..` segments bypass naive string checks.

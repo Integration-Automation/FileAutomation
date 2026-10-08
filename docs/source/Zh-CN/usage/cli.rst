@@ -17,12 +17,15 @@ CLI
    python -m automation_file create-file hello.txt --content "hi"
    python -m automation_file server --host 127.0.0.1 --port 9943
    python -m automation_file http-server --host 127.0.0.1 --port 9944
+   python -m automation_file mcp --root /srv/reports --no-bridge
    python -m automation_file mcp --allowed-actions FA_list_dir,FA_file_checksum
    python -m automation_file drive-upload my.txt --token token.json --credentials creds.json
 
-``mcp`` 子命令通过 stdio 启动 Model Context Protocol 服务器，
-让 Claude Desktop 这类宿主可以把 ``FA_*`` 动作当作 MCP 工具调用——完整集成
-说明请见 :doc:`mcp`。
+``mcp`` 子命令通过 stdio 启动 Model Context Protocol 服务器，让 Claude Desktop 这类
+宿主可以处理文件：一是通过语义工具（``file_read``、``storage_copy``、
+``pipeline_run`` ……），它们只在 ``--root`` 指定的位置之内工作，而且在
+``--allow-write`` 之前都是只读的；二是通过把 ``FA_*`` 动作当作 MCP 工具提供的桥接。
+命令行参数、权限模型与完整集成说明请见 :doc:`mcp`。
 
 存储
 ----

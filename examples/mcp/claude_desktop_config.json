@@ -1,5 +1,13 @@
 {
   "mcpServers": {
+    "automation_file_semantic": {
+      "command": "automation_file_mcp",
+      "args": [
+        "--root",
+        "C:/absolute/path/to/reports",
+        "--no-bridge"
+      ]
+    },
     "automation_file": {
       "command": "automation_file_mcp",
       "args": [

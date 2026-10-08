@@ -53,6 +53,7 @@ facade.
 - **Notification router** — routes decide which sinks hear about which events (by type, source and minimum severity), with deduplication and rate limiting per route; declare them in code, in `automation_file.toml` or with `FA_notify_route_*`
 - **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
 - **Pipelines** — `Pipeline` runs tasks (callables or `FA_*` actions) in dependency order, independent ones in parallel, with retry, timeout, cancellation, conditions, idempotency keys, checkpoint and resume, a dry run and an execution history; definitions in Python, YAML or JSON
+- **Semantic MCP tools** — fourteen tools with stable names (`file_read`, `file_copy`, `storage_list`, `pipeline_run`, `integrity_status`, `audit_search`, …) for AI hosts, confined to the roots you name, read-only until you allow writing, with a dry run for everything that changes something; the `FA_*` bridge stays available
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -1090,33 +1091,74 @@ server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
 ```
 
 ### MCP (Model Context Protocol) server
-Expose every registered `FA_*` action to an MCP host (Claude Desktop, MCP
-CLIs) over JSON-RPC 2.0 on stdio:
+
+`MCPServer` speaks MCP over stdio (JSON-RPC 2.0), so an AI client such as Claude
+Desktop or Claude Code can work with files through this library. It offers
+fourteen **semantic tools** bound to a permission policy, and, for compatibility,
+the **bridge** that exposes every registered `FA_*` action as a tool.
+
+```bash
+# Read-only access to one directory, semantic tools only
+python -m automation_file mcp --root /srv/reports --no-bridge
+
+# Two locations, writing allowed, pipeline definitions kept on disk
+python -m automation_file mcp --root s3://reports-export/daily --root /srv/outbox \
+    --allow-write --pipeline-dir /var/lib/automation_file/pipelines --no-bridge
+```
 
 ```python
 from automation_file import MCPServer
+from automation_file.server.mcp_policy import MCPPolicy
+from automation_file.server.mcp_tools import SemanticToolkit
 
-MCPServer().serve_stdio()          # reads JSON-RPC from stdin, writes to stdout
+policy = MCPPolicy(roots=["s3://reports-export/daily", "sftp://sftp.example.com/inbound"],
+                   allow_write=True, allow_delete=True)
+MCPServer(policy=policy, bridge=False).serve_stdio()      # blocks until stdin closes
+
+# The same tools without JSON-RPC, for tests and embedding
+toolkit = SemanticToolkit(MCPPolicy(roots=["/srv/reports"], allow_write=True))
+outcome = toolkit.call(
+    "file_copy",
+    {"source": "/srv/reports/in/a.csv", "target": "/srv/reports/out/a.csv", "dry_run": True},
+)
+outcome.is_error, outcome.payload["overwrites"], outcome.correlation_id
 ```
 
-`pip install` exposes an `automation_file_mcp` console script (via
-`[project.scripts]`) so MCP hosts can launch the bridge without any Python
-glue. Three equivalent launch styles:
+- **Fourteen stable tools.** `file_read`, `file_write`, `file_copy`, `file_move`,
+  `file_search`, `file_checksum`, `file_verify`, `storage_list`, `storage_copy`,
+  `pipeline_create`, `pipeline_run`, `pipeline_status`, `integrity_status` and
+  `audit_search`. They take storage URIs, have hand-written input schemas, and
+  answer with one JSON document.
+- **Safe defaults.** No location is allowed until `--root` names one; the server is
+  read-only until `--allow-write`; replacing a file and deleting (a move deletes
+  its source) need `--allow-overwrite` and `--allow-delete`. Reads, listings,
+  searches and written content are capped (`--max-read-bytes`, `--max-results`,
+  `--max-search-bytes`, `--max-write-bytes`).
+- **Roots that hold.** A local root is served by a `LocalStorage` confined to it,
+  so a symbolic link or an absolute path that leaves it is refused by `safe_join`.
+  Other backends are compared by scheme, authority and whole path segments:
+  `s3://bucket/team` does not allow `s3://bucket/team-b`.
+- **Dry run.** Every tool that changes something takes `dry_run` and returns what it
+  would do: source, target, sizes, whether something would be replaced.
+- **Pipelines under the policy.** A pipeline created or run through MCP may call
+  only the `FA_storage_*` actions the permissions cover, in guarded versions that
+  check the roots when each task runs. `--pipeline-actions` lists other actions
+  explicitly; `FA_run_shell` is never available unless it is listed.
+- **Traceable.** Each call runs under a correlation ID and an `mcp` actor and is
+  published as `mcp.tool.completed` or `mcp.tool.failed`, so `audit_search` returns
+  what a call did and a notification route can alert on refusals and failures.
+- **The `FA_*` bridge.** On by default, as before, with `--allowed-actions` to
+  narrow it. The policy does not bind it: use `--no-bridge` for an AI client.
 
-```bash
-automation_file_mcp                                      # installed console script
-python -m automation_file mcp                            # CLI subcommand
-python examples/mcp/run_mcp.py                           # standalone launcher
-```
+`pip install` provides the `automation_file_mcp` console script, which takes the
+same flags as `python -m automation_file mcp`. See the
+[MCP manual](docs/source/Eng/usage/mcp.rst) for the permission model, the example
+workflow (S3 to SFTP, verified, audited, alert on failure) and the security
+guidance, and [`examples/mcp/`](examples/mcp) for host configurations.
 
-All three accept `--name`, `--version`, and `--allowed-actions` (comma-
-separated whitelist — strongly recommended since the default registry
-includes high-privilege actions like `FA_run_shell`). See
-[`examples/mcp/`](examples/mcp) for ready-to-copy Claude Desktop config.
+Suggested feature bullet:
 
-Tool descriptors are generated on the fly by introspecting each action's
-signature — parameter names and types become a JSON schema, so hosts can
-render fields without any manual wiring.
+- **MCP (Model Context Protocol) server** — `MCPServer` serves fourteen semantic tools (`file_read`, `file_copy`, `pipeline_run`, `audit_search`, ...) bound to a permission policy with allowed roots, read-only defaults and dry run, next to the bridge that exposes every `FA_*` action, over newline-delimited JSON-RPC 2.0 on stdio
 
 ### DAG action executor
 Run actions in dependency order; independent branches fan out across a

@@ -113,12 +113,21 @@ def _cmd_ui(_args: argparse.Namespace) -> int:
     return launch_ui()
 
 
+def _add_mcp_policy_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the roots, permissions and limits of the semantic MCP tools."""
+    from automation_file.server.mcp_server import add_semantic_arguments
+
+    add_semantic_arguments(parser)
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     from automation_file.server.mcp_server import _cli as mcp_cli
+    from automation_file.server.mcp_server import semantic_argv
 
     forwarded: list[str] = ["--name", args.name, "--version", args.version]
     if args.allowed_actions:
         forwarded.extend(["--allowed-actions", args.allowed_actions])
+    forwarded.extend(semantic_argv(args))
     return mcp_cli(forwarded)
 
 
@@ -203,6 +212,7 @@ def _add_integration_commands(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="comma-separated allow list (default: expose every registered action)",
     )
+    _add_mcp_policy_arguments(mcp_parser)
     mcp_parser.set_defaults(handler=_cmd_mcp)
 
     drive_parser = subparsers.add_parser("drive-upload", help="upload a file to Google Drive")
