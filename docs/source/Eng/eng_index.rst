@@ -304,3 +304,18 @@ operational metrics. Notification routes are in :doc:`usage/notifications`.
    :caption: Audit Trail
 
    usage/audit
+
+.. _eng-pipeline:
+
+Chapter 20 — Pipelines
+======================
+
+Tasks with dependencies, run in order with retry, timeout, cancellation,
+conditions, idempotency, checkpoint and resume, a dry run and an execution
+history; written in Python or as a versioned YAML / JSON definition.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Pipelines
+
+   usage/pipeline

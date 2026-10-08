@@ -30,6 +30,7 @@ from automation_file.core.action_executor import executor
 from automation_file.core.action_registry import ActionRegistry
 from automation_file.exceptions import MCPServerException
 from automation_file.logging_config import file_automation_logger
+from automation_file.server.action_acl import nested_action_names
 
 _JSONRPC_VERSION = "2.0"
 _PROTOCOL_VERSION = "2024-11-05"
@@ -137,6 +138,7 @@ class MCPServer:
         command = self._registry.resolve(name)
         if command is None:
             raise MCPServerException(f"unknown tool: {name}")
+        self._require_exposed(name, arguments)
         try:
             value = command(**arguments)
         except TypeError as error:
@@ -145,6 +147,20 @@ class MCPServer:
             "content": [{"type": "text", "text": _serialise(value)}],
             "isError": False,
         }
+
+    def _require_exposed(self, name: str, arguments: dict[str, Any]) -> None:
+        """Refuse a call whose arguments name an action this server does not expose.
+
+        A tool such as ``FA_execute_action`` or ``FA_pipeline_run`` runs the actions
+        its arguments name through the shared executor, whatever this server's
+        registry was narrowed to. Without the check an allow list would stop at the
+        tool name.
+        """
+        for nested in nested_action_names(arguments, executor.registry.event_dict):
+            if self._registry.resolve(nested) is None:
+                raise MCPServerException(
+                    f"{name} names the action {nested}, which this server does not expose"
+                )
 
     @staticmethod
     def _write(writer: TextIO, response: dict[str, Any]) -> None:

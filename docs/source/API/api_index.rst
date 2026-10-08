@@ -229,3 +229,17 @@ actions.
    :caption: Audit Trail
 
    audit
+
+.. _api-pipeline:
+
+Chapter Q — Pipelines
+=====================
+
+``Pipeline``, the task and run model, the run stores, the definition format
+and its schema, and the ``FA_pipeline_*`` actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Pipelines
+
+   pipeline

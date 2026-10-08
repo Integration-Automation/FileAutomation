@@ -224,6 +224,12 @@ def _register_storage_ops(registry: ActionRegistry) -> None:
     register_storage_ops(registry)
 
 
+def _register_pipeline_ops(registry: ActionRegistry) -> None:
+    from automation_file.pipeline.actions import register_pipeline_ops
+
+    register_pipeline_ops(registry)
+
+
 def _register_audit_ops(registry: ActionRegistry) -> None:
     from automation_file.audit.actions import register_audit_ops
 
@@ -256,6 +262,7 @@ def build_default_registry() -> ActionRegistry:
     _register_storage_ops(registry)
     _register_integrity_ops(registry)
     _register_audit_ops(registry)
+    _register_pipeline_ops(registry)
     _load_plugins(registry)
     # DEBUG, not INFO: this runs at import, and INFO is mirrored to stderr, so every import --
     # `python -m automation_file --help` included -- printed it.

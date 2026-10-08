@@ -295,3 +295,17 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 审计轨迹
 
    usage/audit
+
+.. _zh-cn-pipeline:
+
+第 20 章 — 流水线（Pipeline）
+=============================
+
+具有依赖关系的任务，按顺序执行，并支持重试、超时、取消、条件、幂等、检查点与续跑、
+试运行（dry run）以及执行历史；可以用 Python 编写，或写成带版本的 YAML / JSON 定义。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 流水线
+
+   usage/pipeline

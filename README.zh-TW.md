@@ -50,6 +50,7 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
 - **通知路由器** — 以路由決定哪些事件（依類型、來源與最低嚴重程度）送到哪些 sink，每條路由各自去重與限流；可在程式、`automation_file.toml` 或以 `FA_notify_route_*` 宣告
 - **稽核軌跡** — `configure_audit(path)` 為每個事件與每次儲存操作記錄一筆（actor、來源、pipeline、task、動作、資源、後端、狀態、耗時、關聯 ID），可用 `audit_search` / `FA_audit_search` 查詢
+- **管線（Pipeline）** — `Pipeline` 依相依順序執行任務（可呼叫物件或 `FA_*` 動作），互不相依者平行執行，並支援重試、逾時、取消、條件、冪等鍵、檢查點與續跑、試跑以及執行歷史；定義可用 Python、YAML 或 JSON 撰寫
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -610,6 +611,64 @@ audit_search(status="error", resource_prefix="s3://reports/", limit=20)
 - **動作與指標** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
   `FA_audit_purge`；`install_operational_metrics()` 會加入事件、通知與儲存操作的
   Prometheus 計數器。
+
+### 管線（Pipeline）
+
+`automation_file.pipeline` 依相依順序執行任務，互不相依的任務平行執行，並記錄每一個
+步驟。任務可以是 Python 可呼叫物件或 `FA_*` 動作；管線可以用 Python 建立，也可以從
+YAML / JSON 定義載入。一次執行只透過事件匯流排上的 `pipeline.*` 與 `task.*` 事件回報。
+
+```python
+from automation_file import Pipeline, RetryPolicy, SQLiteRunStore
+
+def check(ctx):
+    if ctx.results["download"]["size"] == 0:
+        raise ValueError("the report is empty")
+
+pipeline = Pipeline("daily-report", max_workers=4)
+pipeline.task(
+    "download",
+    ["FA_storage_copy", {"source": "s3://input/${params.date}.csv",
+                         "target": "local:///tmp/report.csv"}],
+    retry=RetryPolicy(max_attempts=3, backoff_base=1.0, backoff_cap=30.0),
+    timeout=300.0,
+)
+pipeline.task("check", check, depends_on=["download"])
+pipeline.task(
+    "publish",
+    ["FA_storage_copy", {"source": "local:///tmp/report.csv",
+                         "target": "azure://reports/${params.date}.csv"}],
+    depends_on=["check"],
+    idempotency_key="publish-${params.date}",        # 同一個日期最多一次
+)
+pipeline.task(
+    "withdraw",                                      # publish 失敗時清理
+    ["FA_storage_delete", {"uri": "azure://reports/${params.date}.csv",
+                           "missing_ok": True}],
+    depends_on=["publish"],
+    when="on_failure",
+)
+
+store = SQLiteRunStore("pipelines.db")
+run = pipeline.run(params={"date": "2026-10-08"}, store=store)
+if run.status != "succeeded":
+    run = pipeline.resume(run.run_id, store=store)   # 保留已成功的部分
+```
+
+- **重試、逾時、取消。** `RetryPolicy` 以有上限的指數退避重試暫時性錯誤；超過
+  `timeout` 的任務會被標記為 `timeout`，執行則繼續進行；`pipeline.start()` 在背景
+  執行，`run.cancel()` 可以停止它。
+- **條件與冪等。** `when` 可以是 `on_success`、`on_failure`、`always` 或可呼叫物件；
+  `idempotency_key` 會略過已經以相同的鍵成功過的任務，並沿用它的結果。
+- **檢查點、續跑、歷史。** 任務的每一次狀態轉換都會寫入 `RunStore`
+  （`MemoryRunStore`、`SQLiteRunStore`）；`resume(run_id)` 只執行尚未成功的部分，
+  `store.list_runs()` 就是執行歷史。
+- **定義檔。** `Pipeline.from_file("daily-report.yaml")`、`from_dict` / `to_dict`、
+  會回報每一項問題路徑的 `validate_definition()`，以及 `PIPELINE_SCHEMA`
+  （JSON Schema）。`run(dry_run=True)` 只規劃而不執行。
+- **動作。** `FA_pipeline_run`、`FA_pipeline_validate`、`FA_pipeline_status`、
+  `FA_pipeline_history` 與 `FA_pipeline_resume`，可用於 JSON 動作清單、CLI、動作
+  伺服器與 MCP。
 
 ### 檔案監看觸發
 每當被監看路徑發生檔案系統事件，就執行動作清單：

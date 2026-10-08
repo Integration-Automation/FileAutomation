@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from automation_file.exceptions import StorageChecksumException
 from automation_file.logging_config import file_automation_logger
 from automation_file.storage.backend import DEFAULT_CHECKSUM_ALGORITHM
 from automation_file.storage.file import File
@@ -95,12 +96,21 @@ def storage_checksum(uri: str, algorithm: str = DEFAULT_CHECKSUM_ALGORITHM) -> d
     return File(uri).checksum(algorithm).to_dict()
 
 
-def storage_verify(uri: str, expected: str, algorithm: str = DEFAULT_CHECKSUM_ALGORITHM) -> bool:
-    """Return whether ``uri`` has the digest ``expected`` (``"sha256:..."`` or a bare digest)."""
+def storage_verify(
+    uri: str, expected: str, algorithm: str = DEFAULT_CHECKSUM_ALGORITHM, strict: bool = False
+) -> bool:
+    """Return whether ``uri`` has the digest ``expected`` (``"sha256:..."`` or a bare digest).
+
+    With ``strict=True`` a mismatch raises ``StorageChecksumException`` instead of
+    returning ``False``, so a pipeline task or an action list stops at it.
+    """
     matched = File(uri).verify(expected, algorithm=algorithm)
-    if not matched:
-        file_automation_logger.warning("storage_verify mismatch: %s", uri)
-    return matched
+    if matched:
+        return True
+    file_automation_logger.warning("storage_verify mismatch: %s", uri)
+    if strict:
+        raise StorageChecksumException(f"{uri} does not have the expected digest")
+    return False
 
 
 def storage_copy(source: str, target: str, overwrite: bool = True) -> dict[str, Any]:

@@ -178,8 +178,9 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
      - ``uri, algorithm="sha256"``
      - ``{"algorithm": …, "value": …}``
    * - ``FA_storage_verify``
-     - ``uri, expected, algorithm="sha256"``
-     - ``true`` / ``false``
+     - ``uri, expected, algorithm="sha256", strict=False``
+     - ``true`` / ``false``；``strict=True`` 時，不相符會擲出
+       ``StorageChecksumException``
    * - ``FA_storage_copy``
      - ``source, target, overwrite=True``
      - 目標的檔案資訊
@@ -255,6 +256,8 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
      - 後端尚未初始化，或其 SDK 未安裝。
    * - ``StorageUnsupportedException``
      - 後端無法執行所要求的操作（未知的校驗演算法、刪除根目錄）。
+   * - ``StorageChecksumException``
+     - 嚴格驗證（``FA_storage_verify`` 搭配 ``strict=True``）發現摘要與預期不同。
 
 內建後端
 --------

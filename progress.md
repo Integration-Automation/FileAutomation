@@ -28,7 +28,6 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 ### Later milestones
 
 - **#33** CLI subcommands for the packages that have none: `integrity` (snapshot, baseline, verify, accept, status), `pipeline` and `audit`, as thin calls into their `FA_*` functions like `storage` (U-20261008-11).
-- **#22** Pipeline runtime (roadmap §7, M5): `Pipeline` domain model, DAG runtime v2 with retry, timeout, cancellation, conditions, idempotency, checkpoint and resume, dry run, execution history, and versioned YAML/JSON definitions with schema validation. `core/dag_executor.py` is the starting point.
 - **#23** Scheduler v2 (roadmap §8, the open half of M6): one scheduler with cron (time-zone aware), manual, file-event, webhook and pipeline-dependency triggers, run states and overlap protection, reading a pipeline's `schedule`. The event model, the `NotificationRouter` and audit schema v2 are done (U-20261008-05, U-20261008-17); the scheduler in `scheduler/` still dispatches action lists on its own cron loop.
 - **#24** UI 2.0 (roadmap §11, M7). Not before the APIs of #13 to #23 are stable (roadmap §20).
 - **#25** Semantic MCP tools (roadmap §12, M8): `file_*`, `storage_*`, `pipeline_*`, `integrity_status`, `audit_search`, with a permission model and dry run, next to the existing `FA_*` bridge.

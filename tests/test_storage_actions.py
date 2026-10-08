@@ -18,6 +18,7 @@ from automation_file import (
 )
 from automation_file.exceptions import (
     StorageAlreadyExistsException,
+    StorageChecksumException,
     StorageNotEmptyException,
     StorageNotFoundException,
     StorageUnsupportedException,
@@ -143,6 +144,9 @@ def test_checksum_and_verify() -> None:
     assert actions.storage_verify("memory://scratch/a.txt", f"md5:{md5}") is True
     assert actions.storage_verify("memory://scratch/a.txt", md5, algorithm="md5") is True
     assert actions.storage_verify("memory://scratch/a.txt", "0" * 64) is False
+    assert actions.storage_verify("memory://scratch/a.txt", SHA256_HELLO, strict=True) is True
+    with pytest.raises(StorageChecksumException, match="expected digest"):
+        actions.storage_verify("memory://scratch/a.txt", "0" * 64, strict=True)
     with pytest.raises(StorageUnsupportedException):
         actions.storage_checksum("memory://scratch/a.txt", "no-such-hash")
 

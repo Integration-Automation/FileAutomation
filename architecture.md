@@ -30,6 +30,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
 | `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops. `notify/router.py` (`Route`, `NotificationRouter`, the process-wide `notification_router`) subscribes on the event bus and delivers events to named sinks by type, source and minimum severity, with deduplication and a rate limit per route and sink; a failing sink becomes a `system.error` event from the source `notify`, which is never routed |
+| `automation_file/pipeline/` | The pipeline runtime. `model.py` (`Task`, `TaskContext`, `RetryPolicy`, `Schedule`, `PipelineRun`, `TaskRun`, `RunStatus`, `TaskStatus`), `graph.py` (dependency order, cycles), `pipeline.py` (`Pipeline`: `task`, `run`, `start`, `resume`, `from_file` / `from_dict` / `to_dict`, `problems` / `validate`), `runner.py` and `worker.py` (one daemon thread per running task, capped at `max_workers`; retry, timeout, cancellation, conditions, idempotency), `substitution.py` (`${params.x}`, `${tasks.id.result}`), `store.py` (`RunStore`, `MemoryRunStore`, `SQLiteRunStore`: checkpoints and history), `definition.py` (`load_definition`, `validate_definition`, `PIPELINE_SCHEMA`), `reporting.py` (the `pipeline.*` and `task.*` events), `actions.py` (`FA_pipeline_*`). `core/dag_executor.py` is the older, unrecorded DAG helper and is unchanged |
 | `automation_file/audit/` | Audit schema v2. `record.py` (`AuditRecord`, built from an event or from a storage operation), `store.py` (`AuditStore`, `AuditQuery`, `MemoryAuditStore`), `sqlite_store.py` (`SQLiteAuditStore`: parameterised SQL, a schema-version table, `import_v1`), `trail.py` (`AuditTrail`, the process-wide `audit_trail`, `configure_audit`), `actions.py` (`FA_audit_*`). The trail records nothing until it is configured; the v1 `core/audit.py` `AuditLog` is unchanged |
 | `automation_file/project/` | `ProjectBuilder`, `create_project_dir` |
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
@@ -67,6 +68,13 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
   `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`, `FA_integrity_status`.
   The first monitor's call, `IntegrityMonitor(root, manifest_path, interval=, on_drift=, manager=,
   alert_on_extra=)`, and its `check_once()` summary are kept.
+- **Pipelines** (same facade): `Pipeline`, `Task`, `TaskContext`, `RetryPolicy`, `PipelineRun`, `TaskRun`,
+  `RunStatus`, `TaskStatus`, `RunStore`, `MemoryRunStore`, `SQLiteRunStore`, `PipelineException`,
+  `PipelineDefinitionException`, `register_pipeline_ops`; `Schedule`, `load_definition`,
+  `validate_definition` and `PIPELINE_SCHEMA` are in `automation_file.pipeline`. Actions:
+  `FA_pipeline_run`, `FA_pipeline_validate`, `FA_pipeline_status`, `FA_pipeline_history`,
+  `FA_pipeline_resume`. A run reports only through `pipeline.*` and `task.*` events, with the run ID as
+  the correlation ID.
 - **Notification routes and audit** (same facade): `Route`, `NotificationRouter`, `notification_router`;
   `AuditRecord`, `AuditQuery`, `AuditStore`, `SQLiteAuditStore`, `MemoryAuditStore`, `AuditTrail`,
   `audit_trail`, `configure_audit`, `audit_search`, `register_audit_ops`; `install_operational_metrics`
@@ -141,6 +149,7 @@ MCP host → automation_file_mcp (stdio JSON-RPC) → tools/call → MCPServer r
 ActionExecutor() → build_default_registry(): local + http + utils + drive commands
   → _register_cloud_backends (register_<backend>_ops) → trigger / scheduler / progress / notify ops
   → storage ops (FA_storage_*) → integrity ops (FA_integrity_*) → audit ops (FA_audit_*)
+  → pipeline ops (FA_pipeline_*)
   → _load_plugins (entry points; may override built-ins)
   → executor adds FA_execute_action, FA_execute_files, FA_execute_action_parallel, FA_validate
 ```

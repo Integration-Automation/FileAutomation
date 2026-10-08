@@ -195,6 +195,10 @@ class StorageUnsupportedException(StorageException):
     """Raised when a backend cannot perform the requested operation."""
 
 
+class StorageChecksumException(StorageException):
+    """Raised when a file does not have the digest a strict verification expected."""
+
+
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"
 _BAD_TRIGGER_FUNCTION = "trigger name is not registered in the executor"
 _BAD_CALLBACK_METHOD = "callback_param_method must be 'kwargs' or 'args'"

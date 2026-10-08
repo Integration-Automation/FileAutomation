@@ -189,8 +189,9 @@ strings and returns JSON-friendly values.
      - ``uri, algorithm="sha256"``
      - ``{"algorithm": …, "value": …}``
    * - ``FA_storage_verify``
-     - ``uri, expected, algorithm="sha256"``
-     - ``true`` / ``false``
+     - ``uri, expected, algorithm="sha256", strict=False``
+     - ``true`` / ``false``; with ``strict=True`` a mismatch raises
+       ``StorageChecksumException``
    * - ``FA_storage_copy``
      - ``source, target, overwrite=True``
      - The target's file information
@@ -267,6 +268,9 @@ All derive from :class:`~automation_file.StorageException`, itself a
    * - ``StorageUnsupportedException``
      - The backend cannot do what was asked (an unknown checksum algorithm,
        deleting the root).
+   * - ``StorageChecksumException``
+     - A strict verification (``FA_storage_verify`` with ``strict=True``) found
+       another digest than the expected one.
 
 Built-in backends
 -----------------

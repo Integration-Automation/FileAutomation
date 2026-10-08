@@ -52,6 +52,7 @@ facade.
 - **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
 - **Notification router** — routes decide which sinks hear about which events (by type, source and minimum severity), with deduplication and rate limiting per route; declare them in code, in `automation_file.toml` or with `FA_notify_route_*`
 - **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
+- **Pipelines** — `Pipeline` runs tasks (callables or `FA_*` actions) in dependency order, independent ones in parallel, with retry, timeout, cancellation, conditions, idempotency keys, checkpoint and resume, a dry run and an execution history; definitions in Python, YAML or JSON
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -623,6 +624,67 @@ audit_search(status="error", resource_prefix="s3://reports/", limit=20)
 - **Actions and metrics** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
   `FA_audit_purge`; `install_operational_metrics()` adds Prometheus counters for events,
   notifications and storage operations.
+
+### Pipelines
+
+`automation_file.pipeline` runs tasks in dependency order, with independent tasks
+in parallel, and records every step. A task is a Python callable or an `FA_*`
+action; a pipeline is built in Python or loaded from a YAML / JSON definition. A
+run reports only through `pipeline.*` and `task.*` events on the event bus.
+
+```python
+from automation_file import Pipeline, RetryPolicy, SQLiteRunStore
+
+def check(ctx):
+    if ctx.results["download"]["size"] == 0:
+        raise ValueError("the report is empty")
+
+pipeline = Pipeline("daily-report", max_workers=4)
+pipeline.task(
+    "download",
+    ["FA_storage_copy", {"source": "s3://input/${params.date}.csv",
+                         "target": "local:///tmp/report.csv"}],
+    retry=RetryPolicy(max_attempts=3, backoff_base=1.0, backoff_cap=30.0),
+    timeout=300.0,
+)
+pipeline.task("check", check, depends_on=["download"])
+pipeline.task(
+    "publish",
+    ["FA_storage_copy", {"source": "local:///tmp/report.csv",
+                         "target": "azure://reports/${params.date}.csv"}],
+    depends_on=["check"],
+    idempotency_key="publish-${params.date}",        # at most once per date
+)
+pipeline.task(
+    "withdraw",                                      # clean-up when publish failed
+    ["FA_storage_delete", {"uri": "azure://reports/${params.date}.csv",
+                           "missing_ok": True}],
+    depends_on=["publish"],
+    when="on_failure",
+)
+
+store = SQLiteRunStore("pipelines.db")
+run = pipeline.run(params={"date": "2026-10-08"}, store=store)
+if run.status != "succeeded":
+    run = pipeline.resume(run.run_id, store=store)   # keeps what succeeded
+```
+
+- **Retry, timeout, cancellation.** `RetryPolicy` retries transient errors with
+  capped exponential back-off; a task past its `timeout` is marked `timeout` and
+  the run goes on; `pipeline.start()` runs in the background and `run.cancel()`
+  stops it.
+- **Conditions and idempotency.** `when` is `on_success`, `on_failure`, `always`
+  or a callable; an `idempotency_key` skips a task that already succeeded under
+  the same key and reuses its result.
+- **Checkpoint, resume, history.** Every task transition is written to a
+  `RunStore` (`MemoryRunStore`, `SQLiteRunStore`); `resume(run_id)` runs only what
+  did not succeed, and `store.list_runs()` is the execution history.
+- **Definitions.** `Pipeline.from_file("daily-report.yaml")`, `from_dict` /
+  `to_dict`, `validate_definition()` with the path of every problem, and
+  `PIPELINE_SCHEMA` (JSON Schema). `run(dry_run=True)` plans without executing.
+- **Actions.** `FA_pipeline_run`, `FA_pipeline_validate`, `FA_pipeline_status`,
+  `FA_pipeline_history` and `FA_pipeline_resume` for JSON action lists, the CLI,
+  the action servers and MCP.
 
 ### File-watcher triggers
 Run an action list whenever a filesystem event fires on a watched path:
