@@ -47,6 +47,8 @@ automation_file/
 ├── pipeline/            # Pipeline runtime: model (Task, RetryPolicy, PipelineRun, ...), graph, pipeline
 │                        # (Pipeline), runner + worker, substitution, store (RunStore, MemoryRunStore,
 │                        # SQLiteRunStore), definition (YAML/JSON + PIPELINE_SCHEMA), reporting, actions
+├── app/                 # Application layer (no Qt, no SDK at import): services (AppServices), one
+│                        # *_service per navigation entry, pipeline_draft (PipelineDraft), masking
 ├── audit/               # Audit schema v2: record (AuditRecord), store (AuditStore, AuditQuery,
 │                        # MemoryAuditStore), sqlite_store (SQLiteAuditStore), trail (AuditTrail,
 │                        # audit_trail, configure_audit), actions (FA_audit_*)
@@ -56,9 +58,10 @@ automation_file/
 │                                   # notify/router.py routes events to sinks (NotificationRouter);
 │                                   # each registers its own FA_* ops
 ├── project/             # ProjectBuilder, create_project_dir
-├── ui/                  # PySide6 GUI: launcher.launch_ui, main_window.MainWindow, worker.ActionWorker,
-│                        # log_widget.LogPanel, tabs/ (home, local, http, JSON editor, servers, scheduler,
-│                        # trigger, progress; the cloud backends are panels grouped under transfer_tab)
+├── ui/                  # PySide6 GUI on the application layer: launcher.launch_ui, main_window.MainWindow
+│                        # (sidebar), pages/ (one per navigation entry, pipeline_canvas, task_form, run_panel,
+│                        # advanced_page), worker.ActionWorker, log_widget.LogPanel, tabs/ (the older tabs,
+│                        # shown under Advanced)
 └── utils/               # file discovery, fast find, grep, duplicate finder, backup rotation
 ```
 
@@ -80,7 +83,7 @@ automation_file/
 - `PackageLoader` — imports a package by name and registers its top-level functions / classes / builtins as `<package>_<member>`.
 - `GoogleDriveClient` — wraps OAuth2 credential loading; exposes `service` lazily. `later_init(token_path, credentials_path)` bootstraps; `require_service()` raises if not initialised.
 - `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — singleton wrappers around the SDKs of their extras. Each exposes `later_init(...)` plus `close()` where relevant. Their ops are auto-registered by `build_default_registry()`; `register_<backend>_ops(registry)` is still exported so callers can populate custom registries.
-- `MainWindow` — PySide6 tabbed control surface (`ui/main_window.py`). Nine tabs — Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions, Servers — share a `LogPanel` and dispatch work through `ActionWorker(QRunnable)` on the global `QThreadPool`.
+- `MainWindow` — PySide6 window with a sidebar (`ui/main_window.py`): Dashboard, Files, Storage, Pipelines (a canvas editor over `PipelineDraft`), Scheduler, Integrity, Audit, Notifications, Settings, and Advanced, which holds the older tabs (Local, Transfer, Progress, JSON actions, Triggers, Servers). Each page talks only to its service in `automation_file.app`; long work runs through `ActionWorker(QRunnable)` on the global `QThreadPool`. A new screen starts as a service in `app/`, tested without Qt, and a page is a thin view of it. The Web UI (`server/web_ui.py`) renders the same services, read-only.
 - `launch_ui(argv=None)` — boots / reuses a `QApplication`, shows `MainWindow`, and returns the exec code. Exposed lazily on the facade via `__getattr__` so the Qt runtime isn't paid for by non-UI importers.
 - `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback; optional `shared_secret` enforces `AUTH <secret>\n` prefix.
 - `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions` plus `GET /healthz`, `/readyz`, `/openapi.json` and `/progress`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.

@@ -243,3 +243,17 @@ and its schema, and the ``FA_pipeline_*`` actions.
    :caption: Pipelines
 
    pipeline
+
+.. _api-app:
+
+Chapter R — Application Layer
+=============================
+
+``automation_file.app``: one plain-Python service per navigation entry, the
+pipeline draft the editor works on, and the masking of secrets.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Application Layer
+
+   app

@@ -75,7 +75,8 @@
        end
 
        subgraph UI["<b>ui (PySide6)</b>"]
-           MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+           MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings<br/>Advanced: Local · Transfer · Progress · JSON · Triggers · Servers"]
+           AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
            Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
        end
 
@@ -125,6 +126,7 @@
        Plugins ==> Loader
 
        MainWin ==> Worker
+       Worker ==> AppLayer
        Worker ==> PublicAPI
 
        PublicAPI ==> Executor
@@ -140,6 +142,8 @@
        HTTPS ==> Executor
        MCP ==> Registry
        MetSrv ==> Metrics
+       WebUI ==> AppLayer
+       AppLayer ==> PublicAPI
        WebUI ==> Registry
        ACL ==> TCP
        ACL ==> HTTPS
@@ -235,7 +239,7 @@
        class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
        class Trigger,Sched event;
        class TCP,HTTPS,MCP,MetSrv,WebUI server;
-       class MainWin,Worker ui;
+       class MainWin,Worker,AppLayer ui;
        class FileOps,Archives,DataOps,TextOps,Misc localOps;
        class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
        class NM,Sinks notify;
@@ -331,14 +335,20 @@
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
-   ├── ui/                      # PySide6 GUI
+   ├── app/                     # 應用層：使用者介面所呼叫的那一層
+   │   ├── services.py          # AppServices、app_services()、NAVIGATION
+   │   ├── pipeline_draft.py    # PipelineDraft：可編輯的定義
+   │   └── *_service.py         # 每個導覽項目一個服務
+   ├── ui/                      # PySide6 GUI，建立在 app/ 之上
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # 分頁式 MainWindow（Home、Local、Transfer、
-   │   │                        #   Progress、JSON actions、Triggers、
-   │   │                        #   Scheduler、Servers）
+   │   ├── main_window.py       # 側邊欄式 MainWindow（Dashboard、Files、Storage、
+   │   │                        #   Pipelines、Scheduler、Integrity、Audit、
+   │   │                        #   Notifications、Settings、Advanced）
    │   ├── worker.py            # ActionWorker（QRunnable）
    │   ├── log_widget.py        # LogPanel
-   │   └── tabs/                # 每個後端一個分頁 + JSON runner + servers
+   │   ├── pages/               # 每個導覽項目一個頁面 + 管線編輯器
+   │   └── tabs/                # Advanced 底下的工具：每個後端一個分頁、
+   │                            #   JSON runner、triggers、servers
    └── utils/
        ├── file_discovery.py
        ├── fast_find.py         # OS 索引（mdfind/locate/es）+ scandir 後備

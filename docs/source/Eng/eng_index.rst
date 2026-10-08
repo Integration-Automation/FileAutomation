@@ -146,14 +146,16 @@ Chapter 8 — MCP Server
 Chapter 9 — GUI
 ===============
 
-The PySide6 desktop control surface — tabbed layout, log panel, and
-``ActionWorker`` thread-pool model.
+The PySide6 desktop interface, organised by workflow (Dashboard, Files, Storage,
+Pipelines with a visual editor, Scheduler, Integrity, Audit, Notifications,
+Settings), and the application layer both user interfaces are built on.
 
 .. toctree::
    :maxdepth: 2
    :caption: GUI
 
    usage/gui
+   usage/app_layer
 
 .. _eng-reliability:
 

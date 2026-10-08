@@ -9,6 +9,7 @@ writes to a watched directory for real and is skipped where no event arrives.
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -150,7 +151,10 @@ def test_the_interval_runner_ticks_until_stopped_and_can_start_again() -> None:
     assert runner.is_running is False
     count = len(ticks.items)
     runner.start()
-    assert ticks.wait()
+    # The first run may have left ticks nobody waited for, so wait for a new one by count.
+    deadline = time.monotonic() + WAIT
+    while len(ticks.items) <= count and time.monotonic() < deadline:
+        time.sleep(0.005)
     runner.stop()
     assert len(ticks.items) > count
     with pytest.raises(IntegrityException, match="interval must be positive"):

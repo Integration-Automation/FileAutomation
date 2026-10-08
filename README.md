@@ -7,8 +7,8 @@ remote storage, file integrity monitoring, pipelines with retry and resume, sche
 event-driven notifications, an audit trail, and automation through JSON actions, embedded
 TCP / HTTP servers and MCP. The object API (`File`, `Storage`, `Pipeline`, `IntegrityMonitor`)
 and the `FA_*` JSON actions are two faces of the same operations, and everything public is
-re-exported from the top-level `automation_file` facade. A desktop GUI and a read-only web UI
-are included.
+re-exported from the top-level `automation_file` facade. A desktop GUI organised by workflow
+and a read-only web UI are built on one application layer.
 
 ```python
 from automation_file import File, IntegrityMonitor, Pipeline, Storage
@@ -54,7 +54,7 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - **SMB / CIFS backend** — `SMBClient` over `smbprotocol`'s high-level `smbclient` API; UNC-based, encrypted sessions by default
 - **fsspec bridge** — drive any `fsspec`-backed filesystem (memory, local, s3, gcs, abfs, …) through the action registry with `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` etc.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
-- **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
+- **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, pipeline runs, integrity, events, storage, audit, progress, registry) rendered from the application layer; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
 - **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `gdrive://…`, `sftp://…`, …), one `StorageBackend` contract and one error hierarchy; twelve backends are built in (local, in-memory, S3, Azure Blob, Google Drive, Dropbox, OneDrive, SFTP, FTP / FTPS, WebDAV, SMB, fsspec), and an 88-case contract suite checks any backend
 - **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
@@ -62,7 +62,8 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
 - **Pipelines** — `Pipeline` runs tasks (callables or `FA_*` actions) in dependency order, independent ones in parallel, with retry, timeout, cancellation, conditions, idempotency keys, checkpoint and resume, a dry run and an execution history; definitions in Python, YAML or JSON
 - **Semantic MCP tools** — fourteen tools with stable names (`file_read`, `file_copy`, `storage_list`, `pipeline_run`, `integrity_status`, `audit_search`, …) for AI hosts, confined to the roots you name, read-only until you allow writing, with a dry run for everything that changes something; the `FA_*` bridge stays available
-- PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
+- PySide6 GUI (`python -m automation_file ui`) organised by workflow — Dashboard, Files, Storage, Pipelines (a visual editor), Scheduler, Integrity, Audit, Notifications, Settings — with the per-backend tools under Advanced
+- **Application layer** — `automation_file.app` has one plain-Python service per navigation entry; both user interfaces call it, and so can yours
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
 
@@ -131,7 +132,8 @@ flowchart TD
     end
 
     subgraph UI["<b>ui (PySide6)</b>"]
-        MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+        MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings · Advanced"]
+        AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
         Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
     end
 
@@ -187,6 +189,9 @@ flowchart TD
     Plugins ==> Loader
 
     MainWin ==> Worker
+    Worker ==> AppLayer
+    WebUI ==> AppLayer
+    AppLayer ==> PublicAPI
     Worker ==> PublicAPI
 
     PublicAPI ==> Executor
@@ -313,7 +318,7 @@ flowchart TD
     class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
     class Trigger,Sched event;
     class TCP,HTTPS,MCP,MetSrv,WebUI server;
-    class MainWin,Worker ui;
+    class MainWin,Worker,AppLayer ui;
     class FileOps,Archives,DataOps,TextOps,Misc localOps;
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
@@ -1123,14 +1128,17 @@ curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 spec
 
 ### HTMX Web UI
 A read-only observability dashboard built on stdlib HTTP + HTMX (loaded from
-a pinned CDN URL with SRI). Loopback-only by default; optional shared secret:
+a pinned CDN URL with SRI) and rendered from the application layer, so it shows
+what the desktop window shows. Loopback-only by default; optional shared secret:
 
 ```python
 from automation_file import start_web_ui
 
 server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
-# Browse http://127.0.0.1:9955/ — health, progress, and registry fragments
-# auto-poll every few seconds. Write operations stay on the action servers.
+# Browse http://127.0.0.1:9955/ — health, pipeline runs, integrity, recent
+# events, storage, audit, progress and registry fragments poll every few
+# seconds. Everything is escaped and secrets are masked. Write operations stay
+# on the action servers.
 ```
 
 ### MCP (Model Context Protocol) server
@@ -1258,6 +1266,7 @@ break the library.
 
 ### GUI
 ```bash
+pip install "automation_file[gui]"
 python -m automation_file ui        # or: python main_ui.py
 ```
 
@@ -1266,8 +1275,60 @@ from automation_file import launch_ui
 launch_ui()
 ```
 
-Tabs: Home, Local, Transfer, Progress, JSON actions, Triggers, Scheduler,
-Servers. A persistent log panel at the bottom streams every result and error.
+The window is organised by workflow. The sidebar has nine pages, each a view
+over one service of the application layer:
+
+| Page | What you do there |
+|---|---|
+| **Dashboard** | Health, running and recent pipeline runs, integrity drift, recent events, storage status |
+| **Files** | Browse a storage URI, preview a file, copy, move, delete, create a directory |
+| **Storage** | See which backends can be used (and the `pip install` command when an extra is missing); mount a local directory |
+| **Pipelines** | Visual editor: drag actions onto a canvas, connect tasks, edit parameters, validate, dry-run, test one task, run, resume, retry, follow the run |
+| **Scheduler** | List, add and remove cron jobs |
+| **Integrity** | Baseline, verify and accept a tree; start and stop monitors |
+| **Audit** | Point the audit trail at a database; search and count records |
+| **Notifications** | Registered sinks, routes, a test message |
+| **Settings** | Preview and apply `automation_file.toml`; installed extras; environment |
+
+**Advanced** keeps the earlier tabs unchanged: Local, Transfer (one panel per
+backend, where a cloud client gets its credentials), Progress, JSON actions,
+Triggers and Servers.
+
+In the pipeline editor, two tasks are connected by selecting the upstream one,
+`Ctrl`-clicking the dependent one and pressing **Connect**; the order of the
+selection is the direction of the arrow. Node positions are saved next to the
+definition (`<file>.layout.json`), never in it.
+
+A log panel at the bottom records every action and its outcome, and no page
+shows a token, a password or a webhook URL. Background work runs on
+`QThreadPool` through `ActionWorker`, so the window stays responsive.
+
+### Application layer
+`automation_file.app` is what a user interface calls: one plain-Python service
+per navigation entry, with no GUI toolkit and no backend SDK imported. The
+PySide6 window and the Web UI are both built on it, so they show the same state,
+and a third interface needs nothing else.
+
+```python
+from automation_file.app import app_services
+
+services = app_services()
+services.dashboard.summary().status                 # "ok" or "attention"
+services.files.list_dir("s3://reports/2026")
+services.storage.backends()                         # usable? missing extra? install hint
+
+draft = services.pipelines.new_draft("nightly")
+draft.add_task("FA_storage_copy", "download",
+               arguments={"source": "s3://in/a.csv", "target": "local:///tmp/a.csv"})
+services.pipelines.validate(draft)                  # [] or problems, each with its path
+run = services.pipelines.start(draft)               # background; returns at once
+services.pipelines.status(run["run_id"])["status"]
+```
+
+Services return dataclasses, dictionaries and lists that JSON can hold, mask
+secrets in them, and raise `FileAutomationException` subclasses.
+`build_services(ServiceOptions(...))` builds a private set on another run
+store, event bus or resolver.
 
 ### Scaffold an executor-based project
 ```python

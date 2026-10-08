@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from automation_file.app import AppServices, PipelineDraft, app_services, build_services
 from automation_file.audit import (
     AuditQuery,
     AuditRecord,
@@ -705,6 +706,10 @@ __all__ = [
     "start_web_ui",
     "MCPServer",
     "MCPPolicy",
+    "AppServices",
+    "PipelineDraft",
+    "app_services",
+    "build_services",
     "SemanticToolkit",
     "tools_from_registry",
     # Triggers

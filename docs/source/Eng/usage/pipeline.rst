@@ -14,6 +14,11 @@ bus (:doc:`event_bus`); it calls no notification sink and writes no audit row.
 list of actions once and returns their results; use a pipeline when the run has
 to be recorded, retried, resumed or observed.
 
+A definition can also be built, checked and run without writing it by hand: the
+Pipelines page of the desktop window is a visual editor for it (:doc:`gui`),
+and ``automation_file.app`` offers the same operations to any other interface
+(:doc:`app_layer`).
+
 Minimal example
 ---------------
 

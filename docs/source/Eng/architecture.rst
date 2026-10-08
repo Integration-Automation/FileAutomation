@@ -78,7 +78,8 @@ dispatchers.
        end
 
        subgraph UI["<b>ui (PySide6)</b>"]
-           MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+           MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings<br/>Advanced: Local · Transfer · Progress · JSON · Triggers · Servers"]
+           AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
            Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
        end
 
@@ -128,6 +129,7 @@ dispatchers.
        Plugins ==> Loader
 
        MainWin ==> Worker
+       Worker ==> AppLayer
        Worker ==> PublicAPI
 
        PublicAPI ==> Executor
@@ -143,6 +145,8 @@ dispatchers.
        HTTPS ==> Executor
        MCP ==> Registry
        MetSrv ==> Metrics
+       WebUI ==> AppLayer
+       AppLayer ==> PublicAPI
        WebUI ==> Registry
        ACL ==> TCP
        ACL ==> HTTPS
@@ -238,7 +242,7 @@ dispatchers.
        class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
        class Trigger,Sched event;
        class TCP,HTTPS,MCP,MetSrv,WebUI server;
-       class MainWin,Worker ui;
+       class MainWin,Worker,AppLayer ui;
        class FileOps,Archives,DataOps,TextOps,Misc localOps;
        class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
        class NM,Sinks notify;
@@ -338,14 +342,20 @@ Module layout
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
-   ├── ui/                      # PySide6 GUI
+   ├── app/                     # application layer: what a user interface calls
+   │   ├── services.py          # AppServices, app_services(), NAVIGATION
+   │   ├── pipeline_draft.py    # PipelineDraft: the editable definition
+   │   └── *_service.py         # one service per navigation entry
+   ├── ui/                      # PySide6 GUI, built on app/
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # tabbed MainWindow (Home, Local, Transfer,
-   │   │                        #   Progress, JSON actions, Triggers,
-   │   │                        #   Scheduler, Servers)
+   │   ├── main_window.py       # sidebar MainWindow (Dashboard, Files, Storage,
+   │   │                        #   Pipelines, Scheduler, Integrity, Audit,
+   │   │                        #   Notifications, Settings, Advanced)
    │   ├── worker.py            # ActionWorker (QRunnable)
    │   ├── log_widget.py        # LogPanel
-   │   └── tabs/                # one tab per backend + JSON runner + servers
+   │   ├── pages/               # one page per navigation entry + pipeline editor
+   │   └── tabs/                # the tools under Advanced: one tab per backend,
+   │                            #   JSON runner, triggers, servers
    └── utils/
        ├── file_discovery.py
        ├── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback

@@ -6,7 +6,7 @@ FileAutomation 是通用的檔案層與資料管線執行環境：以同一套 A
 檔案完整性監控、具備重試與續跑能力的管線、排程、事件驅動的通知、稽核軌跡，以及透過 JSON
 動作、內建 TCP / HTTP 伺服器與 MCP 進行的自動化。物件 API（`File`、`Storage`、`Pipeline`、
 `IntegrityMonitor`）與 `FA_*` JSON 動作是同一組操作的兩種面貌，所有公開名稱皆由頂層
-`automation_file` facade 統一匯出。另附桌面 GUI 與唯讀的 Web UI。
+`automation_file` facade 統一匯出。另附依工作流程安排的桌面 GUI 與唯讀的 Web UI，兩者建立在同一個應用層之上。
 
 ```python
 from automation_file import File, IntegrityMonitor, Pipeline, Storage
@@ -52,7 +52,7 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - **SMB / CIFS 後端** — `SMBClient` 建構於 `smbprotocol` 的高階 `smbclient` API；採用 UNC 路徑，預設啟用加密連線
 - **fsspec 橋接** — 透過 `get_fs` / `fsspec_upload` / `fsspec_download` / `fsspec_list_dir` 等函式，驅動任何 `fsspec` 支援的檔案系統（memory、local、s3、gcs、abfs、…）
 - **HTTP 伺服器觀測端點** — `GET /healthz` / `GET /readyz` 探針、`GET /openapi.json` 規格、以及 `GET /progress`（以 WebSocket 推送即時傳輸快照）
-- **HTMX Web UI** — `start_web_ui()` 啟動唯讀觀測儀表板（health、progress、registry），以 HTML 片段輪詢；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
+- **HTMX Web UI** — `start_web_ui()` 啟動唯讀儀表板（health、管線執行、完整性、事件、儲存、稽核、progress、registry），由應用層繪製；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
 - **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建十二種後端（本機、記憶體、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），並附 88 個案例的契約測試套件可檢查任何後端
 - **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
@@ -60,7 +60,8 @@ IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
 - **稽核軌跡** — `configure_audit(path)` 為每個事件與每次儲存操作記錄一筆（actor、來源、pipeline、task、動作、資源、後端、狀態、耗時、關聯 ID），可用 `audit_search` / `FA_audit_search` 查詢
 - **管線（Pipeline）** — `Pipeline` 依相依順序執行任務（可呼叫物件或 `FA_*` 動作），互不相依者平行執行，並支援重試、逾時、取消、條件、冪等鍵、檢查點與續跑、試跑以及執行歷史；定義可用 Python、YAML 或 JSON 撰寫
 - **語意化 MCP 工具** — 提供給 AI 宿主的十四個名稱穩定的工具（`file_read`、`file_copy`、`storage_list`、`pipeline_run`、`integrity_status`、`audit_search` 等），僅限於你指定的根位置，在你允許寫入之前皆為唯讀，所有會變更內容的工具都支援試跑；`FA_*` 橋接仍然保留
-- PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
+- PySide6 GUI（`python -m automation_file ui`）依工作流程安排——Dashboard、Files、Storage、Pipelines（視覺化編輯器）、Scheduler、Integrity、Audit、Notifications、Settings——各後端專屬的工具放在 Advanced 底下
+- **應用層** — `automation_file.app` 為導覽中的每個項目提供一個普通的 Python 服務；兩種使用者介面都呼叫它，你的介面也可以
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
 
@@ -129,7 +130,8 @@ flowchart TD
     end
 
     subgraph UI["<b>ui (PySide6)</b>"]
-        MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+        MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings · Advanced"]
+        AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
         Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
     end
 
@@ -185,6 +187,9 @@ flowchart TD
     Plugins ==> Loader
 
     MainWin ==> Worker
+    Worker ==> AppLayer
+    WebUI ==> AppLayer
+    AppLayer ==> PublicAPI
     Worker ==> PublicAPI
 
     PublicAPI ==> Executor
@@ -311,7 +316,7 @@ flowchart TD
     class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
     class Trigger,Sched event;
     class TCP,HTTPS,MCP,MetSrv,WebUI server;
-    class MainWin,Worker ui;
+    class MainWin,Worker,AppLayer ui;
     class FileOps,Archives,DataOps,TextOps,Misc localOps;
     class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
     class NM,Sinks notify;
@@ -1093,15 +1098,17 @@ curl http://127.0.0.1:9944/openapi.json     # OpenAPI 3.0 規格
 ```
 
 ### HTMX Web UI
-建構於標準函式庫 HTTP + HTMX（以帶 SRI 的固定 CDN URL 載入）之上的唯讀觀測
-儀表板。預設僅允許 loopback，可選 shared-secret：
+建構於標準函式庫 HTTP + HTMX（以帶 SRI 的固定 CDN URL 載入）之上的唯讀觀測儀表板，
+由應用層繪製，所以它顯示的就是桌面視窗顯示的內容。預設僅允許 loopback，可選
+shared-secret：
 
 ```python
 from automation_file import start_web_ui
 
 server = start_web_ui(host="127.0.0.1", port=9955, shared_secret="s3cr3t")
-# 瀏覽 http://127.0.0.1:9955/ —— health、progress、registry 片段每數秒
-# 自動輪詢；寫入操作仍保留在動作伺服器。
+# 瀏覽 http://127.0.0.1:9955/ —— health、管線執行、完整性、最近的事件、儲存、
+# 稽核、progress、registry 片段每數秒自動輪詢。所有內容都經過跳脫，機敏資訊
+# 都已遮蔽；寫入操作仍保留在動作伺服器。
 ```
 
 ### MCP（Model Context Protocol）伺服器
@@ -1221,6 +1228,7 @@ execute_action([["FA_greet", {"name": "world"}]])
 
 ### GUI
 ```bash
+pip install "automation_file[gui]"
 python -m automation_file ui        # 或：python main_ui.py
 ```
 
@@ -1229,8 +1237,54 @@ from automation_file import launch_ui
 launch_ui()
 ```
 
-分頁：Home、Local、Transfer、Progress、JSON actions、Triggers、Scheduler、
-Servers。底部常駐的 log 面板即時串流每一筆結果與錯誤。
+視窗依工作流程安排。側邊欄有九個頁面，每個都是應用層某一個服務的檢視：
+
+| 頁面 | 在這裡做什麼 |
+|---|---|
+| **Dashboard** | 健康狀態、執行中與最近的管線執行、完整性漂移、最近的事件、儲存狀態 |
+| **Files** | 瀏覽儲存 URI、預覽檔案、複製、搬移、刪除、建立目錄 |
+| **Storage** | 查看哪些後端可用（缺少 extra 時會顯示 `pip install` 指令）；掛載本機目錄 |
+| **Pipelines** | 視覺化編輯器：把動作拖到畫布上、連接任務、編輯參數、驗證、試跑、測試單一任務、執行、續跑、重試、追蹤執行 |
+| **Scheduler** | 列出、新增與移除 cron 工作 |
+| **Integrity** | 為目錄樹建立基準、驗證與接受；啟動與停止監控器 |
+| **Audit** | 把稽核軌跡指向資料庫；搜尋並計算紀錄 |
+| **Notifications** | 已註冊的 sink、路由、測試訊息 |
+| **Settings** | 預覽並套用 `automation_file.toml`；已安裝的 extra；執行環境 |
+
+**Advanced** 原封不動地保留舊的分頁：Local、Transfer（每個後端一個面板，雲端 client
+的憑證在這裡提供）、Progress、JSON actions、Triggers 與 Servers。
+
+在管線編輯器中，要連接兩個任務，請先選取上游任務，再按住 `Ctrl` 點相依於它的任務，
+然後按 **Connect**；選取的順序就是箭頭的方向。節點位置存在定義旁邊
+（`<file>.layout.json`），絕不會存進定義裡。
+
+底部的 log 面板記錄每個動作與它的結果，而且沒有任何頁面會顯示 token、密碼或 webhook
+URL。背景工作透過 `ActionWorker` 在 `QThreadPool` 上執行，視窗始終保持回應。
+
+### 應用層
+`automation_file.app` 是使用者介面所呼叫的那一層：導覽中的每個項目各有一個普通的
+Python 服務，不匯入任何 GUI 工具組，也不匯入任何後端 SDK。PySide6 視窗與 Web UI 都
+建立在它之上，所以兩者顯示相同的狀態，第三種介面也不需要其他東西。
+
+```python
+from automation_file.app import app_services
+
+services = app_services()
+services.dashboard.summary().status                 # "ok" 或 "attention"
+services.files.list_dir("s3://reports/2026")
+services.storage.backends()                         # 可用嗎？缺 extra？安裝提示
+
+draft = services.pipelines.new_draft("nightly")
+draft.add_task("FA_storage_copy", "download",
+               arguments={"source": "s3://in/a.csv", "target": "local:///tmp/a.csv"})
+services.pipelines.validate(draft)                  # [] 或問題清單，每項都附路徑
+run = services.pipelines.start(draft)               # 背景執行；立即回傳
+services.pipelines.status(run["run_id"])["status"]
+```
+
+服務回傳 JSON 能容納的 dataclass、字典與清單，並遮蔽其中的機敏資訊，拋出的則是
+`FileAutomationException` 的子類別。`build_services(ServiceOptions(...))` 可以在另一
+個 run store、事件匯流排或 resolver 上建立私有的一組服務。
 
 ### 以 executor 為核心建立專案鷹架
 ```python

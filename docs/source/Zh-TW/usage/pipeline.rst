@@ -12,6 +12,10 @@
 :func:`~automation_file.execute_action_dag`\ （見 :doc:`dag`）維持不變。它把一份動作
 清單執行一次並回傳結果；當執行需要被記錄、重試、續跑或觀察時，請改用管線。
 
+定義也可以不必手寫就建立、檢查與執行：桌面視窗的 Pipelines 頁面是它的視覺化編輯器
+（:doc:`gui`），而 ``automation_file.app`` 則把同樣的操作提供給任何其他介面
+（:doc:`app_layer`）。
+
 最小範例
 ----------------
 

@@ -150,6 +150,7 @@ PySide6 桌面控制界面——分页布局、日志面板，以及 ``ActionWor
    :caption: 图形界面
 
    usage/gui
+   usage/app_layer
 
 .. _zh-cn-reliability:
 
