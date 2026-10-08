@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-06 | 2026-10-08 | Event model, event bus and storage observers | #events #roadmap #storage | [2026-10](2026-10.md) |
 | U-20261008-05 | 2026-10-08 | Streams and directory trees in the storage layer | #storage #roadmap #streams | [2026-10](2026-10.md) |
 | U-20261008-04 | 2026-10-08 | Version directories stay short for long source paths | #done #versioning #windows | [2026-10](2026-10.md) |
 | U-20261008-03 | 2026-10-08 | FA_storage_* actions put the storage layer in the registry | #storage #roadmap #actions #mcp | [2026-10](2026-10.md) |
@@ -100,5 +101,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 16 |
+| [2026-10.md](2026-10.md) | 2026-10 | 17 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

@@ -24,7 +24,8 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
-| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`), `streams.py` (staged file objects behind `open_read` / `open_write`), `tree.py` (`copy_tree`, `sync_tree`, `TreeResult`), `actions.py` (the `FA_storage_*` functions and `register_storage_ops`). At module level it imports only `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
+| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`), `observe.py` (listeners for `upload`, `download`, `read`, `delete`, `mkdir`, `copy`, `move`), `streams.py` (staged file objects behind `open_read` / `open_write`), `tree.py` (`copy_tree`, `sync_tree`, `TreeResult`), `actions.py` (the `FA_storage_*` functions and `register_storage_ops`). At module level it imports only `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
+| `automation_file/events/` | The event model every component reports through. `model.py` (`Event`, `Severity`, the ten core events), `bus.py` (`EventBus`, the process-wide `event_bus`, `emit`), `context.py` (`correlation_scope`, `actor_scope`), `storage_bridge.py` (failed storage operations become `StorageError` events; installed when the package is imported). It imports only the standard library, `logging_config` and `storage.observe` |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
 | `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
@@ -55,6 +56,11 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
   `download`, `delete`, `checksum`, `verify`, `copy`, `move`, `read_text`, `write_text`, `copy_tree`,
   `sync`, `schemes`) put
   it in the default registry; `register_storage_ops` adds them to another one.
+- **Events** (same facade): `Event`, `Severity`, `EventBus`, `event_bus`, `emit`, `correlation_scope`,
+  `actor_scope`, and the core events `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`,
+  `TaskStarted`, `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
+  `SystemErrorEvent`. Event `type` names (`pipeline.failed`, ...) and the payload keys in
+  `events.model.PAYLOAD_KEYS` are what consumers match on.
 - **Action format**: an action is `[name]`, `[name, {kwargs}]` or `[name, [args]]`. A file holds a
   list of actions or `{"auto_control": [...]}`.
 - **CLI** (`python -m automation_file`; no console script for it):
@@ -126,6 +132,15 @@ File(uri) / Storage(uri) → parse_storage_uri (scheme alias, authority check, p
   → StorageBackend public method: normalise, check what exists, make parents → _primitive of the backend
   → FileInfo / Checksum / bytes, or a StorageException subclass
 copy_to / move_to → target_backend.copy_from(source_backend, ...) → native (_copy_from / _move_from) or a local staging file
+every upload / download / read / delete / mkdir / copy / move → storage.observe listeners (StorageOperation)
+```
+
+**Event → consumers**
+
+```
+component → Event (type, severity, source, subject, payload, correlation_id, actor) → event_bus.publish
+  → each matching subscriber, in the publisher's thread; one that raises is logged and skipped
+storage.observe → events.storage_bridge → StorageError (only for a failing backend, not a caller mistake)
 ```
 
 ## 5. Extension points

@@ -16,14 +16,16 @@ The root itself is the empty string.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import mimetypes
 import os
 import shutil
 import tempfile
+import time
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import BinaryIO, TypeVar
@@ -37,6 +39,7 @@ from automation_file.exceptions import (
     StoragePathTypeException,
     StorageUnsupportedException,
 )
+from automation_file.storage import observe
 from automation_file.storage.streams import StagedReader, StagedWriter, new_scratch_file
 from automation_file.storage.types import Checksum, FileInfo, StorageCapabilities
 from automation_file.storage.uri import normalize_path
@@ -254,18 +257,19 @@ class StorageBackend(ABC):
         Where directories are only implied by file paths (``capabilities.directories``
         is false) nothing is created and nothing needs to be.
         """
-        clean = self._normalize(path)
-        info = self._stat(clean)
-        if info is not None:
-            if not info.is_dir:
-                raise StoragePathTypeException(f"{self.uri_for(clean)} is a file")
-            if not exist_ok:
-                raise StorageAlreadyExistsException(f"{self.uri_for(clean)} already exists")
-            return
-        if not self.capabilities.directories:
-            return
-        self._make_parents(clean, create=parents)
-        self._mkdir(clean)
+        with self._observing("mkdir", path):
+            clean = self._normalize(path)
+            info = self._stat(clean)
+            if info is not None:
+                if not info.is_dir:
+                    raise StoragePathTypeException(f"{self.uri_for(clean)} is a file")
+                if not exist_ok:
+                    raise StorageAlreadyExistsException(f"{self.uri_for(clean)} already exists")
+                return
+            if not self.capabilities.directories:
+                return
+            self._make_parents(clean, create=parents)
+            self._mkdir(clean)
 
     def upload(
         self, local_path: str | os.PathLike[str], path: str, *, overwrite: bool = True
@@ -274,13 +278,14 @@ class StorageBackend(ABC):
 
         Missing parent directories are created.
         """
-        source = Path(local_path)
-        if not source.is_file():
-            raise StorageNotFoundException(f"local source is not a file: {source}")
-        clean = self._writable_file(path, overwrite)
-        self._make_parents(clean)
-        self._upload(source, clean)
-        return self.stat(clean)
+        with self._observing("upload", path):
+            source = Path(local_path)
+            if not source.is_file():
+                raise StorageNotFoundException(f"local source is not a file: {source}")
+            clean = self._writable_file(path, overwrite)
+            self._make_parents(clean)
+            self._upload(source, clean)
+            return self.stat(clean)
 
     def download(
         self, path: str, local_path: str | os.PathLike[str], *, overwrite: bool = True
@@ -290,20 +295,21 @@ class StorageBackend(ABC):
         The content lands in a sibling ``.part`` file that replaces the target once
         complete, so a failed download never leaves a truncated target behind.
         """
-        clean = self._existing_file(path)
-        target = Path(local_path)
-        if target.is_dir():
-            raise StoragePathTypeException(f"local target is a directory: {target}")
-        if not overwrite and target.exists():
-            raise StorageAlreadyExistsException(f"local target already exists: {target}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        partial = target.with_name(f".{target.name}.{uuid.uuid4().hex}.part")
-        try:
-            self._download(clean, partial)
-            os.replace(partial, target)
-        finally:
-            partial.unlink(missing_ok=True)
-        return target
+        with self._observing("download", path):
+            clean = self._existing_file(path)
+            target = Path(local_path)
+            if target.is_dir():
+                raise StoragePathTypeException(f"local target is a directory: {target}")
+            if not overwrite and target.exists():
+                raise StorageAlreadyExistsException(f"local target already exists: {target}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            partial = target.with_name(f".{target.name}.{uuid.uuid4().hex}.part")
+            try:
+                self._download(clean, partial)
+                os.replace(partial, target)
+            finally:
+                partial.unlink(missing_ok=True)
+            return target
 
     def delete(self, path: str, *, recursive: bool = False, missing_ok: bool = False) -> None:
         """Remove the file or directory at ``path``.
@@ -311,20 +317,21 @@ class StorageBackend(ABC):
         A directory with entries needs ``recursive=True``. The storage root is never
         removed.
         """
-        clean = self._normalize(path)
-        info = self._stat(clean)
-        if info is None:
-            if missing_ok:
+        with self._observing("delete", path):
+            clean = self._normalize(path)
+            info = self._stat(clean)
+            if info is None:
+                if missing_ok:
+                    return
+                raise missing_error(self.uri_for(clean))
+            if not info.is_dir:
+                self._delete_file(clean)
                 return
-            raise missing_error(self.uri_for(clean))
-        if not info.is_dir:
-            self._delete_file(clean)
-            return
-        if self._is_root(clean):
-            raise StorageUnsupportedException(
-                f"refusing to delete the storage root {self.uri_for(clean)}"
-            )
-        self._delete_directory(clean, recursive)
+            if self._is_root(clean):
+                raise StorageUnsupportedException(
+                    f"refusing to delete the storage root {self.uri_for(clean)}"
+                )
+            self._delete_directory(clean, recursive)
 
     def checksum(self, path: str, algorithm: str = DEFAULT_CHECKSUM_ALGORITHM) -> Checksum:
         """Return the :class:`Checksum` of the file ``path`` (SHA-256 by default)."""
@@ -333,14 +340,16 @@ class StorageBackend(ABC):
 
     def read_bytes(self, path: str) -> bytes:
         """Return the whole content of the file ``path``."""
-        return self._read_bytes(self._existing_file(path))
+        with self._observing("read", path):
+            return self._read_bytes(self._existing_file(path))
 
     def open_read(self, path: str) -> BinaryIO:
         """Return a binary file object over the file ``path``; close it when done.
 
         Use it for a file too large to hold in memory with :meth:`read_bytes`.
         """
-        return self._open_read(self._existing_file(path))
+        with self._observing("read", path):
+            return self._open_read(self._existing_file(path))
 
     def open_write(self, path: str, *, overwrite: bool = True) -> BinaryIO:
         """Return a binary file object whose content becomes the file ``path`` on close.
@@ -366,19 +375,21 @@ class StorageBackend(ABC):
         The copy is native when the two backends can do it between themselves and
         goes through a local staging file otherwise.
         """
-        origin, target = self._transfer_paths(source, source_path, path, overwrite)
-        self._pull(source, origin, target)
-        return self.stat(target)
+        with self._observing("copy", path, (source, source_path)), observe.suppressed():
+            origin, target = self._transfer_paths(source, source_path, path, overwrite)
+            self._pull(source, origin, target)
+            return self.stat(target)
 
     def move_from(
         self, source: StorageBackend, source_path: str, path: str, *, overwrite: bool = True
     ) -> FileInfo:
         """Move the file ``source_path`` of ``source`` to ``path``: a rename, or copy then delete."""
-        origin, target = self._transfer_paths(source, source_path, path, overwrite)
-        if not self._move_from(source, origin, target):
-            self._pull(source, origin, target)
-            source.delete(origin)
-        return self.stat(target)
+        with self._observing("move", path, (source, source_path)), observe.suppressed():
+            origin, target = self._transfer_paths(source, source_path, path, overwrite)
+            if not self._move_from(source, origin, target):
+                self._pull(source, origin, target)
+                source.delete(origin)
+            return self.stat(target)
 
     def close(self) -> None:  # noqa: B027 - optional hook: most backends hold nothing open
         """Release what the backend holds open. The default holds nothing."""
@@ -395,6 +406,42 @@ class StorageBackend(ABC):
         self.close()
 
     # ------------------------------------------------------------------ shared steps
+
+    def _display_uri(self, path: str) -> str:
+        """Return the URI of ``path`` for a report, even when the path itself is invalid."""
+        try:
+            return self.uri_for(path)
+        except StorageException:
+            return f"{self.scheme}:{path}"
+
+    @contextlib.contextmanager
+    def _observing(
+        self, operation: str, path: str, origin: tuple[StorageBackend, str] | None = None
+    ) -> Iterator[None]:
+        """Report the enclosed operation, with its outcome and duration, to the observers."""
+        if not observe.has_listeners():
+            yield
+            return
+        started = time.perf_counter()
+        failure: BaseException | None = None
+        try:
+            yield
+        except BaseException as error:
+            failure = error
+            raise
+        finally:
+            observe.notify(
+                observe.StorageOperation(
+                    operation=operation,
+                    uri=self._display_uri(path),
+                    backend=self.scheme,
+                    status=observe.STATUS_ERROR if failure else observe.STATUS_OK,
+                    duration_ms=(time.perf_counter() - started) * 1000.0,
+                    source_uri=origin[0]._display_uri(origin[1]) if origin else None,
+                    error=f"{type(failure).__name__}: {failure}" if failure else None,
+                    error_type=type(failure).__name__ if failure else None,
+                )
+            )
 
     def _existing_file(self, path: str) -> str:
         clean = self._normalize(path)

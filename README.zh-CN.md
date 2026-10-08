@@ -47,6 +47,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
 - **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 77 个用例的契约测试套件可检查任何后端
+- **事件总线** — 单一 `Event` 模型与十种核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具备严重程度、关联 ID 与 actor；可以在 `event_bus` 上按类、type 或前缀订阅
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -498,6 +499,29 @@ File("sandbox://jobs/42/out.csv").write(b"done")
 ```
 
 此 API 为新功能，在 1.0 之前仍可能调整。完整说明请见文档的“通用存储层”章节。
+
+### 事件
+每个组件都通过同一套事件模型报告，而不是自行调用通知接收端或审计记录。
+
+```python
+from automation_file import Severity, actor_scope, correlation_scope, event_bus
+
+event_bus.subscribe(print, types=["pipeline.*", "integrity.violation"])
+event_bus.subscribe(alert, min_severity=Severity.ERROR)
+
+with actor_scope("scheduler"), correlation_scope() as run_id:
+    ...   # 这里面的每个事件与存储操作都带有 run_id 与 actor
+event_bus.recent(limit=20, correlation_id=run_id)
+```
+
+- **核心事件** — `PipelineStarted`、`PipelineCompleted`、`PipelineFailed`、`TaskStarted`、
+  `TaskCompleted`、`TaskFailed`、`IntegrityViolation`、`StorageError`、`SchedulerError`、
+  `SystemErrorEvent`。每个事件都有 `type`（`pipeline.failed`）、`severity`、`source`、`subject`、
+  结构化的 `payload`、`correlation_id` 与 `actor`，并可以用 `to_dict()` 转成 JSON。
+- **总线** — `event_bus.subscribe(handler, types=..., min_severity=...)` 可以按类、type 名称或
+  前缀订阅；处理函数抛出异常时只会被记录并跳过；`event_bus.recent()` 返回最近的事件。
+- **存储操作** — 上传、下载、读取、删除、复制与移动都会报告给
+  `automation_file.storage.observe` 的监听者，后端失败时会产生 `StorageError` 事件。
 
 ### 文件监听触发
 每当被监听路径发生文件系统事件，就执行动作清单：

@@ -49,6 +49,7 @@ facade.
 - **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
 - **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; local, S3, Azure Blob and in-memory backends are built in, and a 77-case contract suite checks any backend
+- **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -504,6 +505,29 @@ File("sandbox://jobs/42/out.csv").write(b"done")
 
 The API is new and may still change before 1.0. Full reference: the *Universal Storage Layer*
 chapter of the documentation.
+
+### Events
+Every component reports through one event model instead of calling a sink or the audit log itself.
+
+```python
+from automation_file import Severity, actor_scope, correlation_scope, event_bus
+
+event_bus.subscribe(print, types=["pipeline.*", "integrity.violation"])
+event_bus.subscribe(alert, min_severity=Severity.ERROR)
+
+with actor_scope("scheduler"), correlation_scope() as run_id:
+    ...   # every event and storage operation in here carries run_id and the actor
+event_bus.recent(limit=20, correlation_id=run_id)
+```
+
+- **Core events** — `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`, `TaskStarted`,
+  `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
+  `SystemErrorEvent`. Each has a `type` (`pipeline.failed`), a `severity`, a `source`, a `subject`,
+  a structured `payload`, a `correlation_id` and an `actor`, and turns into JSON with `to_dict()`.
+- **Bus** — `event_bus.subscribe(handler, types=..., min_severity=...)` by class, type name or
+  prefix; a handler that raises is logged and skipped; `event_bus.recent()` returns the latest events.
+- **Storage operations** — uploads, downloads, reads, deletes, copies and moves are reported to
+  `automation_file.storage.observe` listeners, and a failing backend becomes a `StorageError` event.
 
 ### File-watcher triggers
 Run an action list whenever a filesystem event fires on a watched path:

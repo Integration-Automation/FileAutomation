@@ -257,3 +257,18 @@ shared operations, shared errors and a reusable contract test suite.
    :caption: Universal Storage Layer
 
    usage/storage
+
+.. _eng-event-bus:
+
+Chapter 17 — Events
+===================
+
+One event model for every component: ``Event``, the ten core events, the
+``EventBus`` that subscribers listen on, correlation IDs and actors, and the
+observers that report storage operations.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Events
+
+   usage/event_bus

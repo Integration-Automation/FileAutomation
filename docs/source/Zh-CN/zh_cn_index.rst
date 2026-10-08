@@ -252,3 +252,17 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 通用存储层
 
    usage/storage
+
+.. _zh-cn-event-bus:
+
+第 17 章 — 事件
+===============
+
+所有组件共用的事件模型：``Event``、十种核心事件、供订阅者监听的
+``EventBus``、关联 ID 与 actor，以及报告存储操作的观察者。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 事件
+
+   usage/event_bus

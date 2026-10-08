@@ -30,6 +30,8 @@ automation_file/
 │                        # resolver (StorageResolver), file (File), storage (Storage), streams,
 │                        # tree (copy_tree, sync_tree),
 │                        # actions (FA_storage_* and register_storage_ops)
+├── events/              # Event model: model (Event, Severity, the ten core events), bus (EventBus,
+│                        # event_bus, emit), context (correlation_scope, actor_scope), storage_bridge
 ├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)
 ├── client/              # HTTPActionClient for the HTTP action server
@@ -69,6 +71,7 @@ automation_file/
 - `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
 - `File(uri)` / `Storage(uri)` — the universal storage layer's application API: one file, one directory, in any backend. Both resolve their backend on every call through `StorageResolver` (`Storage.mount`, `Storage.register_scheme`).
 - `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. `LocalStorage`, `MemoryStorage`, `S3Storage` (`s3://bucket/key`) and `AzureStorage` (`azure://container/blob`) are built in; the last two extend `ObjectStorage` and use the shared `s3_instance` / `azure_blob_instance` unless given a client.
+- `Event` / `EventBus` / `event_bus` — every component reports through events (`PipelineFailed`, `TaskFailed`, `IntegrityViolation`, `StorageError`, ...) with a severity, a correlation ID and an actor; consumers subscribe on the bus by class, type name or prefix. New code that has something to report publishes an event; it does not call a notification sink or the audit log directly.
 - `StorageURI` / `parse_storage_uri` — `<scheme>://<authority>/<path>`; `FileInfo`, `Checksum`, `StorageCapabilities` are the frozen value types the layer returns.
 
 ## Branching & CI

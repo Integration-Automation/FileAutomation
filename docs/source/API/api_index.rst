@@ -186,3 +186,17 @@ resolver, and the built-in local and in-memory backends.
    :caption: Universal Storage Layer
 
    storage
+
+.. _api-events:
+
+Chapter N — Events
+==================
+
+The event model, the event bus, the correlation and actor scopes, and the
+storage observers.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Events
+
+   events

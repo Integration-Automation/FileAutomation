@@ -47,6 +47,7 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **HTMX Web UI** — `start_web_ui()` 啟動唯讀觀測儀表板（health、progress、registry），以 HTML 片段輪詢；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
 - **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建本機、S3、Azure Blob 與記憶體後端，並附 77 個案例的契約測試套件可檢查任何後端
+- **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -498,6 +499,29 @@ File("sandbox://jobs/42/out.csv").write(b"done")
 ```
 
 此 API 為新功能，在 1.0 之前仍可能調整。完整說明請見文件的「通用儲存層」章節。
+
+### 事件
+每個元件都透過同一套事件模型回報，而不是自行呼叫通知接收端或稽核紀錄。
+
+```python
+from automation_file import Severity, actor_scope, correlation_scope, event_bus
+
+event_bus.subscribe(print, types=["pipeline.*", "integrity.violation"])
+event_bus.subscribe(alert, min_severity=Severity.ERROR)
+
+with actor_scope("scheduler"), correlation_scope() as run_id:
+    ...   # 這裡面的每個事件與儲存操作都帶有 run_id 與 actor
+event_bus.recent(limit=20, correlation_id=run_id)
+```
+
+- **核心事件** — `PipelineStarted`、`PipelineCompleted`、`PipelineFailed`、`TaskStarted`、
+  `TaskCompleted`、`TaskFailed`、`IntegrityViolation`、`StorageError`、`SchedulerError`、
+  `SystemErrorEvent`。每個事件都有 `type`（`pipeline.failed`）、`severity`、`source`、`subject`、
+  結構化的 `payload`、`correlation_id` 與 `actor`，並可用 `to_dict()` 轉成 JSON。
+- **匯流排** — `event_bus.subscribe(handler, types=..., min_severity=...)` 可依類別、type 名稱或
+  前綴訂閱；處理函式拋出例外時只會被記錄並略過；`event_bus.recent()` 回傳最近的事件。
+- **儲存操作** — 上傳、下載、讀取、刪除、複製與搬移都會回報給
+  `automation_file.storage.observe` 的監聽者，後端失敗時會產生 `StorageError` 事件。
 
 ### 檔案監看觸發
 每當被監看路徑發生檔案系統事件，就執行動作清單：

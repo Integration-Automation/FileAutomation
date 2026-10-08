@@ -24,7 +24,7 @@ The documentation is split by language and by content type. Each language
 manual is organised into chapters (Getting Started, CLI, Architecture, Local
 Operations, HTTP Transfers, Cloud and SFTP Backends, Action Servers, MCP
 Server, GUI, Reliability, Triggers and Scheduler, Notifications,
-Configuration, DAG, Plugins, Universal Storage Layer); the API book holds the
+Configuration, DAG, Plugins, Universal Storage Layer, Events); the API book holds the
 auto-generated Python reference for every public module. Pick a language from
 the table of contents on the left, or jump straight to a section below.
 

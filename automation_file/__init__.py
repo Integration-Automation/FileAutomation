@@ -74,6 +74,25 @@ from automation_file.core.secrets import (
 from automation_file.core.sqlite_lock import SQLiteLock
 from automation_file.core.substitution import SubstitutionException, substitute
 from automation_file.core.tracing import action_span, init_tracing
+from automation_file.events import (
+    Event,
+    EventBus,
+    IntegrityViolation,
+    PipelineCompleted,
+    PipelineFailed,
+    PipelineStarted,
+    SchedulerError,
+    Severity,
+    StorageError,
+    SystemErrorEvent,
+    TaskCompleted,
+    TaskFailed,
+    TaskStarted,
+    actor_scope,
+    correlation_scope,
+    emit,
+    event_bus,
+)
 from automation_file.exceptions import (
     BoxException,
     DataOpsException,
@@ -507,6 +526,24 @@ __all__ = [
     "StorageTransientException",
     "StorageUnavailableException",
     "StorageUnsupportedException",
+    # Events
+    "Event",
+    "EventBus",
+    "Severity",
+    "event_bus",
+    "emit",
+    "correlation_scope",
+    "actor_scope",
+    "PipelineStarted",
+    "PipelineCompleted",
+    "PipelineFailed",
+    "TaskStarted",
+    "TaskCompleted",
+    "TaskFailed",
+    "IntegrityViolation",
+    "StorageError",
+    "SchedulerError",
+    "SystemErrorEvent",
     # Server / Project / Utils
     "TCPActionServer",
     "start_autocontrol_socket_server",
