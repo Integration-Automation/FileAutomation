@@ -7,6 +7,7 @@ restore one, or prune to keep only the most recent ``keep`` copies.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
@@ -17,6 +18,11 @@ from pathlib import Path
 from automation_file.exceptions import VersioningException
 
 _VERSION_RE = re.compile(r"^v(\d+)__(\d+)$")
+# A flattened source path longer than this is shortened to its tail plus a digest:
+# the directory sits below the versions root, and Windows caps a whole path at 260.
+_MAX_BUCKET_NAME = 80
+_BUCKET_TAIL = 48
+_BUCKET_DIGEST = 16
 
 
 @dataclass(frozen=True)
@@ -33,7 +39,10 @@ class FileVersioner:
 
     Each source file is versioned in its own subdirectory so multiple files
     can coexist. The subdirectory name is the source path's POSIX form with
-    path separators replaced by ``__sep__`` to flatten safely.
+    path separators replaced by ``__sep__`` to flatten safely. A long name is
+    cut to its last characters plus a digest of the whole path, so a deep
+    source path does not push the snapshot past the platform's path limit; a
+    directory already created under the long name keeps being used.
     """
 
     def __init__(self, root: str | os.PathLike[str]) -> None:
@@ -97,7 +106,12 @@ class FileVersioner:
 
     def _bucket_for(self, src: Path) -> Path:
         safe = _flatten_path(src)
-        return self._root / safe
+        if len(safe) <= _MAX_BUCKET_NAME:
+            return self._root / safe
+        legacy = self._root / safe
+        if legacy.is_dir():
+            return legacy
+        return self._root / _shortened(safe)
 
     def _next_version(self, bucket: Path) -> int:
         highest = 0
@@ -115,3 +129,10 @@ def _flatten_path(src: Path) -> str:
     flat = (drive.replace(":", "") + body).replace(os.sep, "__sep__")
     flat = flat.replace("/", "__sep__")
     return flat.strip("_") or "root"
+
+
+def _shortened(flat: str) -> str:
+    # normcase: the same file spelled in another case must land in the same directory.
+    digest = hashlib.sha256(os.path.normcase(flat).encode("utf-8")).hexdigest()
+    tail = flat[-_BUCKET_TAIL:].lstrip("_")
+    return f"{tail}__{digest[:_BUCKET_DIGEST]}"
