@@ -12,7 +12,7 @@ facade.
 - Local file / directory / ZIP operations with path traversal guard (`safe_join`)
 - Validated HTTP downloads with SSRF protections, retry, and size / time caps
 - Google Drive CRUD (upload, download, search, delete, share, folders)
-- First-class S3, Azure Blob, Dropbox, and SFTP backends — installed by default
+- S3, Azure Blob, Dropbox, SFTP and seven more remote backends, each installed with its own extra (`pip install "automation_file[s3]"`, or `[all]` for every one)
 - JSON action lists executed by a shared `ActionExecutor` — validate, dry-run, parallel
 - Loopback-first TCP **and** HTTP servers that accept JSON command batches with optional shared-secret auth
 - Reliability primitives: `retry_on_transient` decorator, `Quota` size / time budgets

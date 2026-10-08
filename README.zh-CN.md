@@ -10,7 +10,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - 本地文件 / 目录 / ZIP 操作，内置路径穿越防护（`safe_join`）
 - 经 SSRF 验证的 HTTP 下载，支持重试与大小 / 时间上限
 - Google Drive CRUD（上传、下载、搜索、删除、分享、文件夹）
-- 一等公民的 S3、Azure Blob、Dropbox、SFTP 后端 — 默认安装
+- S3、Azure Blob、Dropbox、SFTP 以及另外七种远端后端，各自通过对应的 extra 安装（`pip install "automation_file[s3]"`，或通过 `[all]` 一次安装全部）
 - JSON 动作清单由共享的 `ActionExecutor` 执行 — 支持验证、干跑、并行
 - Loopback 优先的 TCP **与** HTTP 服务器，接受 JSON 指令批量并可选 shared-secret 验证
 - 可靠性原语：`retry_on_transient` 装饰器、`Quota` 大小 / 时间预算
