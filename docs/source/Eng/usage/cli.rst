@@ -55,3 +55,72 @@ action list that runs before the command::
    python -m automation_file storage \
        --init '[["FA_s3_later_init", {"region_name": "us-east-1"}]]' \
        ls s3://reports
+
+Integrity
+---------
+
+The ``integrity`` subcommand baselines and verifies a directory tree in any
+storage backend (:doc:`integrity`). The target and the baseline are storage URIs
+or plain local paths::
+
+   python -m automation_file integrity baseline s3://reports/2026 reports.baseline.json
+   python -m automation_file integrity verify s3://reports/2026 reports.baseline.json
+   python -m automation_file integrity verify ./site site.baseline.json --quick
+   python -m automation_file integrity accept ./site site.baseline.json
+   python -m automation_file integrity snapshot ./site --algorithm sha512
+
+``baseline`` approves the tree as it is now, ``verify`` compares it with that
+baseline and prints the drift report, ``accept`` approves the current tree after a
+review, and ``snapshot`` prints the manifest without storing anything. ``verify``
+exits 1 when the tree drifted, so a shell script or a CI job can gate on it;
+``--quick`` hashes only the files whose size, modification time or etag changed.
+``--init`` works as it does for ``storage``. Continuous monitoring and watching
+need a process that stays alive: use the Python API or the ``FA_integrity_watch_*``
+actions for those.
+
+Pipelines
+---------
+
+The ``pipeline`` subcommand validates, runs and inspects pipelines written as
+YAML or JSON definitions (:doc:`pipeline`)::
+
+   python -m automation_file pipeline validate daily.yaml
+   python -m automation_file pipeline run daily.yaml --param date=2026-10-08 --store runs.db
+   python -m automation_file pipeline run daily.yaml --dry-run
+   python -m automation_file pipeline status <run-id> --store runs.db
+   python -m automation_file pipeline history --pipeline daily-report --limit 10 --store runs.db
+   python -m automation_file pipeline resume <run-id> daily.yaml --store runs.db
+
+``--param name=value`` may be repeated; a value that is valid JSON keeps its type
+(``--param retries=3``, ``--param tags='["a","b"]'``), anything else is a string.
+``validate`` exits 1 when the definition is invalid and prints every problem with
+its path. ``run`` and ``resume`` print the run and exit 1 unless it succeeded.
+
+A run is recorded in the memory of the process that made it. Pass ``--store`` with
+the path of a SQLite file to keep it: ``status``, ``history`` and ``resume`` read
+the same file to find a run of an earlier command, and without it they only know
+the runs of their own process, which is none.
+
+Audit
+-----
+
+``--audit <file>`` on ``storage``, ``integrity`` and ``pipeline`` records the
+command's events and storage operations in an audit trail (:doc:`audit`), with
+the actor ``cli:<user>``. The ``audit`` subcommand reads that trail::
+
+   python -m automation_file pipeline --audit audit.sqlite run daily.yaml --store runs.db
+   python -m automation_file storage --audit audit.sqlite cp report.csv s3://reports/report.csv
+   python -m automation_file audit search --db audit.sqlite --status error --limit 20
+   python -m automation_file audit search --db audit.sqlite --correlation-id <run-id>
+   python -m automation_file audit count --db audit.sqlite --since 2026-10-01 --backend s3
+   python -m automation_file audit purge --db audit.sqlite --older-than-days 90
+
+``search`` prints the matching records newest first and takes ``--since``,
+``--until``, ``--actor``, ``--source``, ``--pipeline``, ``--task``, ``--action``,
+``--resource-prefix``, ``--backend``, ``--status``, ``--correlation-id``,
+``--text``, ``--limit`` and ``--offset``. ``count`` takes the same filters.
+``--since`` and ``--until`` take an ISO 8601 date or time; one without a UTC
+offset is read as local time.
+``purge`` deletes the records older than a number of days and prints how many it
+removed. A pipeline run's ID is its correlation ID, so one search shows everything
+a run did.

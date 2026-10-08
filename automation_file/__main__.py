@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from automation_file.cli_operations import add_operation_commands
 from automation_file.cli_storage import add_storage_commands
 from automation_file.core.action_executor import execute_action, execute_files
 from automation_file.core.json_store import read_action_json
@@ -226,6 +227,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_server_commands(subparsers)
     _add_integration_commands(subparsers)
     add_storage_commands(subparsers)
+    add_operation_commands(subparsers)
     return parser
 
 

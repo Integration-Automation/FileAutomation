@@ -11,6 +11,8 @@ automation_file/
 ├── __init__.py          # Public API facade (__all__); launch_ui is loaded lazily via __getattr__
 ├── __main__.py          # CLI entry: subcommands plus the legacy -e/-d/-c/--execute_str flags
 ├── cli_storage.py       # the `storage` subcommand (ls, cp, mv, rm, sync, checksum, ...)
+├── cli_operations.py    # the `integrity`, `pipeline` and `audit` subcommands
+├── cli_common.py        # what the subcommands share: JSON output, --init, --audit, the cli actor
 ├── exceptions.py        # FileAutomationException hierarchy
 ├── logging_config.py    # file_automation_logger (file + stderr handlers)
 ├── core/                # Engine: action_registry (ActionRegistry, build_default_registry), action_executor

@@ -23,28 +23,15 @@ action list that runs before the command:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
-from typing import Any
 
+from automation_file.cli_common import add_setup_arguments, command_scope
+from automation_file.cli_common import emit as _emit
 from automation_file.storage import actions
 
 _SOURCE = "source"
 _TARGET = "target"
 _URI = "uri"
-
-
-def _emit(document: Any) -> int:
-    sys.stdout.write(json.dumps(document, ensure_ascii=False, indent=2, default=str) + "\n")
-    return 0
-
-
-def _run_init(raw: str | None) -> None:
-    if not raw:
-        return
-    from automation_file.core.action_executor import execute_action
-
-    execute_action(json.loads(raw))
 
 
 def _cmd_ls(args: argparse.Namespace) -> int:
@@ -111,8 +98,8 @@ def _cmd_schemes(_args: argparse.Namespace) -> int:
 
 
 def _dispatch(args: argparse.Namespace) -> int:
-    _run_init(args.init)
-    return int(args.storage_handler(args))
+    with command_scope(args):
+        return int(args.storage_handler(args))
 
 
 def _add_read_commands(commands: argparse._SubParsersAction) -> None:
@@ -181,11 +168,7 @@ def _add_write_commands(commands: argparse._SubParsersAction) -> None:
 def add_storage_commands(subparsers: argparse._SubParsersAction) -> None:
     """Register the ``storage`` subcommand and its own subcommands."""
     parser = subparsers.add_parser("storage", help="files and directories in any storage backend")
-    parser.add_argument(
-        "--init",
-        default=None,
-        help="JSON action list to run first, e.g. to initialise a backend's client",
-    )
+    add_setup_arguments(parser)
     commands = parser.add_subparsers(dest="storage_command", required=True)
     _add_read_commands(commands)
     _add_write_commands(commands)

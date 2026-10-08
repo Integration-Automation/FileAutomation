@@ -53,3 +53,65 @@ CLI
    python -m automation_file storage \
        --init '[["FA_s3_later_init", {"region_name": "us-east-1"}]]' \
        ls s3://reports
+
+完整性
+------
+
+``integrity`` 子命令可以为任何存储后端中的目录树建立基准并加以验证（:doc:`integrity`）。
+目标与基准都是存储 URI 或普通的本地路径::
+
+   python -m automation_file integrity baseline s3://reports/2026 reports.baseline.json
+   python -m automation_file integrity verify s3://reports/2026 reports.baseline.json
+   python -m automation_file integrity verify ./site site.baseline.json --quick
+   python -m automation_file integrity accept ./site site.baseline.json
+   python -m automation_file integrity snapshot ./site --algorithm sha512
+
+``baseline`` 把目录树当前的状态核准为基准，``verify`` 把它与基准比对并输出偏移报告，
+``accept`` 在检查之后把当前的状态核准为新基准，``snapshot`` 只输出 manifest 而不存储
+任何东西。``verify`` 在目录树出现偏移时以 1 退出，因此 shell 脚本或 CI 作业可以据此
+把关；``--quick`` 只对大小、修改时间或 etag 有变动的文件计算哈希。``--init`` 的用法与
+``storage`` 相同。持续监控与监听需要一个持续存活的进程：请使用 Python API 或
+``FA_integrity_watch_*`` 动作。
+
+流水线
+------
+
+``pipeline`` 子命令可以验证、运行并查看以 YAML 或 JSON 定义编写的流水线
+（:doc:`pipeline`）::
+
+   python -m automation_file pipeline validate daily.yaml
+   python -m automation_file pipeline run daily.yaml --param date=2026-10-08 --store runs.db
+   python -m automation_file pipeline run daily.yaml --dry-run
+   python -m automation_file pipeline status <run-id> --store runs.db
+   python -m automation_file pipeline history --pipeline daily-report --limit 10 --store runs.db
+   python -m automation_file pipeline resume <run-id> daily.yaml --store runs.db
+
+``--param name=value`` 可以重复指定；值如果是合法的 JSON 会保留其类型
+（``--param retries=3``、``--param tags='["a","b"]'``），其余一律视为字符串。
+``validate`` 在定义无效时以 1 退出，并输出每个问题及其路径。``run`` 与 ``resume``
+会输出该次运行，除非运行成功，否则以 1 退出。
+
+运行记录默认只存在于运行它的进程的内存中。传入 ``--store`` 与一个 SQLite 文件的
+路径即可保存：``status``、``history`` 与 ``resume`` 会读取同一个文件来找到先前命令
+的运行；没有它，这些命令只知道自己进程中的运行，也就是没有。
+
+审计
+----
+
+在 ``storage``、``integrity`` 与 ``pipeline`` 加上 ``--audit <文件>``，就会把该命令的
+事件与存储操作记录到审计轨迹（:doc:`audit`），actor 为 ``cli:<用户>``。``audit``
+子命令用来读取这份轨迹::
+
+   python -m automation_file pipeline --audit audit.sqlite run daily.yaml --store runs.db
+   python -m automation_file storage --audit audit.sqlite cp report.csv s3://reports/report.csv
+   python -m automation_file audit search --db audit.sqlite --status error --limit 20
+   python -m automation_file audit search --db audit.sqlite --correlation-id <run-id>
+   python -m automation_file audit count --db audit.sqlite --since 2026-10-01 --backend s3
+   python -m automation_file audit purge --db audit.sqlite --older-than-days 90
+
+``search`` 由新到旧输出符合条件的记录，可以使用 ``--since``、``--until``、``--actor``、
+``--source``、``--pipeline``、``--task``、``--action``、``--resource-prefix``、
+``--backend``、``--status``、``--correlation-id``、``--text``、``--limit`` 与
+``--offset``。``count`` 接受相同的筛选条件。``--since`` 与 ``--until`` 接受 ISO 8601 的
+日期或时间，没有 UTC 偏移时视为本地时间。``purge`` 会删除早于指定天数的记录，并输出
+删除的条数。流水线运行的 ID 就是它的关联 ID，因此一次搜索就能看到一次运行所做的一切。

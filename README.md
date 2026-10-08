@@ -1212,6 +1212,14 @@ python -m automation_file storage cp report.csv s3://reports/2026/report.csv
 python -m automation_file storage sync ./site s3://www --delete --dry-run
 python -m automation_file storage checksum s3://reports/2026/q1.csv
 
+# Integrity, pipelines and the audit trail (JSON output; exit code 1 on drift or a failed run)
+python -m automation_file integrity baseline s3://reports/2026 reports.baseline.json
+python -m automation_file integrity verify s3://reports/2026 reports.baseline.json
+python -m automation_file pipeline run daily.yaml --param date=2026-10-08 --store runs.db
+python -m automation_file pipeline history --store runs.db
+python -m automation_file pipeline --audit audit.sqlite run daily.yaml --store runs.db
+python -m automation_file audit search --db audit.sqlite --status error --limit 20
+
 # Legacy flags (JSON action lists)
 python -m automation_file --execute_file actions.json
 python -m automation_file --execute_dir ./actions/
