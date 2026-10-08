@@ -41,7 +41,6 @@ from automation_file.core.crypto import (
 )
 from automation_file.core.dag_executor import execute_action_dag
 from automation_file.core.file_lock import FileLock
-from automation_file.core.fim import IntegrityMonitor
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
 from automation_file.core.metrics import ACTION_COUNT, ACTION_DURATION, record_action
@@ -110,6 +109,16 @@ from automation_file.exceptions import (
     StorageURIException,
     TextOpsException,
     TracingException,
+)
+from automation_file.integrity import (
+    AlertPolicy,
+    BaselineManager,
+    DriftReport,
+    IntegrityException,
+    IntegrityMonitor,
+    IntegrityRemediated,
+    RemediationPolicy,
+    register_integrity_ops,
 )
 from automation_file.local.archive_ops import (
     detect_archive_format,
@@ -592,6 +601,13 @@ __all__ = [
     "AuditException",
     "AuditLog",
     "IntegrityMonitor",
+    "IntegrityException",
+    "DriftReport",
+    "BaselineManager",
+    "AlertPolicy",
+    "RemediationPolicy",
+    "IntegrityRemediated",
+    "register_integrity_ops",
     "CryptoException",
     "encrypt_file",
     "decrypt_file",

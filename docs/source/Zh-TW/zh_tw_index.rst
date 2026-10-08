@@ -266,3 +266,17 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 事件
 
    usage/event_bus
+
+.. _zh-tw-integrity:
+
+第 18 章 — 檔案完整性監控
+=========================
+
+``IntegrityMonitor`` 為任何儲存後端中的目錄樹保存一份經過核可的基準，並回報
+與基準不符之處：快照、manifest 結構、四種模式、警示，以及選用的修復。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 檔案完整性監控
+
+   usage/integrity

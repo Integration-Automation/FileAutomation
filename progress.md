@@ -27,7 +27,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Later milestones
 
-- **#21** IntegrityMonitor 2.0 (roadmap §6, M4): snapshot and manifest schema with a version, baseline management, change detection over `FileInfo`, watch and continuous modes, alert and audit hooks, opt-in remediation. `core/fim.py` and `core/manifest.py` are the starting point; build it on the storage layer.
+- **#33** CLI subcommands for the packages that have none: `integrity` (snapshot, baseline, verify, accept, status), `pipeline` and `audit`, as thin calls into their `FA_*` functions like `storage` (U-20261008-11).
 - **#22** Pipeline runtime (roadmap §7, M5): `Pipeline` domain model, DAG runtime v2 with retry, timeout, cancellation, conditions, idempotency, checkpoint and resume, dry run, execution history, and versioned YAML/JSON definitions with schema validation. `core/dag_executor.py` is the starting point.
 - **#23** Scheduler, events, notifications and audit (roadmap §8 to §10, M6): one scheduler with cron (time-zone aware), manual, file-event, webhook and pipeline-dependency triggers; an event model that drives a `NotificationRouter`; audit schema v2 with correlation IDs behind a storage interface.
 - **#24** UI 2.0 (roadmap §11, M7). Not before the APIs of #13 to #23 are stable (roadmap §20).

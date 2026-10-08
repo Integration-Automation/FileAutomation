@@ -38,7 +38,7 @@ facade.
 - **Variable substitution** — opt-in `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}` expansion in action arguments via `execute_action(..., substitute=True)`
 - **Conditional execution** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` run a nested action list only when a guard passes
 - **SQLite audit log** — `AuditLog(db_path)` records every action execution with actor / status / duration; query via `recent` / `count` / `purge`
-- **File integrity monitor** — `IntegrityMonitor` polls a tree against a manifest and fires a callback + notification on drift
+- **File integrity monitoring** — `IntegrityMonitor` keeps a versioned baseline of a tree in any storage backend, detects created / modified / deleted / renamed files and metadata or permission changes, publishes drift as an event, and quarantines or restores only when a policy asks for it
 - **HTTPActionClient SDK** — typed Python client for the HTTP action server with shared-secret auth, loopback guard, and OPTIONS-based ping
 - **AES-256-GCM file encryption** — `encrypt_file` / `decrypt_file` with `generate_key()` / `key_from_password()` (PBKDF2-HMAC-SHA256); JSON actions `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics exporter** — `start_metrics_server()` exposes `automation_file_actions_total{action,status}` counters and `automation_file_action_duration_seconds{action}` histograms
@@ -835,26 +835,44 @@ for row in audit.recent(limit=50):
     print(row["timestamp"], row["action"], row["status"])
 ```
 
-### File integrity monitor
-Poll a tree against a manifest and fire a callback + notification on drift:
+### File integrity monitoring
+`IntegrityMonitor` checks that a directory tree, in any storage backend, is still what was
+approved: it stores a baseline, compares the tree with it, and publishes every drift as an event.
 
 ```python
-from automation_file import IntegrityMonitor, notification_manager, write_manifest
+from automation_file import IntegrityMonitor
 
-write_manifest("/srv/site", "/srv/MANIFEST.json")
-
-mon = IntegrityMonitor(
-    root="/srv/site",
-    manifest_path="/srv/MANIFEST.json",
-    interval=60.0,
-    manager=notification_manager,
-    on_drift=lambda summary: print("drift:", summary),
-)
-mon.start()
+monitor = IntegrityMonitor("s3://reports/2026",
+                           baseline="local:///var/lib/fa/reports-2026.json")
+monitor.create_baseline()        # approve what is there now
+report = monitor.verify()        # hashes every file; verify(deep=False) is the quick pass
+if not report.ok:
+    print(report.counts)         # {'created': 0, 'modified': 1, 'deleted': 0, ...}
+    monitor.accept(report)       # after review: approve what the report saw
+monitor.start()                  # continuous mode: verify every `interval` seconds
+handle = monitor.watch()         # or react to changes as they happen; handle.stop() ends it
 ```
 
-Manifest-load errors are surfaced as drift so tamper and config issues
-aren't silently different code paths.
+- **Four modes** — `snapshot()`, `verify()`, `watch()` (filesystem events for a local target,
+  polling for any other backend) and continuous `start()` / `stop()`.
+- **Six kinds of change** — `created`, `modified`, `deleted`, `renamed`, `metadata_changed` and
+  `permission_changed`, in a `DriftReport` with counts per kind and `to_dict()`.
+- **Baseline anywhere** — a versioned JSON manifest at any storage URI, written atomically; the
+  `write_manifest` format is still read. SHA-256 by default, `sha512` and `blake2b` on request,
+  `md5` and `sha1` only with `allow_weak=True`.
+- **Events and opt-in remediation** — one `IntegrityViolation` per verification that finds drift
+  (`error` when something was modified or deleted, `warning` for additions and metadata). The
+  monitor only reads unless a `RemediationPolicy` tells it to quarantine or to restore from a
+  mirror, which it verifies by checksum.
+- **Actions** — `FA_integrity_snapshot`, `FA_integrity_baseline`, `FA_integrity_verify`,
+  `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`,
+  `FA_integrity_status`.
+
+Code written for the first monitor keeps working: `IntegrityMonitor(root=..., manifest_path=...,
+interval=..., manager=..., on_drift=...)` reads a manifest written by `write_manifest`, `check_once()`
+returns the same summary, and the notification still goes through `manager` or, when none is passed,
+the process-wide `notification_manager`. Pass `notify=False` when the published event is routed to
+your sinks instead, so one drift is not announced twice.
 
 ### AES-256-GCM file encryption
 Authenticated encryption with a self-describing envelope. Derive a key from

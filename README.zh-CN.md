@@ -36,7 +36,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **变量替换** — 动作参数中可选使用 `${env:VAR}` / `${date:%Y-%m-%d}` / `${uuid}` / `${cwd}`,通过 `execute_action(..., substitute=True)` 展开
 - **条件执行** — `FA_if_exists` / `FA_if_newer` / `FA_if_size_gt` 仅在路径守卫通过时执行嵌套动作清单
 - **SQLite 审计日志** — `AuditLog(db_path)` 为每个动作记录 actor / status / duration;通过 `recent` / `count` / `purge` 查询
-- **文件完整性监控** — `IntegrityMonitor` 按 manifest 轮询整棵树,检测到 drift 时触发 callback + 通知
+- **文件完整性监控** — `IntegrityMonitor` 为任何存储后端中的目录树保存带版本的基准，检测新增、修改、删除、重命名以及元数据或权限的变更，把偏移发布为事件，并且只在策略要求时才隔离或还原
 - **HTTPActionClient SDK** — HTTP 动作服务器的类型化 Python 客户端,具 shared-secret 认证、loopback 守护与 OPTIONS ping
 - **AES-256-GCM 文件加密** — `encrypt_file` / `decrypt_file` 搭配 `generate_key()` / `key_from_password()`(PBKDF2-HMAC-SHA256);JSON 动作 `FA_encrypt_file` / `FA_decrypt_file`
 - **Prometheus metrics 导出器** — `start_metrics_server()` 提供 `automation_file_actions_total{action,status}` 计数器与 `automation_file_action_duration_seconds{action}` 直方图
@@ -819,25 +819,41 @@ for row in audit.recent(limit=50):
 ```
 
 ### 文件完整性监控
-按 manifest 轮询整棵树,检测到 drift 时触发 callback + 通知:
+`IntegrityMonitor` 检查任何存储后端中的目录树是否仍然是当初批准的样子：它存储基线、拿目录树与
+基线比较，并把每一次偏移以事件的形式发布。
 
 ```python
-from automation_file import IntegrityMonitor, notification_manager, write_manifest
+from automation_file import IntegrityMonitor
 
-write_manifest("/srv/site", "/srv/MANIFEST.json")
-
-mon = IntegrityMonitor(
-    root="/srv/site",
-    manifest_path="/srv/MANIFEST.json",
-    interval=60.0,
-    manager=notification_manager,
-    on_drift=lambda summary: print("drift:", summary),
-)
-mon.start()
+monitor = IntegrityMonitor("s3://reports/2026",
+                           baseline="local:///var/lib/fa/reports-2026.json")
+monitor.create_baseline()        # 批准当前的内容
+report = monitor.verify()        # 对每个文件计算哈希；verify(deep=False) 是快速验证
+if not report.ok:
+    print(report.counts)         # {'created': 0, 'modified': 1, 'deleted': 0, ...}
+    monitor.accept(report)       # 审查之后：批准这份报告所看到的状态
+monitor.start()                  # 持续模式：每隔 `interval` 秒验证一次
+handle = monitor.watch()         # 或在变更发生时即时响应；handle.stop() 结束监视
 ```
 
-加载 manifest 时的错误也会被视为 drift,让篡改与配置问题走同一条处理
-路径。
+- **四种模式** — `snapshot()`、`verify()`、`watch()`（本地目标使用文件系统事件，其他后端使用
+  轮询）以及持续模式的 `start()` / `stop()`。
+- **六种变更** — `created`、`modified`、`deleted`、`renamed`、`metadata_changed` 与
+  `permission_changed`，汇总在带有各种类数量与 `to_dict()` 的 `DriftReport` 中。
+- **基线可放在任何地方** — 位于任意存储 URI、带有版本的 JSON manifest，以原子方式写入；仍可读取
+  `write_manifest` 的格式。默认使用 SHA-256，可改用 `sha512` 与 `blake2b`，`md5` 与 `sha1` 只有在
+  `allow_weak=True` 时才能使用。
+- **事件与需显式开启的补救** — 每一次发现偏移的验证发布一个 `IntegrityViolation`（有东西被修改
+  或删除时为 `error`，新增与元数据变更为 `warning`）。除非以 `RemediationPolicy` 要求隔离，
+  或要求从镜像还原（会以校验码验证），否则监控器只会读取。
+- **动作** — `FA_integrity_snapshot`、`FA_integrity_baseline`、`FA_integrity_verify`、
+  `FA_integrity_accept`、`FA_integrity_watch_start`、`FA_integrity_watch_stop`、
+  `FA_integrity_status`。
+
+为第一代监控器写的代码照常工作：`IntegrityMonitor(root=..., manifest_path=..., interval=...,
+manager=..., on_drift=...)` 会读取 `write_manifest` 写出的 manifest，`check_once()` 返回同样的摘要，
+通知也仍然通过 `manager` 发送，没有传入时则使用整个进程共用的 `notification_manager`。如果改由
+发布的事件把偏移送到通知渠道，请传入 `notify=False`，同一次偏移才不会被通知两次。
 
 ### AES-256-GCM 文件加密
 带认证的加密与自描述封包格式。可由密码派生密钥或直接生成密钥:

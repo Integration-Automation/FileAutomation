@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-16 | 2026-10-08 | IntegrityMonitor 2.0 | #integrity #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-15 | 2026-10-08 | The SFTP, OneDrive and SMB clients name the extra to install | #packaging #done | [2026-10](2026-10.md) |
 | U-20261008-14 | 2026-10-08 | The WebDAV client only talks to its own server | #security #incident | [2026-10](2026-10.md) |
 | U-20261008-13 | 2026-10-08 | A move between two views of one store could delete the file | #storage #incident | [2026-10](2026-10.md) |
@@ -110,5 +111,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 26 |
+| [2026-10.md](2026-10.md) | 2026-10 | 27 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

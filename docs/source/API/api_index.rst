@@ -200,3 +200,18 @@ storage observers.
    :caption: Events
 
    events
+
+.. _api-integrity:
+
+Chapter O — File Integrity Monitoring
+=====================================
+
+``IntegrityMonitor``, snapshots and the manifest, the change detector, the
+drift report, alerts, remediation, the watchers and the ``FA_integrity_*``
+actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: File Integrity Monitoring
+
+   integrity

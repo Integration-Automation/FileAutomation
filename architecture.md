@@ -26,6 +26,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
 | `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `session_storage.py` (`SessionStorage`: one login session, one operation at a time, and `require_session_host`), `sftp_storage.py` (`SFTPStorage`), `ftp_storage.py` (`FTPStorage`, for `ftp` and `ftps`), `gdrive_storage.py` (`GoogleDriveStorage`: paths resolved to file IDs, duplicate names refused), `onedrive_storage.py` (`OneDriveStorage`, Microsoft Graph), `dropbox_storage.py` (`DropboxStorage`), `webdav_storage.py` (`WebDAVStorage`), `smb_storage.py` (`SMBStorage`), `fsspec_storage.py` (`FsspecStorage`, any fsspec filesystem), `timestamps.py` (RFC 3339 parsing), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`), `observe.py` (listeners for `upload`, `download`, `read`, `delete`, `mkdir`, `copy`, `move`), `streams.py` (staged file objects behind `open_read` / `open_write`), `tree.py` (`copy_tree`, `sync_tree`, `TreeResult`), `actions.py` (the `FA_storage_*` functions and `register_storage_ops`). At module level it imports only `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
 | `automation_file/events/` | The event model every component reports through. `model.py` (`Event`, `Severity`, the ten core events), `bus.py` (`EventBus`, the process-wide `event_bus`, `emit`), `context.py` (`correlation_scope`, `actor_scope`), `storage_bridge.py` (failed storage operations become `StorageError` events; installed when the package is imported). It imports only the standard library, `logging_config` and `storage.observe` |
+| `automation_file/integrity/` | IntegrityMonitor 2.0, on the storage layer and the event bus. `target.py` (`Target`: the monitored tree behind a storage URI), `hashing.py` (`HashEngine`; `md5` and `sha1` only with `allow_weak`), `snapshot.py` (`Snapshot`, `SnapshotEntry`, `build_snapshot`), `manifest.py` (schema version 2; the `write_manifest` format is read and converted), `baseline.py` (`BaselineManager`: an atomic write at any storage URI), `detector.py` (`Change`, `ChangeKind`, `detect_changes`: six kinds of change), `report.py` (`DriftReport`), `alerts.py` (`AlertEngine`, `AlertPolicy`: one `IntegrityViolation` per pass that finds drift), `remediation.py` (`RemediationPolicy`, `Remediator`: quarantine or restore, opt-in), `watcher.py` and `local_watcher.py` (polling, and watchdog events for a local target), `legacy.py` (the first monitor's summary, callback and notification), `monitor.py` (`IntegrityMonitor`), `actions.py` (`FA_integrity_*`). `core/fim.py` re-exports the class |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
 | `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
@@ -58,6 +59,13 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
   `download`, `delete`, `checksum`, `verify`, `copy`, `move`, `read_text`, `write_text`, `copy_tree`,
   `sync`, `schemes`) put
   it in the default registry; `register_storage_ops` adds them to another one.
+- **Integrity** (same facade): `IntegrityMonitor`, `DriftReport`, `BaselineManager`, `AlertPolicy`,
+  `RemediationPolicy`, `IntegrityRemediated`, `IntegrityException`, `register_integrity_ops`; the
+  rest (`Snapshot`, `Change`, `HashEngine`, the manifest functions) is in `automation_file.integrity`.
+  Seven actions: `FA_integrity_snapshot`, `FA_integrity_baseline`, `FA_integrity_verify`,
+  `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`, `FA_integrity_status`.
+  The first monitor's call, `IntegrityMonitor(root, manifest_path, interval=, on_drift=, manager=,
+  alert_on_extra=)`, and its `check_once()` summary are kept.
 - **Events** (same facade): `Event`, `Severity`, `EventBus`, `event_bus`, `emit`, `correlation_scope`,
   `actor_scope`, and the core events `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`,
   `TaskStarted`, `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
@@ -124,7 +132,7 @@ MCP host → automation_file_mcp (stdio JSON-RPC) → tools/call → MCPServer r
 ```
 ActionExecutor() → build_default_registry(): local + http + utils + drive commands
   → _register_cloud_backends (register_<backend>_ops) → trigger / scheduler / progress / notify ops
-  → storage ops (FA_storage_*)
+  → storage ops (FA_storage_*) → integrity ops (FA_integrity_*)
   → _load_plugins (entry points; may override built-ins)
   → executor adds FA_execute_action, FA_execute_files, FA_execute_action_parallel, FA_validate
 ```

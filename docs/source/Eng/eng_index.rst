@@ -158,7 +158,8 @@ Chapter 10 — Reliability
 ``retry_on_transient`` with capped exponential back-off, ``Quota`` size
 and time budgets, ``CircuitBreaker``, ``RateLimiter``, ``FileLock`` /
 ``SQLiteLock``, persistent ``ActionQueue``, SQLite ``AuditLog``,
-``IntegrityMonitor`` for periodic manifest verification, and the typed
+``IntegrityMonitor`` for periodic manifest verification (now
+:doc:`usage/integrity`), and the typed
 ``FileAutomationException`` hierarchy.
 
 .. toctree::
@@ -272,3 +273,18 @@ observers that report storage operations.
    :caption: Events
 
    usage/event_bus
+
+.. _eng-integrity:
+
+Chapter 18 — File Integrity Monitoring
+======================================
+
+``IntegrityMonitor`` keeps an approved baseline of a directory tree in any
+storage backend and reports what drifted from it: snapshots, the manifest
+schema, the four modes, alerts, and opt-in remediation.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: File Integrity Monitoring
+
+   usage/integrity
