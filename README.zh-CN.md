@@ -309,24 +309,44 @@ flowchart TD
 ## 安装
 
 ```bash
-pip install automation_file
+pip install automation_file                 # 基础安装：不含云端 SDK，也不含 GUI 工具包
+pip install "automation_file[s3,sftp]"      # 加上你会用到的后端
+pip install "automation_file[all]"          # 所有后端与 GUI
 ```
 
-单次安装即涵盖所有后端（Google Drive、S3、Azure Blob、Dropbox、SFTP、OneDrive、Box）以及
-PySide6 GUI — 日常使用不需要任何 extras。
+基础安装即可运行 JSON 动作、本地文件操作、HTTP 下载、存储层的本地与内存后端、pipeline、
+事件、触发器、调度器与各种服务器。各后端的 SDK 与 GUI 工具包都放在 extra 中，只有在用到该
+功能时才会导入。调用缺少 extra 的功能时，会抛出 `OptionalDependencyException`，信息中附有
+要执行的安装命令。
+
+| Extra | 安装的包 | 提供的功能 |
+|---|---|---|
+| `s3` | `boto3` | S3（`FA_s3_*`、`s3://`） |
+| `azure` | `azure-storage-blob` | Azure Blob（`FA_azure_blob_*`、`azure://`） |
+| `gdrive` | `google-api-python-client`、`google-auth-httplib2`、`google-auth-oauthlib` | Google Drive（`FA_drive_*`） |
+| `dropbox` | `dropbox` | Dropbox（`FA_dropbox_*`） |
+| `sftp` | `paramiko` | SFTP（`FA_sftp_*`） |
+| `ftp` | — | FTP / FTPS（`FA_ftp_*`）；只需要标准库 |
+| `webdav` | — | WebDAV（`WebDAVClient`）；基础依赖已足够 |
+| `smb` | `smbprotocol` | SMB / CIFS（`SMBClient`） |
+| `fsspec` | `fsspec` | fsspec 桥接 |
+| `onedrive` | `msal` | OneDrive（`FA_onedrive_*`） |
+| `box` | `boxsdk` | Box（`FA_box_*`） |
+| `parquet` | `pyarrow` | Parquet 数据操作（`FA_parquet_*`、`FA_csv_to_parquet`） |
+| `gui` | `PySide6` | 桌面 GUI（`python -m automation_file ui`） |
+| `all` | 以上全部 | 所有后端与 GUI，与拆分之前相同 |
 
 ```bash
-pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
+pip install "automation_file[all,dev]"   # 另含 ruff、mypy、pre-commit、pytest-cov、build、twine
 ```
+
+从先前包含所有包的版本升级时：安装 `automation_file[all]` 即可保留原有的全部功能。
 
 要求：
 - Python 3.10+
-- 内置依赖：`google-api-python-client`、`google-auth-httplib2`、`google-auth-oauthlib`、`requests`、
-  `tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、
-  `paramiko`、`msal`、`boxsdk`、`PySide6`、
-  `watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
-  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`(与 APITestka、
-  LoadDensity、MailThunder 共用的 action 执行器)
+- 基础依赖：`requests`、`tqdm`、`watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
+  `PyYAML`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`（与 APITestka、
+  LoadDensity、MailThunder 共用的 action 执行器）
 
 ## 使用方式
 

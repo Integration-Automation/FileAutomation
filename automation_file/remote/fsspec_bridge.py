@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from automation_file.core.optional import install_hint
 from automation_file.exceptions import FsspecException
 
 
@@ -38,7 +39,8 @@ def _import_fsspec() -> Any:
         import fsspec
     except ImportError as error:
         raise FsspecException(
-            "fsspec import failed — install `fsspec` (and any backend extras) to use the bridge"
+            "fsspec is not installed; the fsspec bridge needs it (plus the package of the "
+            f"filesystem you address): {install_hint('fsspec')}"
         ) from error
     return fsspec
 

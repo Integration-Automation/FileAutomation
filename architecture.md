@@ -21,7 +21,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | --- | --- |
 | `automation_file/__init__.py` | Public facade (`__all__`). Wires the shared `executor`, `callback_executor` and `package_manager` over one registry. `launch_ui` is loaded lazily through `__getattr__` |
 | `automation_file/__main__.py` | CLI: legacy flags plus subcommands |
-| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
+| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `optional` (`require_module`, the extras table), `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
 | `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`), `observe.py` (listeners for `upload`, `download`, `read`, `delete`, `mkdir`, `copy`, `move`), `streams.py` (staged file objects behind `open_read` / `open_write`), `tree.py` (`copy_tree`, `sync_tree`, `TreeResult`), `actions.py` (the `FA_storage_*` functions and `register_storage_ops`). At module level it imports only `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
@@ -154,7 +154,8 @@ storage.observe → events.storage_bridge → StorageError (only for a failing b
   1. `remote/<backend>/` with `client.py` (module singleton `<backend>_instance` with `later_init`,
      plus `close` where relevant), the `*_ops.py` modules, and `register_<backend>_ops(registry)` in `__init__.py`.
   2. Call it from `_register_cloud_backends`.
-  3. Add the SDK to `dependencies` in both `stable.toml` and `dev.toml`, then add facade exports.
+  3. Add the SDK as an extra in both `stable.toml` and `dev.toml` (and to `all`), name it in
+     `core.optional.EXTRAS`, import it with `require_module` where it is used, then add facade exports.
   4. Add `ui/tabs/<backend>_tab.py` and wire it into `ui/tabs/transfer_tab.py`.
   5. Add tests; paths that need the network are not exercised in CI.
 - **New storage backend** (the universal layer; separate from the `FA_*` backend above):
@@ -183,7 +184,7 @@ storage.observe → events.storage_bridge → StorageError (only for a failing b
   (`PyBreeze/pybreeze/extend/process_executor/python_task_process_manager.py`; the package name is in
   `.../process_executor/file_automation/file_automation_process.py`). PyBreeze double-encodes the JSON
   on Windows, so `_execute_str`'s `isinstance`-guarded second decode and the legacy flag names are a
-  contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze also declares `automation-file` as
+  contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze declares `automation-file` and, now that the SDKs and the GUI are extras, needs `automation-file[all]` to keep what it had (`progress.md` #29); it lists the package as
   a dependency.
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
   (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
@@ -234,9 +235,10 @@ storage.observe → events.storage_bridge → StorageError (only for a failing b
   command reaches it, so je_action_core's package gate is off here (`tests/test_package_loader.py` fails if one
   is added; workspace X-12).
 - No `shell=True`; subprocesses use argument lists and a timeout (§ Security › General rules; › Subprocess execution).
-- Backends and PySide6 are first-class runtime dependencies. Keep `stable.toml` and `dev.toml`
-  in sync (`tests/test_dev_toml_parity.py`), and let CI number both channels: never bump a version by
-  hand (§ Branching & CI).
+- The base install has no cloud SDK and no GUI toolkit: each lives in an extra and is imported at the
+  moment of use through `core.optional.require_module` (`tests/test_optional_dependencies.py`). Keep
+  `stable.toml` and `dev.toml` in sync (`tests/test_dev_toml_parity.py`), and let CI number both
+  channels: never bump a version by hand (§ Branching & CI).
 - Limits: cyclomatic complexity ≤ 15 (hard cap 20), cognitive complexity ≤ 15, functions ≤ 75 lines,
   ≤ 7 parameters, nesting ≤ 4, files ≤ 1000 lines (§ Code quality › Complexity & size).
 - Run `ruff check`, `ruff format --check`, `mypy` and `pytest` before committing (§ Development).

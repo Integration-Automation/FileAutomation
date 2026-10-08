@@ -10,9 +10,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Architecture and packaging (roadmap M1)
 
-- **#10** [DECIDE] Optional extras. Roadmap §3 wants a light base install with the SDKs and the GUI under `[s3]`, `[gdrive]`, `[azure]`, `[dropbox]`, `[sftp]`, `[ftp]`, `[webdav]`, `[smb]`, `[fsspec]`, `[gui]`, `[all]`, `[test]`. `CLAUDE.md` › Branching & CI and `architecture.md` §7 say the opposite: the backends and PySide6 are first-class runtime dependencies and must not move under extras. PyBreeze declares `automation-file` and gets the GUI and the SDKs through it (`architecture.md` §6), so moving them breaks it unless it asks for `[all]` in the same round. Decide which rule wins and whether `automation_file_dev` follows.
 - **#11** [DECIDE] Public API policy and deprecation policy (roadmap M1, M9): which names are frozen at 1.0 and how a name is retired. The storage layer is documented as provisional until then.
-- **#12** `import automation_file` loads `requests`, `cryptography`, `watchdog`, `googleapiclient`, `google.auth`, `google_auth_oauthlib`, `prometheus_client`, `opentelemetry`, `tqdm` and `defusedxml` at module level, because the facade imports every module. Roadmap §3 requires that the base package imports no optional SDK at import time. `boto3`, `azure`, `dropbox`, `paramiko`, `PySide6`, `pyarrow`, `msal` and `boxsdk` are already lazy. What counts as optional depends on #10.
 
 ### Universal storage layer (roadmap M2)
 
@@ -36,3 +34,9 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 - **#24** UI 2.0 (roadmap §11, M7). Not before the APIs of #13 to #23 are stable (roadmap §20).
 - **#25** Semantic MCP tools (roadmap §12, M8): `file_*`, `storage_*`, `pipeline_*`, `integrity_status`, `audit_search`, with a permission model and dry run, next to the existing `FA_*` bridge.
 - **#26** Release engineering and 1.0 (roadmap §13, M9): contract and integration tests in the PR gate, PyPI Trusted Publishing, SemVer, migration guide, API freeze.
+
+### Packaging follow-ups
+
+- **#29** [BLOCKED] PyBreeze has to declare `automation-file[all]` before the stable release that splits the extras reaches users, or it installs without the SDKs it relied on. The change exists on PyBreeze's local branch `deps/automation-file-all-extra` (one commit on its `origin/dev`: `dev.toml`, `pyproject.toml`, `requirements.txt`), not pushed: it waits for someone to open the PR there and for PyBreeze's own update log. PyBreeze's checkout was on `docs/tutorials` with other work, so nothing else was touched.
+- **#30** `remote/sftp/client.py` ("reinstall `automation_file`"), `remote/onedrive/client.py` (the same) and `remote/smb/client.py` ("install `smbprotocol`") still report a missing SDK without naming the extra. Change them to `core.optional.require_module` or `install_hint` once the adapter branches that edit those files are merged.
+

@@ -1,4 +1,4 @@
-automation_file
+automation_file[all]
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib

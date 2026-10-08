@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from automation_file.core.optional import install_hint
 from automation_file.exceptions import BoxException
 from automation_file.logging_config import file_automation_logger
 
@@ -22,7 +23,7 @@ def import_box_sdk_gen() -> Any:
         import box_sdk_gen
     except ImportError as error:
         raise BoxException(
-            "box_sdk_gen import failed — install `boxsdk>=10` to restore the Box backend"
+            f"box_sdk_gen is not installed; the Box backend needs it: {install_hint('box')}"
         ) from error
     return box_sdk_gen
 

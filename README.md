@@ -311,23 +311,45 @@ through the same shared registry instance exposed as `executor.registry`.
 ## Installation
 
 ```bash
-pip install automation_file
+pip install automation_file                 # the base: no cloud SDK, no GUI toolkit
+pip install "automation_file[s3,sftp]"      # add the backends you use
+pip install "automation_file[all]"          # every backend and the GUI
 ```
 
-A single install pulls in every backend (Google Drive, S3, Azure Blob, Dropbox,
-SFTP, OneDrive, Box) and the PySide6 GUI — no extras required for day-to-day use.
+The base install runs JSON actions, local file operations, HTTP downloads, the storage
+layer's local and in-memory backends, pipelines, events, triggers, the scheduler and the
+servers. Each backend's SDK and the GUI toolkit live in an extra, imported only when the
+feature is used. Calling a feature whose extra is missing raises
+`OptionalDependencyException` with the command to run.
+
+| Extra | Installs | Gives you |
+|---|---|---|
+| `s3` | `boto3` | S3 (`FA_s3_*`, `s3://`) |
+| `azure` | `azure-storage-blob` | Azure Blob (`FA_azure_blob_*`, `azure://`) |
+| `gdrive` | `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib` | Google Drive (`FA_drive_*`) |
+| `dropbox` | `dropbox` | Dropbox (`FA_dropbox_*`) |
+| `sftp` | `paramiko` | SFTP (`FA_sftp_*`) |
+| `ftp` | — | FTP / FTPS (`FA_ftp_*`); standard library only |
+| `webdav` | — | WebDAV (`WebDAVClient`); the base dependencies suffice |
+| `smb` | `smbprotocol` | SMB / CIFS (`SMBClient`) |
+| `fsspec` | `fsspec` | The fsspec bridge |
+| `onedrive` | `msal` | OneDrive (`FA_onedrive_*`) |
+| `box` | `boxsdk` | Box (`FA_box_*`) |
+| `parquet` | `pyarrow` | Parquet data operations (`FA_parquet_*`, `FA_csv_to_parquet`) |
+| `gui` | `PySide6` | The desktop GUI (`python -m automation_file ui`) |
+| `all` | everything above | Every backend and the GUI, as before the split |
 
 ```bash
-pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, build, twine
+pip install "automation_file[all,dev]"   # plus ruff, mypy, pre-commit, pytest-cov, build, twine
 ```
+
+Upgrading from a release that bundled everything: install `automation_file[all]` to keep
+what you had.
 
 Requirements:
 - Python 3.10+
-- Bundled dependencies: `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`, `requests`,
-  `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`,
-  `paramiko`, `msal`, `boxsdk`, `PySide6`,
-  `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
-  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
+- Base dependencies: `requests`, `tqdm`, `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
+  `PyYAML`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
   shared with APITestka, LoadDensity and MailThunder)
 
 ## Usage

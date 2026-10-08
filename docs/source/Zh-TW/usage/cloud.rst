@@ -1,10 +1,13 @@
 雲端與 SFTP 後端
 ================
 
-每個後端（Google Drive、S3、Azure Blob、Dropbox、SFTP）皆內建於
-``automation_file``，並由
-:func:`~automation_file.core.action_registry.build_default_registry` 自動註冊。
-無須額外安裝步驟——在單例上呼叫 ``later_init`` 即可使用：
+每個後端的動作都由
+:func:`~automation_file.core.action_registry.build_default_registry` 註冊，無論其
+SDK 是否已安裝。SDK 本身則由 extra 提供：``pip install "automation_file[s3]"``
+（另有 ``azure``、``gdrive``、``dropbox``、``sftp``、``onedrive``、``box``、
+``smb``、``fsspec``），或以 ``[all]`` 安裝所有後端。使用缺少 extra 的後端時會拋出
+``OptionalDependencyException``，訊息中附有要執行的指令。SDK 就緒後，在單例上呼叫
+``later_init`` 即可使用：
 
 .. code-block:: python
 

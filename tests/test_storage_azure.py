@@ -18,6 +18,10 @@ from types import SimpleNamespace
 from typing import Any, BinaryIO
 
 import pytest
+
+pytest.importorskip("azure.storage.blob", reason="needs the azure extra")
+
+# pylint: disable=wrong-import-position  # importorskip must precede these imports
 from azure.core.exceptions import (
     ClientAuthenticationError,
     HttpResponseError,
@@ -43,7 +47,12 @@ from automation_file.exceptions import (
     StorageURIException,
 )
 from automation_file.remote.azure_blob.client import azure_blob_instance
-from automation_file.storage import AzureStorage, File, StorageBackend, StorageResolver
+from automation_file.storage import (
+    AzureStorage,
+    File,
+    StorageBackend,
+    StorageResolver,
+)
 from tests.storage_contract import StorageContract
 
 

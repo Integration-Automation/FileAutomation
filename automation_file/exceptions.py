@@ -143,6 +143,10 @@ class TracingException(FileAutomationException):
     """Raised when OpenTelemetry tracing setup cannot be completed."""
 
 
+class OptionalDependencyException(FileAutomationException, RuntimeError):
+    """Raised when a feature needs a package that only an optional extra installs."""
+
+
 class StorageException(FileAutomationException):
     """Root of the errors raised by the universal storage layer (``automation_file.storage``)."""
 

@@ -1,10 +1,14 @@
 Cloud and SFTP backends
 =======================
 
-Every backend (Google Drive, S3, Azure Blob, Dropbox, SFTP) is bundled
-with ``automation_file`` and auto-registered by
-:func:`~automation_file.core.action_registry.build_default_registry`.
-There is no extra install step — call ``later_init`` on the singleton and go:
+Every backend's actions are registered by
+:func:`~automation_file.core.action_registry.build_default_registry`, whether
+or not its SDK is installed. The SDK itself comes with an extra:
+``pip install "automation_file[s3]"`` (``azure``, ``gdrive``, ``dropbox``,
+``sftp``, ``onedrive``, ``box``, ``smb``, ``fsspec``), or ``[all]`` for every
+backend. Using a backend whose extra is missing raises
+``OptionalDependencyException`` with the command to run. With the SDK in place,
+call ``later_init`` on the singleton and go:
 
 .. code-block:: python
 

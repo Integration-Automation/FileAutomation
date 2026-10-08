@@ -15,14 +15,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import boto3
 import pytest
-from botocore import UNSIGNED
-from botocore.config import Config
-from botocore.exceptions import ClientError, EndpointConnectionError, NoCredentialsError
-from botocore.stub import Stubber
 
-from automation_file.exceptions import (
+boto3 = pytest.importorskip("boto3", reason="needs the s3 extra")
+
+# pylint: disable=wrong-import-position  # importorskip must precede these imports
+from botocore import UNSIGNED  # noqa: E402
+from botocore.config import Config  # noqa: E402
+from botocore.exceptions import (  # noqa: E402
+    ClientError,
+    EndpointConnectionError,
+    NoCredentialsError,
+)
+from botocore.stub import Stubber  # noqa: E402
+
+from automation_file.exceptions import (  # noqa: E402
     StorageException,
     StorageNotFoundException,
     StoragePermissionException,
@@ -30,9 +37,9 @@ from automation_file.exceptions import (
     StorageUnavailableException,
     StorageURIException,
 )
-from automation_file.remote.s3.client import s3_instance
-from automation_file.storage import File, S3Storage, StorageBackend, StorageResolver
-from tests.storage_contract import StorageContract
+from automation_file.remote.s3.client import s3_instance  # noqa: E402
+from automation_file.storage import File, S3Storage, StorageBackend, StorageResolver  # noqa: E402
+from tests.storage_contract import StorageContract  # noqa: E402
 
 PAGE_SIZE = 2
 
