@@ -27,6 +27,7 @@ from automation_file.storage import actions, clear_memory_stores, memory_store
 NAMES = [
     "FA_storage_checksum",
     "FA_storage_copy",
+    "FA_storage_copy_tree",
     "FA_storage_delete",
     "FA_storage_download",
     "FA_storage_exists",
@@ -36,6 +37,7 @@ NAMES = [
     "FA_storage_read_text",
     "FA_storage_schemes",
     "FA_storage_stat",
+    "FA_storage_sync",
     "FA_storage_upload",
     "FA_storage_verify",
     "FA_storage_write_text",
@@ -194,3 +196,28 @@ def test_the_actions_are_mcp_tools_with_their_parameters() -> None:
     assert copy["required"] == ["source", "target"]
     assert tools["FA_storage_schemes"]["inputSchema"].get("required", []) == []
     assert "Copy the file" in tools["FA_storage_copy"]["description"]
+
+
+def test_copy_tree_and_sync_actions(tmp_path: Path) -> None:
+    for path in ("a.txt", "sub/b.txt"):
+        actions.storage_write_text(f"memory://scratch/src/{path}", "x")
+    copied = actions.storage_copy_tree("memory://scratch/src", str(tmp_path / "out"))
+    assert copied == {
+        "copied": ["a.txt", "sub/b.txt"],
+        "skipped": [],
+        "deleted": [],
+        "errors": {},
+        "dry_run": False,
+    }
+    assert (tmp_path / "out" / "sub" / "b.txt").read_bytes() == b"x"
+    (tmp_path / "out" / "extra.txt").write_bytes(b"extra")
+    preview = actions.storage_sync(
+        "memory://scratch/src", str(tmp_path / "out"), delete=True, dry_run=True
+    )
+    assert preview["deleted"] == ["extra.txt"]
+    assert preview["dry_run"] is True
+    assert (tmp_path / "out" / "extra.txt").exists()
+    synced = actions.storage_sync("memory://scratch/src", str(tmp_path / "out"), delete=True)
+    assert synced["deleted"] == ["extra.txt"]
+    assert not (tmp_path / "out" / "extra.txt").exists()
+    assert json.loads(json.dumps(synced)) == synced

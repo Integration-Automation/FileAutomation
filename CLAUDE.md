@@ -27,7 +27,8 @@ automation_file/
 ├── storage/             # Universal storage layer: uri (StorageURI), types (FileInfo, Checksum,
 │                        # StorageCapabilities), backend (StorageBackend contract), local_storage,
 │                        # memory_storage, object_storage (ObjectStorage), s3_storage, azure_storage,
-│                        # resolver (StorageResolver), file (File), storage (Storage),
+│                        # resolver (StorageResolver), file (File), storage (Storage), streams,
+│                        # tree (copy_tree, sync_tree),
 │                        # actions (FA_storage_* and register_storage_ops)
 ├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)

@@ -122,6 +122,9 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
        安全用途）。
    * - ``read_bytes(path)`` / ``write_bytes(path, data)``
      - 讀寫整個檔案的內容。
+   * - ``open_read(path)`` / ``open_write(path, overwrite=True)``
+     - 二進位檔案物件，用於大到無法整個放進記憶體的內容。寫入的內容在物件關閉時
+       才會存入；若因例外離開 ``with`` 區塊，則不會存入任何東西。
    * - ``copy_from(source, source_path, path)`` / ``move_from(…)``
      - 從任何後端（包含自己）傳輸。兩個後端之間能直接完成時走原生方式（例如
        本機重新命名），否則經由本機暫存檔。
@@ -187,6 +190,12 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
    * - ``FA_storage_write_text``
      - ``uri, text, overwrite=True, encoding="utf-8"``
      - 檔案資訊
+   * - ``FA_storage_copy_tree``
+     - ``source, target, overwrite=True``
+     - 摘要：``copied``、``skipped``、``deleted``、``errors``、``dry_run``
+   * - ``FA_storage_sync``
+     - ``source, target, delete=False, checksum=False, dry_run=False``
+     - 摘要：``copied``、``skipped``、``deleted``、``errors``、``dry_run``
    * - ``FA_storage_schemes``
      - —
      - 已註冊的 scheme
@@ -291,6 +300,37 @@ S3 與 Azure Blob 都是物件儲存。目錄只在其下還有 key 時才存在
    azure_blob_instance.later_init(connection_string=connection_string)
    File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
 
+串流與目錄樹
+------------
+
+``File.open_read()`` 與 ``File.open_write()`` 回傳二進位檔案物件，
+``File.iter_chunks()`` 則逐塊產出內容。本機後端直接就地讀取；其他後端提供一份
+暫存的本機副本，物件關閉時即移除，因此兩種情況下記憶體用量都有上限。
+
+``Storage.copy_to(target)`` 會把目錄下的每個檔案複製到 ``target`` 之下相同的相對
+路徑，後端不限。``Storage.sync_to(target)`` 只複製有變動的部分：目標缺少的檔案、
+大小不同的檔案，或來源版本較新的檔案。``checksum=True`` 改為比對 SHA-256 摘要而非
+時間，代價是兩邊都要讀取一次。``delete=True`` 還會移除來源沒有的項目，
+``dry_run=True`` 只回報會發生什麼而不做任何變更。兩者都回傳 ``TreeResult``，內含
+``copied``、``skipped``、``deleted`` 與 ``errors``；失敗的檔案會記在 ``errors``
+中，其餘檔案照常處理。
+
+.. code-block:: python
+
+   from automation_file import File, Storage
+
+   with File("s3://logs/2026/big.log").open_read() as stream:
+       for line in stream:
+           ...
+
+   with File("local:///exports/report.csv").open_write() as stream:
+       stream.write(b"region,total\n")
+
+   reports = Storage("s3://reports/2026")
+   reports.copy_to("local:///backup/2026")                     # every file, any backend
+   result = reports.sync_to("azure://backups/2026", delete=True, dry_run=True)
+   result.copied, result.skipped, result.deleted, result.errors
+
 掛載與註冊後端
 --------------
 
@@ -350,9 +390,9 @@ scheme 或 authority，並且只接受其下的 URI。
 ``_head``、``_scan``、``_put``、``_get`` 與 ``_remove``。它提供 `內建後端`_ 一節
 所述的目錄行為，``S3Storage`` 與 ``AzureStorage`` 都建立在它之上。
 
-請用契約測試套件檢查。``tests/storage_contract.py`` 包含 70 個案例——巢狀目錄、
+請用契約測試套件檢查。``tests/storage_contract.py`` 包含 77 個案例——巢狀目錄、
 空檔與大檔、Unicode 路徑、二進位資料、覆寫與路徑不存在時的行為、路徑正規化、
-複製與搬移——並在後端確實有差異之處讀取 ``capabilities``：
+串流、複製與搬移——並在後端確實有差異之處讀取 ``capabilities``：
 
 .. code-block:: python
 

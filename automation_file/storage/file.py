@@ -18,10 +18,11 @@ backend is initialised or mounted.
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from typing import BinaryIO
 
 from automation_file.exceptions import StorageNotFoundException, StoragePathTypeException
 from automation_file.storage.backend import DEFAULT_CHECKSUM_ALGORITHM, StorageBackend
@@ -30,6 +31,7 @@ from automation_file.storage.types import Checksum, FileInfo
 from automation_file.storage.uri import StorageURI, URILike, parse_storage_uri
 
 _DEFAULT_ENCODING = "utf-8"
+_DEFAULT_CHUNK = 1024 * 1024
 
 
 def _expected_algorithm(expected: str | Checksum, fallback: str) -> str:
@@ -110,6 +112,21 @@ class File:
         payload = data.encode(encoding) if isinstance(data, str) else data
         backend, path = self._locate()
         return replace(backend.write_bytes(path, payload, overwrite=overwrite), path=self._uri.path)
+
+    def open_read(self) -> BinaryIO:
+        """Return a binary file object over the content; close it when done."""
+        backend, path = self._locate()
+        return backend.open_read(path)
+
+    def open_write(self, *, overwrite: bool = True) -> BinaryIO:
+        """Return a binary file object whose content is stored when it is closed."""
+        backend, path = self._locate()
+        return backend.open_write(path, overwrite=overwrite)
+
+    def iter_chunks(self, chunk_size: int = _DEFAULT_CHUNK) -> Iterator[bytes]:
+        """Yield the content in blocks of at most ``chunk_size`` bytes."""
+        with self.open_read() as stream:
+            yield from iter(lambda: stream.read(chunk_size), b"")
 
     def upload_from(
         self, local_path: str | os.PathLike[str], *, overwrite: bool = True

@@ -25,6 +25,7 @@ import uuid
 from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import BinaryIO
 
 from automation_file.core.checksum import file_checksum
 from automation_file.exceptions import StorageException, StoragePermissionException
@@ -241,6 +242,10 @@ class LocalStorage(StorageBackend):
     def _checksum(self, path: str, algorithm: str) -> str:
         with _os_errors(self.uri_for(path)):
             return file_checksum(self.local_path(path), algorithm)
+
+    def _open_read(self, path: str) -> BinaryIO:
+        with _os_errors(self.uri_for(path)):
+            return self.local_path(path).open("rb")
 
     def _read_bytes(self, path: str) -> bytes:
         with _os_errors(self.uri_for(path)):

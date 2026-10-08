@@ -132,6 +132,23 @@ def storage_write_text(
     return _described(info, str(target))
 
 
+def storage_copy_tree(source: str, target: str, overwrite: bool = True) -> dict[str, Any]:
+    """Copy every file below the directory ``source`` to ``target``; returns a summary."""
+    return Storage(source).copy_to(target, overwrite=overwrite).to_dict()
+
+
+def storage_sync(
+    source: str,
+    target: str,
+    delete: bool = False,
+    checksum: bool = False,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Mirror the directory ``source`` into ``target``, copying only what changed."""
+    result = Storage(source).sync_to(target, delete=delete, checksum=checksum, dry_run=dry_run)
+    return result.to_dict()
+
+
 def storage_schemes() -> list[str]:
     """Return the URI schemes a backend is registered or mounted for."""
     return Storage.schemes()
@@ -153,6 +170,8 @@ def storage_commands() -> dict[str, Callable[..., Any]]:
         "FA_storage_move": storage_move,
         "FA_storage_read_text": storage_read_text,
         "FA_storage_write_text": storage_write_text,
+        "FA_storage_copy_tree": storage_copy_tree,
+        "FA_storage_sync": storage_sync,
         "FA_storage_schemes": storage_schemes,
     }
 

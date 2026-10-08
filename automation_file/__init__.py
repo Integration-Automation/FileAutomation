@@ -279,6 +279,7 @@ from automation_file.storage import (
     StorageCapabilities,
     StorageResolver,
     StorageURI,
+    TreeResult,
     parse_storage_uri,
     register_storage_ops,
 )
@@ -487,6 +488,7 @@ __all__ = [
     "StorageURI",
     "parse_storage_uri",
     "register_storage_ops",
+    "TreeResult",
     "FileInfo",
     "Checksum",
     "StorageCapabilities",

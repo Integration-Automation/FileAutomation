@@ -19,13 +19,14 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import os
+import shutil
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 from types import TracebackType
-from typing import TypeVar
+from typing import BinaryIO, TypeVar
 
 from automation_file.core.checksum import file_checksum
 from automation_file.exceptions import (
@@ -36,6 +37,7 @@ from automation_file.exceptions import (
     StoragePathTypeException,
     StorageUnsupportedException,
 )
+from automation_file.storage.streams import StagedReader, StagedWriter, new_scratch_file
 from automation_file.storage.types import Checksum, FileInfo, StorageCapabilities
 from automation_file.storage.uri import normalize_path
 
@@ -180,6 +182,21 @@ class StorageBackend(ABC):
             self._download(path, staged)
             return staged.read_bytes()
 
+    def _open_read(self, path: str) -> BinaryIO:
+        """Return a binary file object over the file ``path``.
+
+        The default serves a staged copy that is removed when the object is closed.
+        """
+        scratch, staged = new_scratch_file()
+        reader: BinaryIO | None = None
+        try:
+            self._download(path, staged)
+            reader = StagedReader(staged, scratch)
+            return reader
+        finally:
+            if reader is None:
+                shutil.rmtree(scratch, ignore_errors=True)
+
     def _delete_directory(self, path: str, recursive: bool) -> None:
         """Remove the directory ``path``, which is not the root."""
         if not recursive:
@@ -317,6 +334,22 @@ class StorageBackend(ABC):
     def read_bytes(self, path: str) -> bytes:
         """Return the whole content of the file ``path``."""
         return self._read_bytes(self._existing_file(path))
+
+    def open_read(self, path: str) -> BinaryIO:
+        """Return a binary file object over the file ``path``; close it when done.
+
+        Use it for a file too large to hold in memory with :meth:`read_bytes`.
+        """
+        return self._open_read(self._existing_file(path))
+
+    def open_write(self, path: str, *, overwrite: bool = True) -> BinaryIO:
+        """Return a binary file object whose content becomes the file ``path`` on close.
+
+        Nothing is stored when a ``with`` block is left through an exception. The
+        ``overwrite`` check runs now and again when the content is stored.
+        """
+        clean = self._writable_file(path, overwrite)
+        return StagedWriter(lambda staged: self.upload(staged, clean, overwrite=overwrite))
 
     def write_bytes(self, path: str, data: bytes, *, overwrite: bool = True) -> FileInfo:
         """Store ``data`` as the file ``path`` and return its ``FileInfo``."""

@@ -219,6 +219,50 @@ class StorageContract:
         with pytest.raises(StorageNotFoundException):
             backend.read_bytes("nope.bin")
 
+    # ------------------------------------------------------------------ streams
+
+    def test_open_read_streams_the_content(self, backend: StorageBackend) -> None:
+        backend.write_bytes("dir/data.bin", BINARY)
+        with backend.open_read("dir/data.bin") as stream:
+            assert stream.read(10) == BINARY[:10]
+            assert stream.read() == BINARY[10:]
+            assert stream.read() == b""
+        assert stream.closed is True
+
+    def test_open_read_of_a_missing_file_raises_not_found(self, backend: StorageBackend) -> None:
+        with pytest.raises(StorageNotFoundException):
+            backend.open_read("nope.bin")
+
+    def test_open_read_of_a_directory_is_refused(self, backend: StorageBackend) -> None:
+        backend.write_bytes("dir/a.txt", b"x")
+        with pytest.raises(StoragePathTypeException):
+            backend.open_read("dir")
+
+    def test_open_write_stores_the_content_on_close(self, backend: StorageBackend) -> None:
+        with backend.open_write("deep/dir/out.bin") as stream:
+            stream.write(BINARY[:100])
+            stream.write(BINARY[100:])
+            assert backend.exists("deep/dir/out.bin") is False
+        assert backend.read_bytes("deep/dir/out.bin") == BINARY
+
+    def test_open_write_stores_nothing_when_the_block_fails(self, backend: StorageBackend) -> None:
+        backend.write_bytes("a.txt", b"previous")
+        with pytest.raises(RuntimeError, match="boom"), backend.open_write("a.txt") as stream:
+            stream.write(b"half")
+            raise RuntimeError("boom")
+        assert backend.read_bytes("a.txt") == b"previous"
+
+    def test_open_write_respects_overwrite(self, backend: StorageBackend) -> None:
+        backend.write_bytes("a.txt", b"previous")
+        with pytest.raises(StorageAlreadyExistsException):
+            backend.open_write("a.txt", overwrite=False)
+        assert backend.read_bytes("a.txt") == b"previous"
+
+    def test_open_write_onto_a_directory_is_refused(self, backend: StorageBackend) -> None:
+        backend.write_bytes("dir/a.txt", b"x")
+        with pytest.raises(StoragePathTypeException):
+            backend.open_write("dir")
+
     # ------------------------------------------------------------------ list_dir
 
     def test_list_dir_of_an_empty_root_is_empty(self, backend: StorageBackend) -> None:

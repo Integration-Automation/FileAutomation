@@ -130,6 +130,10 @@ Every backend has the same methods. ``File`` and ``Storage`` forward to them.
        compatibility, not for security).
    * - ``read_bytes(path)`` / ``write_bytes(path, data)``
      - Whole-file content.
+   * - ``open_read(path)`` / ``open_write(path, overwrite=True)``
+     - Binary file objects, for content too large to hold in memory. What is
+       written is stored when the object is closed; leaving a ``with`` block
+       through an exception stores nothing.
    * - ``copy_from(source, source_path, path)`` / ``move_from(…)``
      - Transfer from any backend, this one included. Native when the two backends
        can do it between themselves (a local rename), through a local staging
@@ -198,6 +202,12 @@ strings and returns JSON-friendly values.
    * - ``FA_storage_write_text``
      - ``uri, text, overwrite=True, encoding="utf-8"``
      - The file information
+   * - ``FA_storage_copy_tree``
+     - ``source, target, overwrite=True``
+     - A summary: ``copied``, ``skipped``, ``deleted``, ``errors``, ``dry_run``
+   * - ``FA_storage_sync``
+     - ``source, target, delete=False, checksum=False, dry_run=False``
+     - A summary: ``copied``, ``skipped``, ``deleted``, ``errors``, ``dry_run``
    * - ``FA_storage_schemes``
      - —
      - The registered schemes
@@ -308,6 +318,40 @@ raises ``StorageUnavailableException``.
    azure_blob_instance.later_init(connection_string=connection_string)
    File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
 
+Streams and directory trees
+---------------------------
+
+``File.open_read()`` and ``File.open_write()`` return binary file objects, and
+``File.iter_chunks()`` yields the content block by block. The local backend
+reads in place; the others serve a staged local copy that is removed when the
+object is closed, so memory stays bounded either way.
+
+``Storage.copy_to(target)`` copies every file below a directory to the same
+relative path below ``target``, in any backend. ``Storage.sync_to(target)``
+copies only what changed: a file the target lacks, one whose size differs, or
+one the source holds in a newer version. ``checksum=True`` compares SHA-256
+digests instead of times, at the cost of reading both sides. ``delete=True``
+also removes what the source does not have, and ``dry_run=True`` reports what
+would happen without changing anything. Both return a ``TreeResult`` with
+``copied``, ``skipped``, ``deleted`` and ``errors``; a file that fails is
+recorded in ``errors`` and the others still run.
+
+.. code-block:: python
+
+   from automation_file import File, Storage
+
+   with File("s3://logs/2026/big.log").open_read() as stream:
+       for line in stream:
+           ...
+
+   with File("local:///exports/report.csv").open_write() as stream:
+       stream.write(b"region,total\n")
+
+   reports = Storage("s3://reports/2026")
+   reports.copy_to("local:///backup/2026")                     # every file, any backend
+   result = reports.sync_to("azure://backups/2026", delete=True, dry_run=True)
+   result.copied, result.skipped, result.deleted, result.errors
+
 Mounting and registering backends
 ---------------------------------
 
@@ -371,9 +415,9 @@ implement ``_head``, ``_scan``, ``_put``, ``_get`` and ``_remove``. It supplies
 the directory behaviour described under `Built-in backends`_, and is what
 ``S3Storage`` and ``AzureStorage`` are built on.
 
-Check it with the contract suite. ``tests/storage_contract.py`` holds 70 cases —
+Check it with the contract suite. ``tests/storage_contract.py`` holds 77 cases —
 nested directories, empty and large files, Unicode paths, binary data, overwrite
-and missing-path behaviour, path normalisation, copy and move — and reads
+and missing-path behaviour, path normalisation, streams, copy and move — and reads
 ``capabilities`` where backends legitimately differ:
 
 .. code-block:: python

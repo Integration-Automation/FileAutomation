@@ -30,6 +30,7 @@ from automation_file.storage.resolver import (
 )
 from automation_file.storage.s3_storage import S3Storage
 from automation_file.storage.storage import Storage
+from automation_file.storage.tree import TreeResult, copy_tree, sync_tree
 from automation_file.storage.types import Checksum, FileInfo, StorageCapabilities
 from automation_file.storage.uri import (
     StorageURI,
@@ -54,8 +55,10 @@ __all__ = [
     "StorageCapabilities",
     "StorageResolver",
     "StorageURI",
+    "TreeResult",
     "URILike",
     "clear_memory_stores",
+    "copy_tree",
     "default_resolver",
     "local_path_to_uri",
     "memory_store",
@@ -63,4 +66,5 @@ __all__ = [
     "parse_storage_uri",
     "register_default_schemes",
     "register_storage_ops",
+    "sync_tree",
 ]

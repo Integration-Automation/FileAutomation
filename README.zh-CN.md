@@ -46,7 +46,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **HTTP 服务器观测端点** — `GET /healthz` / `GET /readyz` 探针、`GET /openapi.json` 规格，以及 `GET /progress`（通过 WebSocket 推送实时传输快照）
 - **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
-- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 70 个用例的契约测试套件可检查任何后端
+- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 77 个用例的契约测试套件可检查任何后端
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -466,6 +466,9 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `checksum`、`read_bytes`、`write_bytes`、`copy_from`、`move_from`，在每个后端上都相同。
   下载与本地写入均为原子操作，删除内有条目的目录需要 `recursive=True`，存储的根目录
   永远不会被删除。
+- **流与目录树** — `File.open_read()` / `open_write()` / `iter_chunks()` 用于大到放不进内存的
+  内容；`Storage.copy_to(target)` 把整个目录树复制到任何后端，
+  `Storage.sync_to(target, delete=False, checksum=False, dry_run=False)` 只复制有变动的部分。
 - **异常** — `StorageException` 及其子类：`StorageNotFoundException`、
   `StorageAlreadyExistsException`、`StoragePathTypeException`、`StorageNotEmptyException`、
   `StoragePermissionException`、`StorageTransientException`、`StorageUnavailableException`、
@@ -477,12 +480,12 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` 即可运行。
   Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 与 fsspec 目前仍通过各自的客户端与 `FA_*`
   动作使用，其适配器尚未完成。你可以继承 `StorageBackend`（对象存储则继承 `ObjectStorage`）
-  编写自己的后端，并用 `tests/storage_contract.py` 中 70 个用例的契约测试套件检查。
+  编写自己的后端，并用 `tests/storage_contract.py` 中 77 个用例的契约测试套件检查。
 
 - **动作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
   `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
-  `FA_storage_write_text`, `FA_storage_schemes`。它们以字符串
+  `FA_storage_write_text`, `FA_storage_copy_tree`, `FA_storage_sync`, `FA_storage_schemes`。它们以字符串
   形式接收 URI，并返回可以序列化为 JSON 的值，因此本层可用于动作文件、CLI、TCP 与 HTTP 服务器，
   也能作为 MCP 工具。在服务器上请像其他文件动作一样用 `ActionACL` 加以限制。
 

@@ -20,6 +20,15 @@ Actions
 .. automodule:: automation_file.storage.actions
    :members:
 
+Streams and directory trees
+---------------------------
+
+.. automodule:: automation_file.storage.tree
+   :members:
+
+.. automodule:: automation_file.storage.streams
+   :members:
+
 Storage URIs
 ------------
 

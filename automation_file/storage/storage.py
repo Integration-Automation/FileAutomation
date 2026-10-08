@@ -23,12 +23,16 @@ from __future__ import annotations
 import os
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from automation_file.storage.backend import DEFAULT_CHECKSUM_ALGORITHM, StorageBackend
 from automation_file.storage.file import File
 from automation_file.storage.resolver import BackendFactory, StorageResolver, default_resolver
 from automation_file.storage.types import Checksum, FileInfo, StorageCapabilities
 from automation_file.storage.uri import StorageURI, URILike, normalize_path, parse_storage_uri
+
+if TYPE_CHECKING:
+    from automation_file.storage.tree import TreeResult
 
 
 def _rebased(info: FileInfo, backend_base: str, asked: str) -> FileInfo:
@@ -134,6 +138,32 @@ class Storage:
     def checksum(self, path: str, algorithm: str = DEFAULT_CHECKSUM_ALGORITHM) -> Checksum:
         backend, target = self._locate(path)
         return backend.checksum(target, algorithm)
+
+    def copy_to(self, target: URILike | Storage, *, overwrite: bool = True) -> TreeResult:
+        """Copy every file below this storage to ``target``, in any backend."""
+        from automation_file.storage.tree import copy_tree
+
+        return copy_tree(self, self._as_storage(target), overwrite=overwrite)
+
+    def sync_to(
+        self,
+        target: URILike | Storage,
+        *,
+        delete: bool = False,
+        checksum: bool = False,
+        dry_run: bool = False,
+    ) -> TreeResult:
+        """Make ``target`` hold what this storage holds, copying only what changed."""
+        from automation_file.storage.tree import sync_tree
+
+        return sync_tree(
+            self, self._as_storage(target), delete=delete, checksum=checksum, dry_run=dry_run
+        )
+
+    def _as_storage(self, target: URILike | Storage) -> Storage:
+        if isinstance(target, Storage):
+            return target
+        return Storage(target, resolver=self._resolver)
 
     def _locate(self, path: str) -> tuple[StorageBackend, str]:
         return self._resolver.resolve(self._uri.joinpath(path))
