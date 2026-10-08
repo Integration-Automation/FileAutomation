@@ -71,7 +71,7 @@ fsspec = ["fsspec>=2024.2.0"]
 onedrive = ["msal>=1.39.0"]
 box = ["boxsdk>=10.15.0,<11"]
 parquet = ["pyarrow>=25.0.1"]
-gui = ["PySide6>=6.6.0"]
+gui = ["PySide6>=6.11.2,<6.12"]
 # Everything above. The list is written out because the two channels have different package names,
 # so neither can refer to its own extras by name and stay identical to the other.
 all = [
@@ -87,7 +87,7 @@ all = [
     "msal>=1.39.0",
     "boxsdk>=10.15.0,<11",
     "pyarrow>=25.0.1",
-    "PySide6>=6.6.0"
+    "PySide6>=6.11.2,<6.12"
 ]
 test = [
     "pytest>=8.0.0",
