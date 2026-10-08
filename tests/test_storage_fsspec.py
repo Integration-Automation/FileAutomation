@@ -552,9 +552,9 @@ def test_uri_equality_and_repr(tmp_path: Path) -> None:
     assert storage != FsspecStorage(KeyValueFileSystem(), root="bucket/tenant")
     assert len({storage, FsspecStorage(filesystem, root="bucket/tenant")}) == 1
     # fsspec hands out one object per filesystem configuration, so these two are one storage.
-    assert FsspecStorage(LocalFileSystem(), root=str(tmp_path)) == FsspecStorage(
-        LocalFileSystem(), root=str(tmp_path)
-    )
+    first = FsspecStorage(LocalFileSystem(), root=str(tmp_path))
+    second = FsspecStorage(LocalFileSystem(), root=str(tmp_path))
+    assert first == second
 
 
 # ---------------------------------------------------------------------- the real fsspec

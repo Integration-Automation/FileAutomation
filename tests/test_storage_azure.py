@@ -300,7 +300,11 @@ def test_a_container_name_is_required() -> None:
 
 
 def test_equality_and_repr(service: FakeBlobService) -> None:
-    assert AzureStorage("container", service=service) == AzureStorage("container", service=service)
+    first, second = (
+        AzureStorage("container", service=service),
+        AzureStorage("container", service=service),
+    )
+    assert first == second
     assert AzureStorage("container", service=service) != AzureStorage("archive", service=service)
     assert AzureStorage("container", service=service) != AzureStorage(
         "container", service=FakeBlobService()

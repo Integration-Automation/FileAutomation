@@ -481,7 +481,8 @@ def test_uri_equality_and_repr(client: SMBClient) -> None:
     assert rooted.root == "team/a"
     assert rooted.uri_for("b.txt") == f"smb://{SERVER}/{SHARE}/team/a/b.txt"
     assert repr(rooted) == f"SMBStorage('smb://{SERVER}/{SHARE}/team/a')"
-    assert SMBStorage(client) == SMBStorage(client)
+    first, second = SMBStorage(client), SMBStorage(client)
+    assert first == second
     assert SMBStorage(client) != rooted
     assert SMBStorage(client) != SMBStorage(SMBClient(SERVER, SHARE))
     assert len({SMBStorage(client), SMBStorage(client)}) == 1

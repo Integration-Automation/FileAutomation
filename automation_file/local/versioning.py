@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from automation_file.exceptions import VersioningException
+from automation_file.logging_config import file_automation_logger
 
 _VERSION_RE = re.compile(r"^v(\d+)__(\d+)$")
 # A flattened source path longer than this is shortened to its tail plus a digest:
@@ -109,8 +110,14 @@ class FileVersioner:
         if len(safe) <= _MAX_BUCKET_NAME:
             return self._root / safe
         legacy = self._root / safe
-        if legacy.is_dir():
-            return legacy
+        try:
+            if legacy.is_dir():
+                return legacy
+        except OSError:
+            # A name past the filesystem's limit cannot be asked about, so it is not there.
+            file_automation_logger.debug(
+                "versioning: %d-character name is too long to exist", len(safe)
+            )
         return self._root / _shortened(safe)
 
     def _next_version(self, bucket: Path) -> int:

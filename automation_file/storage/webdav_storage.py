@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 WEBDAV_SCHEME = "webdav"
 _MISSING_STATUS = 404
+_BELOW_A_FILE_STATUS = 400
 _DENIED_STATUS = frozenset({401, 403})
 _TRANSIENT_STATUS = frozenset({408, 429})
 _SERVER_ERROR = 500
@@ -189,6 +190,11 @@ class WebDAVStorage(StorageBackend):
             with _webdav_errors(self.uri_for(path)):
                 entry = self._client.stat(self._remote(path))
         except StorageNotFoundException:
+            return None
+        except StorageException as error:
+            # Apache answers 400, not 404, for a path below a file: nothing can be there.
+            if _status_of(error) != _BELOW_A_FILE_STATUS:
+                raise
             return None
         return _file_info(path, entry)
 

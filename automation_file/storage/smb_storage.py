@@ -208,8 +208,18 @@ class SMBStorage(StorageBackend):
     def _move_from(self, source: StorageBackend, source_path: str, path: str) -> bool:
         if not isinstance(source, SMBStorage) or source._client is not self._client:
             return False
-        with _smb_errors(self.uri_for(path)):
-            self._client.rename(source._remote(source_path), self._remote(path), overwrite=True)
+        origin, target = source._remote(source_path), self._remote(path)
+        try:
+            with _smb_errors(self.uri_for(path)):
+                self._client.rename(origin, target, overwrite=True)
+        except StoragePermissionException:
+            # Samba refuses to rename onto an existing file. Remove it and rename again:
+            # not atomic, and the one way that server replaces a file.
+            if self._stat(path) is None:
+                raise
+            with _smb_errors(self.uri_for(path)):
+                self._client.delete(target)
+                self._client.rename(origin, target, overwrite=False)
         return True
 
     def __eq__(self, other: object) -> bool:

@@ -318,7 +318,8 @@ def test_a_bucket_name_is_required() -> None:
 
 
 def test_equality_and_repr(client: FakeS3Client) -> None:
-    assert S3Storage("bucket", client=client) == S3Storage("bucket", client=client)
+    first, second = S3Storage("bucket", client=client), S3Storage("bucket", client=client)
+    assert first == second
     assert S3Storage("bucket", client=client) != S3Storage("archive", client=client)
     assert S3Storage("bucket", client=client) != S3Storage("bucket", client=client, prefix="a")
     assert S3Storage("bucket", client=client) != S3Storage("bucket", client=FakeS3Client())

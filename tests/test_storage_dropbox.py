@@ -638,10 +638,12 @@ def test_uri_equality_and_repr(client: FakeDropbox) -> None:
     assert DropboxStorage(client).uri_for("/a//b.txt") == "dropbox:///a/b.txt"
     assert DropboxStorage(client, root="team").uri_for("a.txt") == "dropbox:///team/a.txt"
     assert DropboxStorage(client, root="team").uri_for() == "dropbox:///team"
-    assert DropboxStorage(client) == DropboxStorage(client)
+    first, second = DropboxStorage(client), DropboxStorage(client)
+    assert first == second
     assert DropboxStorage(client) != DropboxStorage(client, root="team")
     assert DropboxStorage(client) != DropboxStorage(FakeDropbox())
-    assert DropboxStorage() == DropboxStorage()
+    first, second = DropboxStorage(), DropboxStorage()
+    assert first == second
     assert len({DropboxStorage(client), DropboxStorage(client)}) == 1
     assert repr(DropboxStorage(client, root="team/a")) == "DropboxStorage(root='team/a')"
     assert DropboxStorage.scheme == DROPBOX_SCHEME == "dropbox"

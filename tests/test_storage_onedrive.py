@@ -618,7 +618,8 @@ def test_equality_and_repr(client: OneDriveClient, graph: FakeGraph) -> None:
     assert OneDriveStorage(client) != OneDriveStorage(client, root="a")
     assert OneDriveStorage(client) != OneDriveStorage(_client(graph))
     assert OneDriveStorage(client) != OneDriveStorage()
-    assert OneDriveStorage() == OneDriveStorage()
+    first, second = OneDriveStorage(), OneDriveStorage()
+    assert first == second
     assert len({OneDriveStorage(client), OneDriveStorage(client)}) == 1
     assert repr(OneDriveStorage(client, root="a/b")) == "OneDriveStorage(root='a/b')"
     assert OneDriveStorage.scheme == ONEDRIVE_SCHEME == "onedrive"

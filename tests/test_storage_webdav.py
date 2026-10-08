@@ -571,7 +571,8 @@ def test_uri_equality_and_repr(client: WebDAVClient) -> None:
     assert rooted.root == "team/a"
     assert rooted.uri_for("b.txt") == f"webdav://{HOST}{DAV_ROOT}/team/a/b.txt"
     assert repr(rooted) == f"WebDAVStorage('webdav://{HOST}{DAV_ROOT}/team/a')"
-    assert WebDAVStorage(client) == WebDAVStorage(client)
+    first, second = WebDAVStorage(client), WebDAVStorage(client)
+    assert first == second
     assert WebDAVStorage(client) != rooted
     assert WebDAVStorage(client) != WebDAVStorage(WebDAVClient(BASE_URL))
     assert len({WebDAVStorage(client), WebDAVStorage(client)}) == 1
@@ -606,3 +607,15 @@ def test_two_roots_of_one_server_do_not_lose_a_file_to_itself(client: WebDAVClie
     with pytest.raises(StorageException, match="same file"):
         inner.move_from(whole, "team/a/docs/a.txt", "docs/a.txt")
     assert whole.read_bytes("team/a/docs/a.txt") == b"payload"
+
+
+def test_a_400_to_a_stat_means_nothing_is_there(
+    server: FakeDavServer, client: WebDAVClient
+) -> None:
+    # Apache answers 400 to PROPFIND for a path below a file, where others answer 404.
+    storage = WebDAVStorage(client)
+    server.status_for["PROPFIND"] = 400
+    assert storage.exists("a.txt/child.txt") is False
+    server.status_for["PROPFIND"] = 500
+    with pytest.raises(StorageException):
+        storage.exists("a.txt/child.txt")

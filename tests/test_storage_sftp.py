@@ -402,7 +402,8 @@ def test_uri_for_names_the_host_of_the_session(session: FakeSFTP) -> None:
 
 def test_equality_and_repr(session: FakeSFTP) -> None:
     client = connected(session)
-    assert SFTPStorage(client) == SFTPStorage(client)
+    first, second = SFTPStorage(client), SFTPStorage(client)
+    assert first == second
     assert SFTPStorage(client) != SFTPStorage(client, root="/srv")
     assert SFTPStorage(client) != SFTPStorage(connected(session))
     assert SFTPStorage() == SFTPStorage(sftp_instance)

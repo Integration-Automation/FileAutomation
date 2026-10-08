@@ -139,7 +139,7 @@ def test_a_record_is_frozen_and_keyword_only() -> None:
         record.status = "error"
     with pytest.raises(TypeError):
         AuditRecord("upload")
-    assert hash(record) == hash(record)
+    assert isinstance(hash(record), int)
 
 
 def test_a_record_turns_into_json_and_back() -> None:

@@ -341,7 +341,8 @@ def test_uri_for_names_the_host_of_the_session(server: FakeFTPServer) -> None:
 
 def test_equality_and_repr(server: FakeFTPServer) -> None:
     client = connected(FakeFTP(server))
-    assert FTPStorage(client) == FTPStorage(client)
+    first, second = FTPStorage(client), FTPStorage(client)
+    assert first == second
     assert FTPStorage(client) != FTPStorage(client, root="/srv")
     assert FTPStorage(client) != FTPStorage(connected(FakeFTP(server)))
     assert FTPStorage() == FTPStorage(ftp_instance)

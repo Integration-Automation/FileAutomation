@@ -42,7 +42,7 @@ case "$service" in
   s3)
     docker run -d --name fa-it-s3 -p 9000:9000 \
       -e "MINIO_ROOT_USER=$user-integration" -e "MINIO_ROOT_PASSWORD=$secret" \
-      minio/minio server /data >&2
+      quay.io/minio/minio server /data >&2
     wait_for_port 9000
     emit FA_IT_S3_ENDPOINT "http://127.0.0.1:9000"
     emit FA_IT_S3_ACCESS_KEY "$user-integration"
@@ -86,6 +86,8 @@ case "$service" in
     emit FA_IT_FTP_PORT 2121
     emit FA_IT_FTP_USER "$user"
     emit FA_IT_FTP_PASSWORD "$secret"
+    # The login lands in the filesystem root, which is read-only; the user's own directory is not.
+    emit FA_IT_FTP_ROOT "/ftp/$user"
     ;;
   webdav)
     docker run -d --name fa-it-webdav -p 8080:80 \
@@ -97,11 +99,12 @@ case "$service" in
     emit FA_IT_WEBDAV_PASSWORD "$secret"
     ;;
   smb)
-    docker run -d --name fa-it-smb -p 4450:445 \
+    # On port 445 itself: smbprotocol drops a non-default port in some of its calls.
+    docker run -d --name fa-it-smb -p 445:445 \
       dperson/samba -p -u "$user;$secret" -s "share;/share;yes;no;no;$user" >&2
-    wait_for_port 4450
+    wait_for_port 445
     emit FA_IT_SMB_SERVER 127.0.0.1
-    emit FA_IT_SMB_PORT 4450
+    emit FA_IT_SMB_PORT 445
     emit FA_IT_SMB_SHARE share
     emit FA_IT_SMB_USER "$user"
     emit FA_IT_SMB_PASSWORD "$secret"

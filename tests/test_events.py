@@ -94,7 +94,7 @@ def test_an_event_is_frozen_and_keyword_only() -> None:
         event.subject = "changed"  # type: ignore[misc]
     with pytest.raises(TypeError):
         TaskFailed("positional")  # type: ignore[misc]
-    assert hash(event) == hash(event)
+    assert isinstance(hash(event), int)
 
 
 def test_to_dict_is_json_serialisable() -> None:
