@@ -483,6 +483,22 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `StorageBackend` (or `ObjectStorage` for an object store) and check it with the 70-case
   contract suite in `tests/storage_contract.py`.
 
+- **Actions** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
+  `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
+  `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
+  `FA_storage_write_text`, `FA_storage_schemes`. They take URIs
+  as strings and return JSON-friendly values, so the layer works from action files, the CLI, the
+  TCP and HTTP servers and as MCP tools. Restrict them on a server with `ActionACL`, as for any
+  file action.
+
+```json
+[
+  ["FA_storage_copy", {"source": "s3://reports/q1.csv", "target": "local:///backup/q1.csv"}],
+  ["FA_storage_verify", {"uri": "local:///backup/q1.csv", "expected": "sha256:9f86d081884c7d65…"}],
+  ["FA_storage_list", {"uri": "s3://reports", "recursive": true}]
+]
+```
+
 The API is new and may still change before 1.0. Full reference: the *Universal Storage Layer*
 chapter of the documentation.
 

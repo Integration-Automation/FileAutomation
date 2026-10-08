@@ -479,6 +479,21 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   動作使用，其轉接器尚未完成。你可以繼承 `StorageBackend`（物件儲存則繼承 `ObjectStorage`）
   撰寫自己的後端，並用 `tests/storage_contract.py` 中 70 個案例的契約測試套件檢查。
 
+- **動作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
+  `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
+  `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
+  `FA_storage_write_text`, `FA_storage_schemes`。它們以字串
+  形式接收 URI，並回傳可序列化為 JSON 的值，因此本層可用於動作檔、CLI、TCP 與 HTTP 伺服器，
+  也能作為 MCP 工具。在伺服器上請像其他檔案動作一樣以 `ActionACL` 加以限制。
+
+```json
+[
+  ["FA_storage_copy", {"source": "s3://reports/q1.csv", "target": "local:///backup/q1.csv"}],
+  ["FA_storage_verify", {"uri": "local:///backup/q1.csv", "expected": "sha256:9f86d081884c7d65…"}],
+  ["FA_storage_list", {"uri": "s3://reports", "recursive": true}]
+]
+```
+
 此 API 為新功能，在 1.0 之前仍可能調整。完整說明請見文件的「通用儲存層」章節。
 
 ### 檔案監看觸發

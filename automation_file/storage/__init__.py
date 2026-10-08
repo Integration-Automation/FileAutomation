@@ -6,10 +6,12 @@
   :class:`AzureStorage`; :class:`ObjectStorage` is the shared base of the last two.
 * :class:`StorageURI` / :func:`parse_storage_uri` define the address syntax, and
   :class:`StorageResolver` maps an address to a backend.
+* :func:`register_storage_ops` adds the ``FA_storage_*`` actions to a registry.
 """
 
 from __future__ import annotations
 
+from automation_file.storage.actions import register_storage_ops
 from automation_file.storage.azure_storage import AzureStorage
 from automation_file.storage.backend import StorageBackend
 from automation_file.storage.file import File
@@ -60,4 +62,5 @@ __all__ = [
     "normalize_path",
     "parse_storage_uri",
     "register_default_schemes",
+    "register_storage_ops",
 ]

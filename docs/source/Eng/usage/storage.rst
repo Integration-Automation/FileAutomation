@@ -145,6 +145,84 @@ says which optional ``FileInfo`` fields the backend fills in and whether its
 directories are real (``directories=True``, a filesystem) or implied by file
 paths (``directories=False``, an object store).
 
+Actions
+-------
+
+The layer is also reachable from JSON action lists, and so from the CLI, the TCP
+and HTTP action servers and MCP hosts. Every ``FA_storage_*`` action takes URIs as
+strings and returns JSON-friendly values.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 40 32
+
+   * - Action
+     - Parameters
+     - Returns
+   * - ``FA_storage_exists``
+     - ``uri``
+     - ``true`` / ``false``
+   * - ``FA_storage_stat``
+     - ``uri``
+     - The file information
+   * - ``FA_storage_list``
+     - ``uri, recursive=False``
+     - A list of file information
+   * - ``FA_storage_mkdir``
+     - ``uri, parents=True, exist_ok=True``
+     - ``True``
+   * - ``FA_storage_upload``
+     - ``local_path, uri, overwrite=True``
+     - The file information
+   * - ``FA_storage_download``
+     - ``uri, local_path, overwrite=True``
+     - The local path
+   * - ``FA_storage_delete``
+     - ``uri, recursive=False, missing_ok=False``
+     - ``True``
+   * - ``FA_storage_checksum``
+     - ``uri, algorithm="sha256"``
+     - ``{"algorithm": …, "value": …}``
+   * - ``FA_storage_verify``
+     - ``uri, expected, algorithm="sha256"``
+     - ``true`` / ``false``
+   * - ``FA_storage_copy``
+     - ``source, target, overwrite=True``
+     - The target's file information
+   * - ``FA_storage_move``
+     - ``source, target, overwrite=True``
+     - The target's file information
+   * - ``FA_storage_read_text``
+     - ``uri, encoding="utf-8"``
+     - The content as text
+   * - ``FA_storage_write_text``
+     - ``uri, text, overwrite=True, encoding="utf-8"``
+     - The file information
+   * - ``FA_storage_schemes``
+     - —
+     - The registered schemes
+
+File information is ``FileInfo.to_dict()`` plus a ``uri`` key: ``uri``, ``path``,
+``name``, ``is_dir``, ``size``, ``modified_at`` (ISO 8601), ``etag``, ``version``,
+``content_type`` and ``metadata``. In ``FA_storage_list`` each ``path`` is relative
+to the listed URI. A failure raises the exception from `Errors`_, which the
+executor records for that action without stopping the list.
+
+.. code-block:: json
+
+   [
+     ["FA_storage_copy", {"source": "s3://reports/2026/q1.csv",
+                          "target": "local:///backup/2026/q1.csv"}],
+     ["FA_storage_verify", {"uri": "local:///backup/2026/q1.csv",
+                            "expected": "sha256:9f86d081884c7d65…"}],
+     ["FA_storage_list", {"uri": "s3://reports/2026", "recursive": true}]
+   ]
+
+Like the other file actions, these reach whatever the process can reach. On a TCP
+or HTTP action server pass an :class:`~automation_file.ActionACL`, and on the MCP
+server ``--allowed-actions``, to expose only the ones a client needs.
+:func:`~automation_file.register_storage_ops` adds them to a registry of your own.
+
 Errors
 ------
 

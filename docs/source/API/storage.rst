@@ -14,6 +14,12 @@ File and Storage
 .. automodule:: automation_file.storage.storage
    :members:
 
+Actions
+-------
+
+.. automodule:: automation_file.storage.actions
+   :members:
+
 Storage URIs
 ------------
 

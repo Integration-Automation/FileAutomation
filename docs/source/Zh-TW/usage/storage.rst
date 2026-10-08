@@ -135,6 +135,83 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
 會填入哪些選用的 ``FileInfo`` 欄位，以及它的目錄是真實存在（``directories=True``，
 檔案系統）還是由檔案路徑隱含（``directories=False``，物件儲存）。
 
+動作
+----
+
+本層也能從 JSON 動作清單使用，因此 CLI、TCP 與 HTTP 動作伺服器以及 MCP 主機都能呼叫。
+每個 ``FA_storage_*`` 動作都以字串形式接收 URI，並回傳可序列化為 JSON 的值。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 40 32
+
+   * - 動作
+     - 參數
+     - 回傳值
+   * - ``FA_storage_exists``
+     - ``uri``
+     - ``true`` / ``false``
+   * - ``FA_storage_stat``
+     - ``uri``
+     - 檔案資訊
+   * - ``FA_storage_list``
+     - ``uri, recursive=False``
+     - 檔案資訊的清單
+   * - ``FA_storage_mkdir``
+     - ``uri, parents=True, exist_ok=True``
+     - ``True``
+   * - ``FA_storage_upload``
+     - ``local_path, uri, overwrite=True``
+     - 檔案資訊
+   * - ``FA_storage_download``
+     - ``uri, local_path, overwrite=True``
+     - 本機路徑
+   * - ``FA_storage_delete``
+     - ``uri, recursive=False, missing_ok=False``
+     - ``True``
+   * - ``FA_storage_checksum``
+     - ``uri, algorithm="sha256"``
+     - ``{"algorithm": …, "value": …}``
+   * - ``FA_storage_verify``
+     - ``uri, expected, algorithm="sha256"``
+     - ``true`` / ``false``
+   * - ``FA_storage_copy``
+     - ``source, target, overwrite=True``
+     - 目標的檔案資訊
+   * - ``FA_storage_move``
+     - ``source, target, overwrite=True``
+     - 目標的檔案資訊
+   * - ``FA_storage_read_text``
+     - ``uri, encoding="utf-8"``
+     - 文字內容
+   * - ``FA_storage_write_text``
+     - ``uri, text, overwrite=True, encoding="utf-8"``
+     - 檔案資訊
+   * - ``FA_storage_schemes``
+     - —
+     - 已註冊的 scheme
+
+檔案資訊是 ``FileInfo.to_dict()`` 再加上 ``uri`` 鍵：``uri``、``path``、``name``、
+``is_dir``、``size``、``modified_at``（ISO 8601）、``etag``、``version``、
+``content_type`` 與 ``metadata``。在 ``FA_storage_list`` 中，每個 ``path`` 都相對於
+被列出的 URI。失敗時會拋出 `例外`_ 一節中的例外，執行器會把它記錄在該動作上，
+不會中斷整份清單。
+
+.. code-block:: json
+
+   [
+     ["FA_storage_copy", {"source": "s3://reports/2026/q1.csv",
+                          "target": "local:///backup/2026/q1.csv"}],
+     ["FA_storage_verify", {"uri": "local:///backup/2026/q1.csv",
+                            "expected": "sha256:9f86d081884c7d65…"}],
+     ["FA_storage_list", {"uri": "s3://reports/2026", "recursive": true}]
+   ]
+
+與其他檔案動作一樣，這些動作能存取行程所能存取的一切。在 TCP 或 HTTP 動作伺服器上
+請傳入 :class:`~automation_file.ActionACL`，在 MCP 伺服器上請使用
+``--allowed-actions``，只開放用戶端需要的動作。
+:func:`~automation_file.register_storage_ops` 可把它們加入你自己的註冊表。
+
 例外
 ----
 

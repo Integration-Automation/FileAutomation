@@ -280,6 +280,7 @@ from automation_file.storage import (
     StorageResolver,
     StorageURI,
     parse_storage_uri,
+    register_storage_ops,
 )
 from automation_file.trigger import (
     FileWatcher,
@@ -485,6 +486,7 @@ __all__ = [
     "StorageResolver",
     "StorageURI",
     "parse_storage_uri",
+    "register_storage_ops",
     "FileInfo",
     "Checksum",
     "StorageCapabilities",

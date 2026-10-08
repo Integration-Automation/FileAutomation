@@ -2,8 +2,8 @@
 
 It reads the module-level imports of every file under ``automation_file/storage``:
 each one is either from the standard library or from the short list of first-party
-modules below. An SDK imported lazily inside a function is not a module-level
-import and stays allowed.
+modules below. An SDK imported lazily inside a function, or a name imported only
+for type checking, is not a module-level import and stays allowed.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import pytest
 STORAGE_PACKAGE = Path(__file__).resolve().parent.parent / "automation_file" / "storage"
 ALLOWED_FIRST_PARTY = (
     "automation_file.exceptions",
+    "automation_file.logging_config",
     "automation_file.core.checksum",
     "automation_file.local.safe_paths",
     "automation_file.storage",

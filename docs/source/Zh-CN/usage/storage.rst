@@ -135,6 +135,83 @@ API；:class:`~automation_file.StorageBackend` 则是后端需要实现的契约
 会填入哪些可选的 ``FileInfo`` 字段，以及它的目录是真实存在（``directories=True``，
 文件系统）还是由文件路径隐含（``directories=False``，对象存储）。
 
+动作
+----
+
+本层也可以从 JSON 动作列表使用，因此 CLI、TCP 与 HTTP 动作服务器以及 MCP 主机都能调用。
+每个 ``FA_storage_*`` 动作都以字符串形式接收 URI，并返回可以序列化为 JSON 的值。
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 40 32
+
+   * - 动作
+     - 参数
+     - 返回值
+   * - ``FA_storage_exists``
+     - ``uri``
+     - ``true`` / ``false``
+   * - ``FA_storage_stat``
+     - ``uri``
+     - 文件信息
+   * - ``FA_storage_list``
+     - ``uri, recursive=False``
+     - 文件信息的列表
+   * - ``FA_storage_mkdir``
+     - ``uri, parents=True, exist_ok=True``
+     - ``True``
+   * - ``FA_storage_upload``
+     - ``local_path, uri, overwrite=True``
+     - 文件信息
+   * - ``FA_storage_download``
+     - ``uri, local_path, overwrite=True``
+     - 本地路径
+   * - ``FA_storage_delete``
+     - ``uri, recursive=False, missing_ok=False``
+     - ``True``
+   * - ``FA_storage_checksum``
+     - ``uri, algorithm="sha256"``
+     - ``{"algorithm": …, "value": …}``
+   * - ``FA_storage_verify``
+     - ``uri, expected, algorithm="sha256"``
+     - ``true`` / ``false``
+   * - ``FA_storage_copy``
+     - ``source, target, overwrite=True``
+     - 目标的文件信息
+   * - ``FA_storage_move``
+     - ``source, target, overwrite=True``
+     - 目标的文件信息
+   * - ``FA_storage_read_text``
+     - ``uri, encoding="utf-8"``
+     - 文本内容
+   * - ``FA_storage_write_text``
+     - ``uri, text, overwrite=True, encoding="utf-8"``
+     - 文件信息
+   * - ``FA_storage_schemes``
+     - —
+     - 已注册的 scheme
+
+文件信息是 ``FileInfo.to_dict()`` 再加上 ``uri`` 键：``uri``、``path``、``name``、
+``is_dir``、``size``、``modified_at``（ISO 8601）、``etag``、``version``、
+``content_type`` 与 ``metadata``。在 ``FA_storage_list`` 中，每个 ``path`` 都相对于
+被列出的 URI。失败时会抛出 `异常`_ 一节中的异常，执行器会把它记录在该动作上，
+不会中断整份列表。
+
+.. code-block:: json
+
+   [
+     ["FA_storage_copy", {"source": "s3://reports/2026/q1.csv",
+                          "target": "local:///backup/2026/q1.csv"}],
+     ["FA_storage_verify", {"uri": "local:///backup/2026/q1.csv",
+                            "expected": "sha256:9f86d081884c7d65…"}],
+     ["FA_storage_list", {"uri": "s3://reports/2026", "recursive": true}]
+   ]
+
+与其他文件动作一样，这些动作能访问进程所能访问的一切。在 TCP 或 HTTP 动作服务器上
+请传入 :class:`~automation_file.ActionACL`，在 MCP 服务器上请使用
+``--allowed-actions``，只开放客户端需要的动作。
+:func:`~automation_file.register_storage_ops` 可以把它们加入你自己的注册表。
+
 异常
 ----
 

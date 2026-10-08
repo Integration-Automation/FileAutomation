@@ -218,6 +218,12 @@ def _register_notify_ops(registry: ActionRegistry) -> None:
     register_notify_ops(registry)
 
 
+def _register_storage_ops(registry: ActionRegistry) -> None:
+    from automation_file.storage.actions import register_storage_ops
+
+    register_storage_ops(registry)
+
+
 def build_default_registry() -> ActionRegistry:
     """Return a registry pre-populated with every built-in ``FA_*`` action.
 
@@ -235,6 +241,7 @@ def build_default_registry() -> ActionRegistry:
     _register_scheduler_ops(registry)
     _register_progress_ops(registry)
     _register_notify_ops(registry)
+    _register_storage_ops(registry)
     _load_plugins(registry)
     # DEBUG, not INFO: this runs at import, and INFO is mirrored to stderr, so every import --
     # `python -m automation_file --help` included -- printed it.

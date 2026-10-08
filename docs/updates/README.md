@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-03 | 2026-10-08 | FA_storage_* actions put the storage layer in the registry | #storage #roadmap #actions #mcp | [2026-10](2026-10.md) |
 | U-20261008-02 | 2026-10-08 | S3 and Azure Blob behind the storage layer | #storage #roadmap #s3 #azure | [2026-10](2026-10.md) |
 | U-20261008-01 | 2026-10-08 | Universal storage layer: contract, URIs, local and memory | #storage #roadmap #tests | [2026-10](2026-10.md) |
 | U-20261001-11 | 2026-10-01 | The publish jobs build with the locked setuptools | #done #ci #security #X-13 | [2026-10](2026-10.md) |
@@ -97,5 +98,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 13 |
+| [2026-10.md](2026-10.md) | 2026-10 | 14 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

@@ -479,6 +479,21 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   动作使用，其适配器尚未完成。你可以继承 `StorageBackend`（对象存储则继承 `ObjectStorage`）
   编写自己的后端，并用 `tests/storage_contract.py` 中 70 个用例的契约测试套件检查。
 
+- **动作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
+  `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
+  `FA_storage_verify`, `FA_storage_copy`, `FA_storage_move`, `FA_storage_read_text`,
+  `FA_storage_write_text`, `FA_storage_schemes`。它们以字符串
+  形式接收 URI，并返回可以序列化为 JSON 的值，因此本层可用于动作文件、CLI、TCP 与 HTTP 服务器，
+  也能作为 MCP 工具。在服务器上请像其他文件动作一样用 `ActionACL` 加以限制。
+
+```json
+[
+  ["FA_storage_copy", {"source": "s3://reports/q1.csv", "target": "local:///backup/q1.csv"}],
+  ["FA_storage_verify", {"uri": "local:///backup/q1.csv", "expected": "sha256:9f86d081884c7d65…"}],
+  ["FA_storage_list", {"uri": "s3://reports", "recursive": true}]
+]
+```
+
 此 API 为新功能，在 1.0 之前仍可能调整。完整说明请见文档的“通用存储层”章节。
 
 ### 文件监听触发
