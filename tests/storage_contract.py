@@ -23,7 +23,7 @@ those cases skip.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import timedelta
 from pathlib import Path
 
@@ -108,6 +108,40 @@ class StorageContract:
         if not backend.capabilities.content_type:
             pytest.skip("backend does not report content types")
         assert backend.write_bytes("notes.txt", b"x").content_type == "text/plain"
+
+    def test_stat_reports_an_etag_that_follows_the_content(self, backend: StorageBackend) -> None:
+        if not backend.capabilities.etag:
+            pytest.skip("backend does not report etags")
+        first = backend.write_bytes("a.txt", b"one").etag
+        second = backend.write_bytes("a.txt", b"two, and longer").etag
+        assert first
+        assert second
+        assert first != second
+
+    def test_a_copy_keeps_the_content_type(self, backend: StorageBackend) -> None:
+        if not backend.capabilities.content_type:
+            pytest.skip("backend does not report content types")
+        original = backend.write_bytes("report.json", b"{}")
+        copied = backend.copy_from(backend, "report.json", "copies/report.json")
+        assert original.content_type == "application/json"
+        assert copied.content_type == original.content_type
+
+    def test_metadata_is_a_mapping_of_strings(self, backend: StorageBackend) -> None:
+        metadata = backend.write_bytes("a.txt", b"x").metadata
+        assert isinstance(metadata, Mapping)
+        assert all(
+            isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()
+        )
+        if not backend.capabilities.metadata:
+            assert dict(metadata) == {}
+
+    @pytest.mark.parametrize("field", ["modified_at", "etag", "version", "content_type"])
+    def test_a_field_the_backend_does_not_declare_is_absent(
+        self, backend: StorageBackend, field: str
+    ) -> None:
+        if getattr(backend.capabilities, field):
+            pytest.skip(f"backend declares {field}")
+        assert getattr(backend.write_bytes("report.json", b"{}"), field) is None
 
     def test_file_info_is_json_friendly(self, backend: StorageBackend) -> None:
         document = backend.write_bytes("a.txt", b"x").to_dict()

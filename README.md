@@ -48,7 +48,7 @@ facade.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
 - **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
-- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `gdrive://…`, `sftp://…`, …), one `StorageBackend` contract and one error hierarchy; twelve backends are built in (local, in-memory, S3, Azure Blob, Google Drive, Dropbox, OneDrive, SFTP, FTP / FTPS, WebDAV, SMB, fsspec), and an 81-case contract suite checks any backend
+- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `gdrive://…`, `sftp://…`, …), one `StorageBackend` contract and one error hierarchy; twelve backends are built in (local, in-memory, S3, Azure Blob, Google Drive, Dropbox, OneDrive, SFTP, FTP / FTPS, WebDAV, SMB, fsspec), and an 88-case contract suite checks any backend
 - **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
 - **Notification router** — routes decide which sinks hear about which events (by type, source and minimum severity), with deduplication and rate limiting per route; declare them in code, in `automation_file.toml` or with `FA_notify_route_*`
 - **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
@@ -519,7 +519,7 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   name the host the session is connected to, so a typo cannot write to another server. Box has no
   adapter and stays on its `FA_box_*` actions. Write your own by subclassing `StorageBackend`
   (`ObjectStorage` for an object store, `SessionStorage` for a login session) and check it with the
-  81-case contract suite in `tests/storage_contract.py`.
+  88-case contract suite in `tests/storage_contract.py`.
 
 - **Actions** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,

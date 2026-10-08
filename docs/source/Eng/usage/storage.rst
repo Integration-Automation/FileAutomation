@@ -705,10 +705,12 @@ implement ``_head``, ``_scan``, ``_put``, ``_get`` and ``_remove``. It supplies
 the directory behaviour described under `Built-in backends`_, and is what
 ``S3Storage`` and ``AzureStorage`` are built on.
 
-Check it with the contract suite. ``tests/storage_contract.py`` holds 81 cases —
+Check it with the contract suite. ``tests/storage_contract.py`` holds 88 cases —
 nested directories, empty and large files, Unicode paths, binary data, overwrite
-and missing-path behaviour, path normalisation, streams, copy and move — and reads
-``capabilities`` where backends legitimately differ:
+and missing-path behaviour, path normalisation, streams, copy and move, and the
+``FileInfo`` fields the backend declares — and reads ``capabilities`` where
+backends legitimately differ. A field the backend does not declare must be
+absent, so the flags cannot promise more or less than ``stat`` delivers:
 
 .. code-block:: python
 

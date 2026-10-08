@@ -21,7 +21,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 ### Backend integration tests (roadmap M3)
 
 - **#19** [UNVERIFIED] `.github/workflows/integration.yml` and `tests/integration/` (U-20261008-23) have never run: there is no Docker on the development machine. The first run of the workflow decides whether each of the six service jobs (`s3`, `azure`, `sftp`, `ftp`, `webdav`, `smb`) and the two platform jobs (Linux, macOS) work. Expect to adjust the container options in `tests/integration/start_service.sh` (image tags are floating; pin them to digests once a run is green; the Samba share options and the FTP passive ports are the least certain) and to fix what a real service or another platform shows (#32, #18). Still missing: credential-gated jobs for Google Drive, OneDrive and Dropbox, which have no emulator, and FTPS.
-- **#20** Metadata cases in the contract suite: user metadata and content type kept across an upload and a copy where `capabilities` says the backend supports them. The failure cases exist (U-20261008-10): a backend's contract class gets them by providing the `break_storage` fixture, as the local, S3 and Azure classes do.
+- **#36** Writing metadata through the storage layer. `upload`, `write_bytes` and `open_write` take no user metadata and no content type, so `stat().metadata` can be read but a caller cannot set it, and the content type is always the one guessed from the name. The contract checks what is read (U-20261008-25). Adding it means a keyword on the write operations, a capability-conditional contract case, and deciding what a backend without metadata does with the argument (refuse, or ignore).
 
 ### Later milestones
 

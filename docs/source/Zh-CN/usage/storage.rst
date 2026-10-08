@@ -644,9 +644,11 @@ scheme 或 authority，并且只接受其下的 URI。
 ``_head``、``_scan``、``_put``、``_get`` 与 ``_remove``。它提供 `内置后端`_ 一节
 所述的目录行为，``S3Storage`` 与 ``AzureStorage`` 都建立在它之上。
 
-请用契约测试套件检查。``tests/storage_contract.py`` 包含 81 个用例——嵌套目录、
+请用契约测试套件检查。``tests/storage_contract.py`` 包含 88 个用例——嵌套目录、
 空文件与大文件、Unicode 路径、二进制数据、覆盖与路径不存在时的行为、路径规范化、
-流、复制与移动——并在后端确实有差异之处读取 ``capabilities``：
+流、复制与移动，以及后端声明会填入的 ``FileInfo`` 字段——并在后端确实有差异之处读取
+``capabilities``。后端没有声明的字段必须不存在，因此这些标志所承诺的不会比 ``stat``
+实际给出的多，也不会少：
 
 .. code-block:: python
 

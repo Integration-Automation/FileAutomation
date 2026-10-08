@@ -2,7 +2,7 @@
 ========
 
 單元測試為每個儲存後端準備了服務的替身。整合測試則把同一套契約測試
-（``tests/storage_contract.py``，81 個案例）拿去對真正的服務執行：S3 用 MinIO、
+（``tests/storage_contract.py``，88 個案例）拿去對真正的服務執行：S3 用 MinIO、
 Azure Blob 用 Azurite、SFTP 用 OpenSSH 伺服器，另外還有 FTP、WebDAV 與 Samba 伺服器。
 這些測試放在 ``tests/integration/``。
 

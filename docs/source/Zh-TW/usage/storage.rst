@@ -644,9 +644,11 @@ scheme 或 authority，並且只接受其下的 URI。
 ``_head``、``_scan``、``_put``、``_get`` 與 ``_remove``。它提供 `內建後端`_ 一節
 所述的目錄行為，``S3Storage`` 與 ``AzureStorage`` 都建立在它之上。
 
-請用契約測試套件檢查。``tests/storage_contract.py`` 包含 81 個案例——巢狀目錄、
+請用契約測試套件檢查。``tests/storage_contract.py`` 包含 88 個案例——巢狀目錄、
 空檔與大檔、Unicode 路徑、二進位資料、覆寫與路徑不存在時的行為、路徑正規化、
-串流、複製與搬移——並在後端確實有差異之處讀取 ``capabilities``：
+串流、複製與搬移，以及後端宣告會填入的 ``FileInfo`` 欄位——並在後端確實有差異之處讀取
+``capabilities``。後端沒有宣告的欄位必須不存在，因此這些旗標所承諾的不會比 ``stat``
+實際給出的多，也不會少：
 
 .. code-block:: python
 

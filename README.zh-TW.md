@@ -46,7 +46,7 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **HTTP 伺服器觀測端點** — `GET /healthz` / `GET /readyz` 探針、`GET /openapi.json` 規格、以及 `GET /progress`（以 WebSocket 推送即時傳輸快照）
 - **HTMX Web UI** — `start_web_ui()` 啟動唯讀觀測儀表板（health、progress、registry），以 HTML 片段輪詢；僅用標準函式庫 HTTP，搭配一支帶 SRI 的 CDN 腳本
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
-- **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建十二種後端（本機、記憶體、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），並附 81 個案例的契約測試套件可檢查任何後端
+- **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建十二種後端（本機、記憶體、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），並附 88 個案例的契約測試套件可檢查任何後端
 - **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
 - **通知路由器** — 以路由決定哪些事件（依類型、來源與最低嚴重程度）送到哪些 sink，每條路由各自去重與限流；可在程式、`automation_file.toml` 或以 `FA_notify_route_*` 宣告
 - **稽核軌跡** — `configure_audit(path)` 為每個事件與每次儲存操作記錄一筆（actor、來源、pipeline、task、動作、資源、後端、狀態、耗時、關聯 ID），可用 `audit_search` / `FA_audit_search` 查詢
@@ -513,7 +513,7 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   extra（`pip install "automation_file[sftp]"`）。`sftp://` 或 `ftp://` URI 必須寫出工作階段實際連線
   的主機，打錯字就不會寫到另一台伺服器。Box 沒有轉接器，仍使用它的 `FA_box_*` 動作。你可以繼承
   `StorageBackend`（物件儲存繼承 `ObjectStorage`，登入工作階段繼承 `SessionStorage`）撰寫自己的後端，
-  並用 `tests/storage_contract.py` 中 81 個案例的契約測試套件檢查。
+  並用 `tests/storage_contract.py` 中 88 個案例的契約測試套件檢查。
 
 - **動作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,
