@@ -280,3 +280,18 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 文件完整性监控
 
    usage/integrity
+
+.. _zh-cn-audit:
+
+第 19 章 — 审计轨迹
+===================
+
+审计模式 v2：每个事件与每次存储操作各记录一条，包含 actor、资源、后端、
+结果与关联 ID；以及各种存储、搜索条件、从 v1 ``AuditLog`` 的迁移与运行指标。
+通知路由请见 :doc:`usage/notifications`。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 审计轨迹
+
+   usage/audit

@@ -288,3 +288,19 @@ schema, the four modes, alerts, and opt-in remediation.
    :caption: File Integrity Monitoring
 
    usage/integrity
+
+.. _eng-audit:
+
+Chapter 19 — Audit Trail
+========================
+
+Audit schema v2: one record per event and per storage operation, with the
+actor, the resource, the backend, the result and a correlation ID; the
+stores, the search filters, the migration from the v1 ``AuditLog`` and the
+operational metrics. Notification routes are in :doc:`usage/notifications`.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Audit Trail
+
+   usage/audit

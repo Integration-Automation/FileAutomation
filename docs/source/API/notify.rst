@@ -6,3 +6,6 @@ Notifications
 
 .. automodule:: automation_file.notify.manager
    :members:
+
+.. automodule:: automation_file.notify.router
+   :members:

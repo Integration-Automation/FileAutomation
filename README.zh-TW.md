@@ -48,6 +48,8 @@ TCP / HTTP 伺服器執行的 JSON 驅動動作。內附 PySide6 GUI，每個功
 - **MCP（Model Context Protocol）伺服器** — `MCPServer` 透過 stdio 上的 JSON-RPC 2.0（行分隔 JSON）將登錄表橋接到任何 MCP 主機（Claude Desktop、MCP CLI）；每個 `FA_*` 動作都會自動生成輸入 schema 並成為 MCP 工具
 - **通用儲存層** — `File` / `Storage` 以同一套 URI 語法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契約與同一組例外階層存取本機與遠端儲存；內建十二種後端（本機、記憶體、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），並附 81 個案例的契約測試套件可檢查任何後端
 - **事件匯流排** — 單一 `Event` 模型與十種核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具備嚴重程度、關聯 ID 與 actor；可在 `event_bus` 上依類別、type 或前綴訂閱
+- **通知路由器** — 以路由決定哪些事件（依類型、來源與最低嚴重程度）送到哪些 sink，每條路由各自去重與限流；可在程式、`automation_file.toml` 或以 `FA_notify_route_*` 宣告
+- **稽核軌跡** — `configure_audit(path)` 為每個事件與每次儲存操作記錄一筆（actor、來源、pipeline、task、動作、資源、後端、狀態、耗時、關聯 ID），可用 `audit_search` / `FA_audit_search` 查詢
 - PySide6 GUI（`python -m automation_file ui`）每個後端一個分頁，含 JSON 動作執行器，另有 Triggers、Scheduler、即時 Progress 專屬分頁
 - 功能豐富的 CLI，包含一次性子指令與舊式 JSON 批次旗標
 - 專案鷹架（`ProjectBuilder`）協助建立以 executor 為核心的自動化專案
@@ -552,6 +554,63 @@ event_bus.recent(limit=20, correlation_id=run_id)
 - **儲存操作** — 上傳、下載、讀取、刪除、複製與搬移都會回報給
   `automation_file.storage.observe` 的監聽者，後端失敗時會產生 `StorageError` 事件。
 
+### 通知路由器
+通知改由事件驅動：模組發布事件，再由路由決定哪些 sink 會收到。
+
+```python
+from automation_file import Route, Severity, notification_router
+
+notification_router.add_route(Route(
+    "pipeline-failures",
+    sinks=("team-alerts",),                  # 留空 = 所有已註冊的 sink
+    types=("pipeline.*", "task.failed"),     # 事件類別、type 名稱或前綴
+    min_severity=Severity.ERROR,
+    dedup_seconds=600, rate_limit=10, rate_period=60,
+))
+notification_router.start()                  # 在事件匯流排上訂閱
+```
+
+- **路由** — 依事件 type、來源與最低嚴重程度，送往指定名稱的 sink。可以在程式中宣告、
+  在 `automation_file.toml` 以 `[[notify.routes]]` 表格宣告（與 sink 一起熱重載），或使用
+  `FA_notify_route_add` / `FA_notify_route_remove` / `FA_notify_route_list`。
+- **去重與速率限制** — 以每條路由、每個 sink 為單位：type、來源與主旨都相同的事件在
+  `dedup_seconds` 內重複出現時會被丟棄，每個 `rate_period` 內最多送出 `rate_limit` 則訊息。
+- **結構化訊息** — 主旨與內文由事件組成：嚴重程度、來源、關聯 ID、actor 以及
+  `event.to_dict()` 的 JSON。`critical` 會以 sink 的 `error` 等級發送。
+- **失敗隔離** — 單一 sink 失敗絕對不會影響其他 sink。失敗會以來源為 `notify` 的
+  `system.error` 事件發布，而路由器絕對不會路由這類事件，因此故障的 sink 不會形成迴圈。
+- **`notify_on_failure`** — 一律會發布事件。路由器運作時由路由投遞；否則照舊直接發送通知，
+  因此不會有人收到兩次，也不會有人收不到。
+
+### 稽核軌跡（schema v2）
+稽核軌跡記錄誰在什麼時候做了什麼、對象是哪個資源、使用哪個後端以及結果如何：每個事件與
+每次儲存操作各一筆紀錄。
+
+```python
+from automation_file import audit_search, configure_audit, correlation_scope
+
+configure_audit("audit.sqlite")              # SQLite 儲存庫；開始記錄
+
+with correlation_scope() as run_id:
+    ...                                      # 事件與儲存操作都會被記錄
+audit_search(correlation_id=run_id)          # 整次執行，最新的在前
+audit_search(status="error", resource_prefix="s3://reports/", limit=20)
+```
+
+- **紀錄** — `id`、`timestamp`（UTC）、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource`、`backend`、`status`、`duration_ms`、`error`、`metadata`、`correlation_id`。
+- **搜尋** — 可依 `since` / `until`、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource_prefix`、`backend`、`status`、`correlation_id` 與自由文字 `text` 篩選；最新的
+  在前，並支援 `limit` / `offset`。
+- **儲存庫** — `SQLiteAuditStore`（參數化 SQL、結構描述版本資料表、WAL）與測試用的
+  `MemoryAuditStore`；`AuditStore` 是 PostgreSQL 或遠端儲存庫要實作的介面。
+  `SQLiteAuditStore.import_v1()` 可複製 v1 `AuditLog` 的資料列。
+- **絕不礙事** — 無法寫入的紀錄只會被記錄到日誌並捨棄，絕對不會拋進被稽核的程式。失敗的
+  儲存操作只記錄一次，不會重複。
+- **動作與指標** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
+  `FA_audit_purge`；`install_operational_metrics()` 會加入事件、通知與儲存操作的
+  Prometheus 計數器。
+
 ### 檔案監看觸發
 每當被監看路徑發生檔案系統事件，就執行動作清單：
 
@@ -763,10 +822,10 @@ password = "${file:smtp_password}"
 ```
 
 ```python
-from automation_file import AutomationConfig, notification_manager
+from automation_file import AutomationConfig, notification_manager, notification_router
 
 config = AutomationConfig.load("automation_file.toml")
-config.apply_to(notification_manager)
+config.apply_to(notification_manager, notification_router)   # sinks, and [[notify.routes]]
 ```
 
 未解析的 `${…}` 參考會拋出 `SecretNotFoundException`，而非默默變成空字串。
@@ -852,8 +911,9 @@ handle = monitor.watch()         # 或在變更發生時即時反應；handle.st
 
 為第一代監控器寫的程式照常運作：`IntegrityMonitor(root=..., manifest_path=..., interval=...,
 manager=..., on_drift=...)` 會讀取 `write_manifest` 寫出的 manifest，`check_once()` 回傳同樣的摘要，
-通知也仍然透過 `manager` 送出，沒有傳入時則使用整個行程共用的 `notification_manager`。如果改由
-發布的事件把偏移送到通知管道，請傳入 `notify=False`，同一次偏移才不會被通知兩次。
+通知也仍然透過 `manager` 送出，沒有傳入時則使用整個行程共用的 `notification_manager`。通知路由器
+啟用期間改由路由送達 `IntegrityViolation` 事件，不再另外直接通知，同一次偏移不會被通知兩次；
+`notify=False` 會完全關閉這項直接通知。
 
 ### AES-256-GCM 檔案加密
 具驗證的加密與自述式封包格式。可由密碼衍生金鑰或直接產生金鑰：

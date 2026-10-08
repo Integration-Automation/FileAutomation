@@ -215,3 +215,17 @@ actions.
    :caption: File Integrity Monitoring
 
    integrity
+
+.. _api-audit:
+
+Chapter P — Audit Trail
+=======================
+
+Audit schema v2: the record, the stores, the trail and the ``FA_audit_*``
+actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Audit Trail
+
+   audit

@@ -85,10 +85,19 @@ def format_body(summary: dict[str, Any]) -> str:
     return "\n".join(parts) if parts else "no drift detected"
 
 
-def _process_wide_manager() -> NotificationManager:
-    """Return the shared manager, looked up when it is needed so a test may replace it."""
-    from automation_file import notify
+def _process_wide_manager(on_shared_bus: bool) -> NotificationManager | None:
+    """Return the shared manager, or ``None`` while the notification router delivers.
 
+    An active router hears the drift event on the process-wide bus and its routes
+    decide who is told, so a direct notification would announce one drift twice:
+    the rule of ``notify_on_failure``. Both are looked up when they are needed, so
+    a test may replace them.
+    """
+    from automation_file import notify
+    from automation_file.notify import router
+
+    if on_shared_bus and router.notification_router.active:
+        return None
     return notify.notification_manager
 
 
@@ -97,7 +106,9 @@ class LegacyHooks:
 
     The notification goes through the manager the caller passed, or through the
     process-wide ``notification_manager`` when none was: what the first monitor
-    did. ``notify=False`` sends none.
+    did. The process-wide manager is left alone while the notification router is
+    active and the drift event is published on the process-wide bus
+    (``on_shared_bus``). ``notify=False`` sends none.
     """
 
     def __init__(
@@ -108,11 +119,13 @@ class LegacyHooks:
         manager: NotificationManager | None = None,
         alert_on_extra: bool = False,
         notify: bool = True,
+        on_shared_bus: bool = True,
     ) -> None:
         self._subject = subject
         self._on_drift = on_drift
         self._manager = manager
         self._notifies = bool(notify)
+        self._on_shared_bus = bool(on_shared_bus)
         self._alert_on_extra = bool(alert_on_extra)
 
     def is_drift(self, summary: dict[str, Any]) -> bool:
@@ -127,8 +140,13 @@ class LegacyHooks:
             return
         if self._on_drift is not None:
             self._call_back(self._on_drift, summary)
-        if self._notifies:
-            self._notify(self._manager or _process_wide_manager(), summary)
+        if not self._notifies:
+            return
+        manager = self._manager
+        if manager is None:
+            manager = _process_wide_manager(self._on_shared_bus)
+        if manager is not None:
+            self._notify(manager, summary)
 
     def _call_back(self, on_drift: OnDrift, summary: dict[str, Any]) -> None:
         try:

@@ -29,7 +29,8 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `automation_file/integrity/` | IntegrityMonitor 2.0, on the storage layer and the event bus. `target.py` (`Target`: the monitored tree behind a storage URI), `hashing.py` (`HashEngine`; `md5` and `sha1` only with `allow_weak`), `snapshot.py` (`Snapshot`, `SnapshotEntry`, `build_snapshot`), `manifest.py` (schema version 2; the `write_manifest` format is read and converted), `baseline.py` (`BaselineManager`: an atomic write at any storage URI), `detector.py` (`Change`, `ChangeKind`, `detect_changes`: six kinds of change), `report.py` (`DriftReport`), `alerts.py` (`AlertEngine`, `AlertPolicy`: one `IntegrityViolation` per pass that finds drift), `remediation.py` (`RemediationPolicy`, `Remediator`: quarantine or restore, opt-in), `watcher.py` and `local_watcher.py` (polling, and watchdog events for a local target), `legacy.py` (the first monitor's summary, callback and notification), `monitor.py` (`IntegrityMonitor`), `actions.py` (`FA_integrity_*`). `core/fim.py` re-exports the class |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
-| `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
+| `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops. `notify/router.py` (`Route`, `NotificationRouter`, the process-wide `notification_router`) subscribes on the event bus and delivers events to named sinks by type, source and minimum severity, with deduplication and a rate limit per route and sink; a failing sink becomes a `system.error` event from the source `notify`, which is never routed |
+| `automation_file/audit/` | Audit schema v2. `record.py` (`AuditRecord`, built from an event or from a storage operation), `store.py` (`AuditStore`, `AuditQuery`, `MemoryAuditStore`), `sqlite_store.py` (`SQLiteAuditStore`: parameterised SQL, a schema-version table, `import_v1`), `trail.py` (`AuditTrail`, the process-wide `audit_trail`, `configure_audit`), `actions.py` (`FA_audit_*`). The trail records nothing until it is configured; the v1 `core/audit.py` `AuditLog` is unchanged |
 | `automation_file/project/` | `ProjectBuilder`, `create_project_dir` |
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
@@ -66,6 +67,13 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
   `FA_integrity_accept`, `FA_integrity_watch_start`, `FA_integrity_watch_stop`, `FA_integrity_status`.
   The first monitor's call, `IntegrityMonitor(root, manifest_path, interval=, on_drift=, manager=,
   alert_on_extra=)`, and its `check_once()` summary are kept.
+- **Notification routes and audit** (same facade): `Route`, `NotificationRouter`, `notification_router`;
+  `AuditRecord`, `AuditQuery`, `AuditStore`, `SQLiteAuditStore`, `MemoryAuditStore`, `AuditTrail`,
+  `audit_trail`, `configure_audit`, `audit_search`, `register_audit_ops`; `install_operational_metrics`
+  and the counters `EVENT_COUNT`, `NOTIFICATION_COUNT`, `STORAGE_OPERATION_COUNT`,
+  `STORAGE_OPERATION_DURATION`. Actions: `FA_notify_route_add` / `_remove` / `_list`,
+  `FA_audit_configure` / `_search` / `_count` / `_purge`. Both are opt-in: the router delivers
+  nothing until it has a route and is started, and the trail records nothing until it has a store.
 - **Events** (same facade): `Event`, `Severity`, `EventBus`, `event_bus`, `emit`, `correlation_scope`,
   `actor_scope`, and the core events `PipelineStarted`, `PipelineCompleted`, `PipelineFailed`,
   `TaskStarted`, `TaskCompleted`, `TaskFailed`, `IntegrityViolation`, `StorageError`, `SchedulerError`,
@@ -132,7 +140,7 @@ MCP host → automation_file_mcp (stdio JSON-RPC) → tools/call → MCPServer r
 ```
 ActionExecutor() → build_default_registry(): local + http + utils + drive commands
   → _register_cloud_backends (register_<backend>_ops) → trigger / scheduler / progress / notify ops
-  → storage ops (FA_storage_*) → integrity ops (FA_integrity_*)
+  → storage ops (FA_storage_*) → integrity ops (FA_integrity_*) → audit ops (FA_audit_*)
   → _load_plugins (entry points; may override built-ins)
   → executor adds FA_execute_action, FA_execute_files, FA_execute_action_parallel, FA_validate
 ```

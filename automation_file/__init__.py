@@ -9,6 +9,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from automation_file.audit import (
+    AuditQuery,
+    AuditRecord,
+    AuditStore,
+    AuditTrail,
+    MemoryAuditStore,
+    SQLiteAuditStore,
+    audit_search,
+    audit_trail,
+    configure_audit,
+    register_audit_ops,
+)
 from automation_file.client import HTTPActionClient, HTTPActionClientException
 from automation_file.core.action_executor import (
     ActionExecutor,
@@ -43,7 +55,17 @@ from automation_file.core.dag_executor import execute_action_dag
 from automation_file.core.file_lock import FileLock
 from automation_file.core.json_store import read_action_json, write_action_json
 from automation_file.core.manifest import ManifestException, verify_manifest, write_manifest
-from automation_file.core.metrics import ACTION_COUNT, ACTION_DURATION, record_action
+from automation_file.core.metrics import (
+    ACTION_COUNT,
+    ACTION_DURATION,
+    EVENT_COUNT,
+    NOTIFICATION_COUNT,
+    STORAGE_OPERATION_COUNT,
+    STORAGE_OPERATION_DURATION,
+    install_operational_metrics,
+    record_action,
+    uninstall_operational_metrics,
+)
 from automation_file.core.metrics import render as render_metrics
 from automation_file.core.package_loader import PackageLoader
 from automation_file.core.progress import (
@@ -199,13 +221,16 @@ from automation_file.notify import (
     EmailSink,
     NotificationException,
     NotificationManager,
+    NotificationRouter,
     NotificationSink,
     PagerDutySink,
+    Route,
     SlackSink,
     TeamsSink,
     TelegramSink,
     WebhookSink,
     notification_manager,
+    notification_router,
     notify_send,
     register_notify_ops,
 )
@@ -600,6 +625,16 @@ __all__ = [
     "verify_manifest",
     "AuditException",
     "AuditLog",
+    "AuditRecord",
+    "AuditQuery",
+    "AuditStore",
+    "SQLiteAuditStore",
+    "MemoryAuditStore",
+    "AuditTrail",
+    "audit_trail",
+    "configure_audit",
+    "audit_search",
+    "register_audit_ops",
     "IntegrityMonitor",
     "IntegrityException",
     "DriftReport",
@@ -616,6 +651,12 @@ __all__ = [
     "ACTION_COUNT",
     "ACTION_DURATION",
     "record_action",
+    "EVENT_COUNT",
+    "NOTIFICATION_COUNT",
+    "STORAGE_OPERATION_COUNT",
+    "STORAGE_OPERATION_DURATION",
+    "install_operational_metrics",
+    "uninstall_operational_metrics",
     "render_metrics",
     "MetricsServer",
     "start_metrics_server",
@@ -657,6 +698,9 @@ __all__ = [
     "EmailSink",
     "NotificationException",
     "NotificationManager",
+    "NotificationRouter",
+    "Route",
+    "notification_router",
     "NotificationSink",
     "PagerDutySink",
     "SlackSink",

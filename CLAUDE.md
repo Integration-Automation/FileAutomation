@@ -41,7 +41,11 @@ automation_file/
 ├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)
 ├── client/              # HTTPActionClient for the HTTP action server
+├── audit/               # Audit schema v2: record (AuditRecord), store (AuditStore, AuditQuery,
+│                        # MemoryAuditStore), sqlite_store (SQLiteAuditStore), trail (AuditTrail,
+│                        # audit_trail, configure_audit), actions (FA_audit_*)
 ├── trigger/, scheduler/, notify/   # watchdog file triggers, cron scheduler, notification sinks;
+│                                   # notify/router.py routes events to sinks (NotificationRouter);
 │                                   # each registers its own FA_* ops
 ├── project/             # ProjectBuilder, create_project_dir
 ├── ui/                  # PySide6 GUI: launcher.launch_ui, main_window.MainWindow, worker.ActionWorker,
@@ -78,6 +82,8 @@ automation_file/
 - `File(uri)` / `Storage(uri)` — the universal storage layer's application API: one file, one directory, in any backend. Both resolve their backend on every call through `StorageResolver` (`Storage.mount`, `Storage.register_scheme`).
 - `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. Twelve are built in: `LocalStorage`, `MemoryStorage`, `S3Storage` and `AzureStorage` (both on `ObjectStorage`), `SFTPStorage` and `FTPStorage` (both on `SessionStorage`), `GoogleDriveStorage`, `OneDriveStorage`, `DropboxStorage`, and the mounted `WebDAVStorage`, `SMBStorage` and `FsspecStorage`. Each uses its backend's shared client singleton unless given one, and reports a missing SDK with the extra to install.
 - `IntegrityMonitor` — compares a tree at any storage URI with an approved baseline (`create_baseline`, `verify`, `accept`, `watch`, `start` / `stop`, `snapshot`) and returns a `DriftReport`; drift is published as one `IntegrityViolation` per pass. It only reads unless a `RemediationPolicy` is passed. Its options are keyword arguments (`MonitorKeywords`). The first monitor's call and `check_once()` summary are kept, including the notification through `manager` or the process-wide `notification_manager`.
+- `NotificationRouter` / `Route` / `notification_router` — delivers events to named sinks by type, source and minimum severity, with deduplication and a rate limit per route and sink. Opt-in: nothing is routed until a route exists and the router is started (`FA_notify_route_add` and `AutomationConfig.apply_to(manager, router)` start it). While it is active, `notify_on_failure` and the integrity monitor leave the direct notification to it, so nothing is announced twice.
+- `AuditTrail` / `audit_trail` / `configure_audit(path)` — audit schema v2: one `AuditRecord` per event and per storage operation in an `AuditStore` (`SQLiteAuditStore`, `MemoryAuditStore`), searched with `audit_search` / `FA_audit_search`. Records nothing until configured, and never raises into the code it audits. The v1 `AuditLog` is unchanged.
 - `Event` / `EventBus` / `event_bus` — every component reports through events (`PipelineFailed`, `TaskFailed`, `IntegrityViolation`, `StorageError`, ...) with a severity, a correlation ID and an actor; consumers subscribe on the bus by class, type name or prefix. New code that has something to report publishes an event; it does not call a notification sink or the audit log directly.
 - `StorageURI` / `parse_storage_uri` — `<scheme>://<authority>/<path>`; `FileInfo`, `Checksum`, `StorageCapabilities` are the frozen value types the layer returns.
 

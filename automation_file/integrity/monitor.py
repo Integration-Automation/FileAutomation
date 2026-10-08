@@ -37,7 +37,7 @@ from dataclasses import dataclass, fields
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from automation_file.events.bus import EventBus
+from automation_file.events.bus import EventBus, event_bus
 from automation_file.events.context import correlation_scope
 from automation_file.exceptions import FileAutomationException
 from automation_file.integrity.alerts import AlertEngine, AlertPolicy
@@ -177,8 +177,10 @@ class IntegrityMonitor:
         The hooks of the first monitor, which work as they did: the callback and
         the notification receive the summary :meth:`check_once` returns, and the
         notification goes through ``manager``, or through the process-wide
-        ``notification_manager`` when none is passed. ``notify=False`` sends no
-        notification, for when the published event is routed to the sinks instead.
+        ``notification_manager`` when none is passed. While the notification
+        router is active its routes deliver the published event and the
+        process-wide manager is not notified directly. ``notify=False`` sends no
+        direct notification at all.
     ``root``, ``manifest_path``
         The first monitor's names for ``target`` and ``baseline``.
     """
@@ -213,6 +215,7 @@ class IntegrityMonitor:
             manager=chosen.manager,
             alert_on_extra=chosen.alert_on_extra,
             notify=chosen.notify,
+            on_shared_bus=chosen.bus is None or chosen.bus is event_bus,
         )
         self._lock = threading.RLock()
         self._last_report: DriftReport | None = None

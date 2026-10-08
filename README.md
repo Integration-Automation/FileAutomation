@@ -50,6 +50,8 @@ facade.
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
 - **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `gdrive://…`, `sftp://…`, …), one `StorageBackend` contract and one error hierarchy; twelve backends are built in (local, in-memory, S3, Azure Blob, Google Drive, Dropbox, OneDrive, SFTP, FTP / FTPS, WebDAV, SMB, fsspec), and an 81-case contract suite checks any backend
 - **Event bus** — one `Event` model with ten core events (`pipeline.*`, `task.*`, `integrity.violation`, `storage.error`, `scheduler.error`, `system.error`), severities, correlation IDs and actors; subscribe on `event_bus` by class, type or prefix
+- **Notification router** — routes decide which sinks hear about which events (by type, source and minimum severity), with deduplication and rate limiting per route; declare them in code, in `automation_file.toml` or with `FA_notify_route_*`
+- **Audit trail** — `configure_audit(path)` records one row per event and per storage operation (actor, source, pipeline, task, action, resource, backend, status, duration, correlation ID), searchable with `audit_search` / `FA_audit_search`
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -560,6 +562,68 @@ event_bus.recent(limit=20, correlation_id=run_id)
 - **Storage operations** — uploads, downloads, reads, deletes, copies and moves are reported to
   `automation_file.storage.observe` listeners, and a failing backend becomes a `StorageError` event.
 
+### Notification router
+Notifications are driven by events: a module publishes an event, and routes decide which
+sinks hear about it.
+
+```python
+from automation_file import Route, Severity, notification_router
+
+notification_router.add_route(Route(
+    "pipeline-failures",
+    sinks=("team-alerts",),                  # empty = every registered sink
+    types=("pipeline.*", "task.failed"),     # event class, type name or prefix
+    min_severity=Severity.ERROR,
+    dedup_seconds=600, rate_limit=10, rate_period=60,
+))
+notification_router.start()                  # subscribe on the event bus
+```
+
+- **Routes** — by event type, source and minimum severity, to named sinks. Declare them in
+  code, as `[[notify.routes]]` tables in `automation_file.toml` (hot-reloaded with the sinks),
+  or with `FA_notify_route_add` / `FA_notify_route_remove` / `FA_notify_route_list`.
+- **Deduplication and rate limiting** — per route and sink: a repeat of the same type, source
+  and subject within `dedup_seconds` is dropped, and at most `rate_limit` messages go out per
+  `rate_period`.
+- **Structured messages** — the subject and the body are built from the event: severity,
+  source, correlation ID, actor and the JSON of `event.to_dict()`. `critical` is sent at the
+  sinks' `error` level.
+- **Failure isolation** — one failing sink never affects another. The failure is published as
+  a `system.error` event from the source `notify`, which the router never routes, so a broken
+  sink cannot feed a loop.
+- **`notify_on_failure`** — always publishes an event. With the router active the routes
+  deliver it; otherwise the direct notification is sent as before, so nobody is notified twice
+  and nobody stops being notified.
+
+### Audit trail (schema v2)
+The audit trail records who did what, when, against which resource, using which backend and
+with what result: one record per event and per storage operation.
+
+```python
+from automation_file import audit_search, configure_audit, correlation_scope
+
+configure_audit("audit.sqlite")              # SQLite store; starts recording
+
+with correlation_scope() as run_id:
+    ...                                      # events and storage operations are recorded
+audit_search(correlation_id=run_id)          # the whole run, newest first
+audit_search(status="error", resource_prefix="s3://reports/", limit=20)
+```
+
+- **Record** — `id`, `timestamp` (UTC), `actor`, `source`, `pipeline`, `task`, `action`,
+  `resource`, `backend`, `status`, `duration_ms`, `error`, `metadata`, `correlation_id`.
+- **Search** — by `since` / `until`, `actor`, `source`, `pipeline`, `task`, `action`,
+  `resource_prefix`, `backend`, `status`, `correlation_id` and free `text`; newest first, with
+  `limit` / `offset`.
+- **Stores** — `SQLiteAuditStore` (parameterised SQL, a schema-version table, WAL) and
+  `MemoryAuditStore` for tests; `AuditStore` is the interface a PostgreSQL or remote store
+  implements. `SQLiteAuditStore.import_v1()` copies the rows of a v1 `AuditLog`.
+- **Never in the way** — a record that cannot be written is logged and dropped, never raised
+  into the code being audited. A failed storage operation is recorded once, not twice.
+- **Actions and metrics** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
+  `FA_audit_purge`; `install_operational_metrics()` adds Prometheus counters for events,
+  notifications and storage operations.
+
 ### File-watcher triggers
 Run an action list whenever a filesystem event fires on a watched path:
 
@@ -779,10 +843,10 @@ password = "${file:smtp_password}"
 ```
 
 ```python
-from automation_file import AutomationConfig, notification_manager
+from automation_file import AutomationConfig, notification_manager, notification_router
 
 config = AutomationConfig.load("automation_file.toml")
-config.apply_to(notification_manager)
+config.apply_to(notification_manager, notification_router)   # sinks, and [[notify.routes]]
 ```
 
 Unresolved `${…}` references raise `SecretNotFoundException` rather than
@@ -871,8 +935,9 @@ handle = monitor.watch()         # or react to changes as they happen; handle.st
 Code written for the first monitor keeps working: `IntegrityMonitor(root=..., manifest_path=...,
 interval=..., manager=..., on_drift=...)` reads a manifest written by `write_manifest`, `check_once()`
 returns the same summary, and the notification still goes through `manager` or, when none is passed,
-the process-wide `notification_manager`. Pass `notify=False` when the published event is routed to
-your sinks instead, so one drift is not announced twice.
+the process-wide `notification_manager`. While the notification router is active its routes deliver the
+`IntegrityViolation` event in place of that direct notification, so one drift is not announced twice;
+`notify=False` turns the direct notification off altogether.
 
 ### AES-256-GCM file encryption
 Authenticated encryption with a self-describing envelope. Derive a key from

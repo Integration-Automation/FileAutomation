@@ -456,9 +456,11 @@ unless ``alert_on_extra=True``, and a rename appears as ``missing`` plus
 The notification goes where it went before: through the ``manager`` you pass,
 or through the process-wide ``notification_manager`` when you pass none. One
 thing was added: every drift, additions included, is also published as an
-``IntegrityViolation`` event. If you deliver that event to your sinks yourself
-(a subscriber, or a notification route), pass ``notify=False`` so one drift is
-not announced twice.
+``IntegrityViolation`` event. While the notification router is active
+(:doc:`notifications`), its routes deliver that event and the process-wide
+manager is not notified directly, so one drift is not announced twice; a
+``manager`` you pass is always notified. ``notify=False`` turns the direct
+notification off altogether.
 
 When something fails
 --------------------

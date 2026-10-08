@@ -9,6 +9,7 @@ change kinds the first monitor did not know.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -19,7 +20,7 @@ from automation_file.core.manifest import ManifestException, verify_manifest, wr
 from automation_file.events import EventBus, IntegrityViolation
 from automation_file.exceptions import FileAutomationException
 from automation_file.integrity import IntegrityException, IntegrityMonitor
-from automation_file.integrity.legacy import format_body
+from automation_file.integrity.legacy import LegacyHooks, format_body
 from automation_file.notify import NotificationManager, notification_manager
 from automation_file.notify.sinks import NotificationSink
 
@@ -309,3 +310,54 @@ def test_the_notification_body_lists_the_first_paths() -> None:
         "modified: changed.txt",
     ]
     assert format_body({"missing": [], "modified": [], "extra": []}) == "no drift detected"
+
+
+_DRIFT = {"matched": [], "missing": ["a.txt"], "modified": [], "extra": [], "ok": False}
+
+
+@pytest.fixture
+def shared_recorder() -> Any:
+    recorder = _Recorder()
+    notification_manager.register(recorder)
+    yield recorder
+    notification_manager.unregister(recorder.name)
+
+
+def _router(monkeypatch: pytest.MonkeyPatch, *, active: bool) -> None:
+    monkeypatch.setattr(
+        "automation_file.notify.router.notification_router", SimpleNamespace(active=active)
+    )
+
+
+def test_an_active_router_delivers_in_place_of_the_shared_manager(
+    monkeypatch: pytest.MonkeyPatch, shared_recorder: _Recorder
+) -> None:
+    _router(monkeypatch, active=True)
+    LegacyHooks("drift: an active router").handle(dict(_DRIFT))
+    assert shared_recorder.messages == []
+
+
+def test_an_idle_router_leaves_the_shared_manager_notified(
+    monkeypatch: pytest.MonkeyPatch, shared_recorder: _Recorder
+) -> None:
+    _router(monkeypatch, active=False)
+    LegacyHooks("drift: an idle router").handle(dict(_DRIFT))
+    assert [subject for subject, _, _ in shared_recorder.messages] == ["drift: an idle router"]
+
+
+def test_a_private_bus_is_not_routed_so_the_shared_manager_is_notified(
+    monkeypatch: pytest.MonkeyPatch, shared_recorder: _Recorder
+) -> None:
+    _router(monkeypatch, active=True)
+    LegacyHooks("drift: a private bus", on_shared_bus=False).handle(dict(_DRIFT))
+    assert [subject for subject, _, _ in shared_recorder.messages] == ["drift: a private bus"]
+
+
+def test_a_manager_that_was_passed_is_notified_whatever_the_router_does(
+    monkeypatch: pytest.MonkeyPatch, shared_recorder: _Recorder
+) -> None:
+    _router(monkeypatch, active=True)
+    manager, recorder = _recording_manager()
+    LegacyHooks("drift: an own manager", manager=manager).handle(dict(_DRIFT))
+    assert [subject for subject, _, _ in recorder.messages] == ["drift: an own manager"]
+    assert shared_recorder.messages == []

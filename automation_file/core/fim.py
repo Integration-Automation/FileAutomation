@@ -9,7 +9,9 @@ written by :func:`automation_file.core.manifest.write_manifest`, and
 
 The notification still goes through the ``manager`` passed to the constructor,
 or through the process-wide ``notification_manager`` when none is. One thing was
-added: drift is also published as an ``IntegrityViolation`` event.
+added: drift is also published as an ``IntegrityViolation`` event, and while the
+notification router is active its routes deliver that event in place of the
+direct notification to the process-wide manager.
 """
 
 from __future__ import annotations

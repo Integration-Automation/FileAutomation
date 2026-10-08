@@ -280,3 +280,18 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 檔案完整性監控
 
    usage/integrity
+
+.. _zh-tw-audit:
+
+第 19 章 — 稽核軌跡
+===================
+
+稽核結構描述 v2：每個事件與每次儲存操作各記錄一筆，包含 actor、資源、後端、
+結果與關聯 ID；以及各種儲存、搜尋條件、從 v1 ``AuditLog`` 的遷移與營運指標。
+通知路由請見 :doc:`usage/notifications`。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 稽核軌跡
+
+   usage/audit

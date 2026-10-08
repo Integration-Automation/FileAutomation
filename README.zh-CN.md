@@ -48,6 +48,8 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
 - **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置十二种后端（本地、内存、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），并附带 81 个用例的契约测试套件可检查任何后端
 - **事件总线** — 单一 `Event` 模型与十种核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具备严重程度、关联 ID 与 actor；可以在 `event_bus` 上按类、type 或前缀订阅
+- **通知路由器** — 以路由决定哪些事件（按类型、来源与最低严重程度）发送到哪些 sink，每条路由各自去重与限流；可在代码、`automation_file.toml` 或通过 `FA_notify_route_*` 声明
+- **审计轨迹** — `configure_audit(path)` 为每个事件与每次存储操作记录一条（actor、来源、pipeline、task、动作、资源、后端、状态、耗时、关联 ID），可用 `audit_search` / `FA_audit_search` 查询
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
 - 项目脚手架（`ProjectBuilder`）协助构建以 executor 为核心的自动化项目
@@ -552,6 +554,63 @@ event_bus.recent(limit=20, correlation_id=run_id)
 - **存储操作** — 上传、下载、读取、删除、复制与移动都会报告给
   `automation_file.storage.observe` 的监听者，后端失败时会产生 `StorageError` 事件。
 
+### 通知路由器
+通知改由事件驱动：模块发布事件，再由路由决定哪些 sink 会收到。
+
+```python
+from automation_file import Route, Severity, notification_router
+
+notification_router.add_route(Route(
+    "pipeline-failures",
+    sinks=("team-alerts",),                  # 留空 = 所有已注册的 sink
+    types=("pipeline.*", "task.failed"),     # 事件类、type 名称或前缀
+    min_severity=Severity.ERROR,
+    dedup_seconds=600, rate_limit=10, rate_period=60,
+))
+notification_router.start()                  # 在事件总线上订阅
+```
+
+- **路由** — 按事件 type、来源与最低严重程度，送往指定名称的 sink。可以在代码中声明、
+  在 `automation_file.toml` 以 `[[notify.routes]]` 表声明（与 sink 一起热重载），或使用
+  `FA_notify_route_add` / `FA_notify_route_remove` / `FA_notify_route_list`。
+- **去重与速率限制** — 以每条路由、每个 sink 为单位：type、来源与主题都相同的事件在
+  `dedup_seconds` 内重复出现时会被丢弃，每个 `rate_period` 内最多送出 `rate_limit` 条消息。
+- **结构化消息** — 主题与正文由事件组成：严重程度、来源、关联 ID、actor 以及
+  `event.to_dict()` 的 JSON。`critical` 会以 sink 的 `error` 级别发送。
+- **失败隔离** — 单个 sink 失败绝对不会影响其他 sink。失败会以来源为 `notify` 的
+  `system.error` 事件发布，而路由器绝对不会路由这类事件，因此故障的 sink 不会形成循环。
+- **`notify_on_failure`** — 总是会发布事件。路由器工作时由路由投递；否则照旧直接发送通知，
+  因此不会有人收到两次，也不会有人收不到。
+
+### 审计轨迹（schema v2）
+审计轨迹记录谁在什么时候做了什么、对象是哪个资源、使用哪个后端以及结果如何：每个事件与
+每次存储操作各一条记录。
+
+```python
+from automation_file import audit_search, configure_audit, correlation_scope
+
+configure_audit("audit.sqlite")              # SQLite 存储库；开始记录
+
+with correlation_scope() as run_id:
+    ...                                      # 事件与存储操作都会被记录
+audit_search(correlation_id=run_id)          # 整次运行，最新的在前
+audit_search(status="error", resource_prefix="s3://reports/", limit=20)
+```
+
+- **记录** — `id`、`timestamp`（UTC）、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource`、`backend`、`status`、`duration_ms`、`error`、`metadata`、`correlation_id`。
+- **搜索** — 可以按 `since` / `until`、`actor`、`source`、`pipeline`、`task`、`action`、
+  `resource_prefix`、`backend`、`status`、`correlation_id` 与自由文本 `text` 筛选；最新的
+  在前，并支持 `limit` / `offset`。
+- **存储库** — `SQLiteAuditStore`（参数化 SQL、模式版本表、WAL）与测试用的
+  `MemoryAuditStore`；`AuditStore` 是 PostgreSQL 或远程存储库要实现的接口。
+  `SQLiteAuditStore.import_v1()` 可以复制 v1 `AuditLog` 的行。
+- **绝不碍事** — 无法写入的记录只会被记录到日志并丢弃，绝对不会抛进被审计的代码。失败的
+  存储操作只记录一次，不会重复。
+- **动作与指标** — `FA_audit_configure` / `FA_audit_search` / `FA_audit_count` /
+  `FA_audit_purge`；`install_operational_metrics()` 会加入事件、通知与存储操作的
+  Prometheus 计数器。
+
 ### 文件监听触发
 每当被监听路径发生文件系统事件，就执行动作清单：
 
@@ -763,10 +822,10 @@ password = "${file:smtp_password}"
 ```
 
 ```python
-from automation_file import AutomationConfig, notification_manager
+from automation_file import AutomationConfig, notification_manager, notification_router
 
 config = AutomationConfig.load("automation_file.toml")
-config.apply_to(notification_manager)
+config.apply_to(notification_manager, notification_router)   # sinks, and [[notify.routes]]
 ```
 
 未解析的 `${…}` 引用会抛出 `SecretNotFoundException`，而不是默默变成空
@@ -852,8 +911,9 @@ handle = monitor.watch()         # 或在变更发生时即时响应；handle.st
 
 为第一代监控器写的代码照常工作：`IntegrityMonitor(root=..., manifest_path=..., interval=...,
 manager=..., on_drift=...)` 会读取 `write_manifest` 写出的 manifest，`check_once()` 返回同样的摘要，
-通知也仍然通过 `manager` 发送，没有传入时则使用整个进程共用的 `notification_manager`。如果改由
-发布的事件把偏移送到通知渠道，请传入 `notify=False`，同一次偏移才不会被通知两次。
+通知也仍然通过 `manager` 发送，没有传入时则使用整个进程共用的 `notification_manager`。通知路由器
+启用期间改由路由送达 `IntegrityViolation` 事件，不再另外直接通知，同一次偏移不会被通知两次；
+`notify=False` 会完全关闭这项直接通知。
 
 ### AES-256-GCM 文件加密
 带认证的加密与自描述封包格式。可由密码派生密钥或直接生成密钥:
