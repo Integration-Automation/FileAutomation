@@ -24,7 +24,7 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
 | `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
-| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`). It imports only `exceptions`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK |
+| `automation_file/storage/` | Universal storage layer. `uri.py` (`StorageURI`, `parse_storage_uri`, `normalize_path`), `types.py` (`FileInfo`, `Checksum`, `StorageCapabilities`), `backend.py` (`StorageBackend`: the public operations are template methods over the `_`-prefixed primitives a backend supplies), `local_storage.py` (`LocalStorage`, confined through `safe_join` when given a root), `memory_storage.py` (`MemoryStorage`), `object_storage.py` (`ObjectStorage`: directories as key prefixes over `_head`, `_scan`, `_put`, `_get`, `_remove`), `s3_storage.py` (`S3Storage`, over `s3_instance` or a given boto3 client), `azure_storage.py` (`AzureStorage`, over `azure_blob_instance` or a given `BlobServiceClient`), `resolver.py` (`StorageResolver`, `default_resolver`: mounts first, then scheme factories), `file.py` (`File`), `storage.py` (`Storage`). At module level it imports only `exceptions`, `core.checksum` and `local.safe_paths`: no registry, no GUI, no backend SDK. The adapters import their SDK's exceptions and the shared client inside the functions that use them |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
 | `automation_file/client/` | `HTTPActionClient` for the HTTP action server |
 | `automation_file/trigger/`, `scheduler/`, `notify/` | Watchdog file triggers, cron scheduler, notification sinks. Each registers its own `FA_*` ops |
@@ -47,9 +47,10 @@ piece of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-ROADMAP.md`, PR #107); what i
   `driver_instance` (Google Drive), `start_autocontrol_socket_server`, `start_http_action_server`,
   `HTTPActionClient`, `MCPServer`, `create_project_dir`, `launch_ui` (lazy).
 - **Storage layer** (same facade): `File`, `Storage`, `StorageBackend`, `StorageResolver`, `StorageURI`,
-  `parse_storage_uri`, `FileInfo`, `Checksum`, `StorageCapabilities`, `LocalStorage`, `MemoryStorage`, and
+  `parse_storage_uri`, `FileInfo`, `Checksum`, `StorageCapabilities`, `LocalStorage`, `MemoryStorage`,
+  `ObjectStorage`, `S3Storage`, `AzureStorage`, and
   `StorageException` with its nine subclasses. Storage URIs are `<scheme>://<authority>/<path>`; the built-in
-  schemes are `local` (alias `file`) and `memory`, and text without `://` is a local path. The API is
+  schemes are `local` (alias `file`), `memory`, `s3` and `azure` (alias `az`), and text without `://` is a local path. `s3://` and `azure://` use the shared `s3_instance` / `azure_blob_instance`. The API is
   provisional until 1.0. It is not reachable through `FA_*` actions yet.
 - **Action format**: an action is `[name]`, `[name, {kwargs}]` or `[name, [args]]`. A file holds a
   list of actions or `{"auto_control": [...]}`.
@@ -141,7 +142,8 @@ copy_to / move_to → target_backend.copy_from(source_backend, ...) → native (
   1. Subclass `StorageBackend` in `storage/<name>_storage.py`: set `scheme` and `capabilities`, implement
      `_stat`, `_list_dir`, `_upload`, `_download`, `_delete_file`, plus `_mkdir` and `_rmdir` when
      `capabilities.directories` is true. Map the SDK's errors to the `StorageException` subclasses and
-     import the SDK lazily.
+     import the SDK lazily. An object store subclasses `ObjectStorage` and implements `_head`, `_scan`,
+     `_put`, `_get`, `_remove` instead.
   2. Register its factory in `register_default_schemes` (`storage/resolver.py`), or leave it to callers
      to `Storage.mount(...)` when it needs connection arguments.
   3. Add `tests/test_storage_<name>.py` with a `StorageContract` subclass (`tests/storage_contract.py`);

@@ -39,7 +39,7 @@ def resolver() -> StorageResolver:
 
 
 def test_default_schemes(resolver: StorageResolver) -> None:
-    assert resolver.schemes() == ["local", "memory"]
+    assert resolver.schemes() == ["azure", "local", "memory", "s3"]
     assert StorageResolver(defaults=False).schemes() == []
 
 
@@ -78,7 +78,7 @@ def test_an_unknown_scheme_names_the_known_ones(resolver: StorageResolver) -> No
     message = str(caught.value)
     assert "'gopher'" in message
     assert "gopher://host/a.txt" in message
-    assert "local, memory" in message
+    assert "azure, local, memory, s3" in message
 
 
 def test_register_scheme_installs_a_factory(resolver: StorageResolver) -> None:

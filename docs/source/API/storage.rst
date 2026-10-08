@@ -44,3 +44,16 @@ Built-in backends
 
 .. automodule:: automation_file.storage.memory_storage
    :members:
+
+Object stores
+-------------
+
+.. automodule:: automation_file.storage.object_storage
+   :members:
+   :private-members: _head, _scan, _put, _get, _remove
+
+.. automodule:: automation_file.storage.s3_storage
+   :members:
+
+.. automodule:: automation_file.storage.azure_storage
+   :members:

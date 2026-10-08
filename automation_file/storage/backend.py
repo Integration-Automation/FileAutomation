@@ -17,12 +17,13 @@ The root itself is the empty string.
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 import os
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import ClassVar, TypeVar
 
@@ -62,6 +63,12 @@ def parent_of(path: str) -> str:
 def join_path(directory: str, name: str) -> str:
     """Append ``name`` to a normalised directory path."""
     return f"{directory}/{name}" if directory else name
+
+
+def guess_content_type(name: str) -> str | None:
+    """Guess a MIME type from the suffixes of ``name``."""
+    # Only the suffixes are passed on: guess_type() parses its argument as a URL.
+    return mimetypes.guess_type("_" + "".join(PurePosixPath(name).suffixes))[0]
 
 
 def missing_error(location: str) -> StorageNotFoundException:
@@ -398,7 +405,7 @@ class StorageBackend(ABC):
         if info.is_dir:
             raise not_a_file_error(source.uri_for(info.path))
         target = self._normalize(path)
-        if source is self and info.path == target:
+        if source == self and info.path == target:
             raise StorageException(f"{self.uri_for(target)}: source and target are the same file")
         target = self._writable_file(target, overwrite)
         self._make_parents(target)

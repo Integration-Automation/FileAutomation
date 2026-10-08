@@ -12,7 +12,7 @@ The ``FA_*`` actions and the per-backend functions (``s3_upload_file``,
 .. note::
 
    The layer is new and its API may still change before 1.0. The local
-   filesystem and an in-memory store are built in today. S3, Azure Blob, Google
+   filesystem, an in-memory store, S3 and Azure Blob are built in today. Google
    Drive, Dropbox, SFTP, FTP, WebDAV, SMB and fsspec are reached through their
    existing clients and actions (:doc:`cloud`) until their adapters land; you can
    already put any of them behind the layer by writing a backend
@@ -198,6 +198,38 @@ Built-in backends
     A thread-safe tree held in memory, for tests, dry runs and examples. Each
     ``<name>`` is a separate store, created on first use.
 
+``S3Storage`` (``s3://<bucket>/<key>``)
+    One bucket through the shared ``s3_instance``, initialised as before with
+    ``s3_instance.later_init(...)`` or ``FA_s3_later_init``.
+    ``S3Storage(bucket, client=...)`` takes another boto3 client (another
+    account, MinIO), and ``prefix=`` confines the backend to the keys below one
+    prefix. Uploads set ``ContentType`` from the key's suffix. ``stat`` reports
+    size, modification time, ETag, content type, version ID and metadata. A copy
+    between two S3 locations that share a client is done by S3 itself.
+
+``AzureStorage`` (``azure://<container>/<blob>``, alias ``az://``)
+    One container through the shared ``azure_blob_instance``
+    (``azure_blob_instance.later_init(...)`` or ``FA_azure_blob_later_init``), or
+    ``AzureStorage(container, service=...)`` for another ``BlobServiceClient``
+    such as the Azurite emulator. ``prefix=`` works as for S3, and ``stat``
+    reports the same fields.
+
+S3 and Azure Blob are object stores. A directory exists only while a key lies
+below it, so ``mkdir`` creates nothing and an empty directory cannot exist
+(``capabilities.directories`` is ``False``). A key ending in ``/`` that another
+tool wrote as a folder placeholder is shown as a directory, never as a file.
+Checksums are computed from the content and not taken from the ETag, which is
+not a digest of a multipart upload. Until the client is initialised, every call
+raises ``StorageUnavailableException``.
+
+.. code-block:: python
+
+   from automation_file import File, azure_blob_instance, s3_instance
+
+   s3_instance.later_init(region_name="us-east-1")
+   azure_blob_instance.later_init(connection_string=connection_string)
+   File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
+
 Mounting and registering backends
 ---------------------------------
 
@@ -219,7 +251,7 @@ handle every URI no mount claimed.
    Storage.register_scheme("vault", lambda uri: (vault_backend(uri.authority), uri.path))
 
    Storage.resolve("sandbox://jobs/42/out.csv")       # (LocalStorage('/srv/jobs'), '42/out.csv')
-   Storage.schemes()                                  # ['local', 'memory', 'sandbox', 'vault']
+   Storage.schemes()                                  # ['azure', 'local', 'memory', 's3', 'sandbox', 'vault']
 
 ``Storage.mount`` / ``unmount`` / ``register_scheme`` / ``schemes`` / ``resolve``
 work on the process-wide table. A private table is a
@@ -255,6 +287,11 @@ already there, raise the shared exceptions and create parent directories.
        # With real directories (capabilities.directories=True) also:
        #   _mkdir(path), _rmdir(path)
        # Optional overrides: _walk, _copy_from, _move_from, _checksum, _read_bytes
+
+For an object store, subclass :class:`~automation_file.ObjectStorage` instead and
+implement ``_head``, ``_scan``, ``_put``, ``_get`` and ``_remove``. It supplies
+the directory behaviour described under `Built-in backends`_, and is what
+``S3Storage`` and ``AzureStorage`` are built on.
 
 Check it with the contract suite. ``tests/storage_contract.py`` holds 70 cases —
 nested directories, empty and large files, Unicode paths, binary data, overwrite

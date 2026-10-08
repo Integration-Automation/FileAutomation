@@ -10,10 +10,10 @@ API；:class:`~automation_file.StorageBackend` 则是后端需要实现的契约
 
 .. note::
 
-   本层是新功能，API 在 1.0 之前仍可能调整。目前内置本地文件系统与内存存储两种
-   后端。S3、Azure Blob、Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 与 fsspec
-   在各自的适配器完成之前，仍通过已有的客户端与动作使用（见 :doc:`cloud`）；你也
-   可以现在就自行编写后端，把它们接到本层之后（见 `编写后端`_）。
+   本层是新功能，API 在 1.0 之前仍可能调整。目前内置本地文件系统、内存存储、
+   S3 与 Azure Blob 四种后端。Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 与
+   fsspec 在各自的适配器完成之前，仍通过已有的客户端与动作使用（见 :doc:`cloud`）；
+   你也可以现在就自行编写后端，把它们接到本层之后（见 `编写后端`_）。
 
 快速开始
 --------
@@ -185,6 +185,35 @@ API；:class:`~automation_file.StorageBackend` 则是后端需要实现的契约
     保存在内存中的线程安全目录树，用于测试、试运行与示例。每个 ``<name>`` 是
     独立的存储，首次使用时创建。
 
+``S3Storage``（``s3://<bucket>/<key>``）
+    通过共用的 ``s3_instance`` 访问一个 bucket，初始化方式与以往相同：
+    ``s3_instance.later_init(...)`` 或 ``FA_s3_later_init``。
+    ``S3Storage(bucket, client=...)`` 可以改用另一个 boto3 客户端（其他账号、
+    MinIO），``prefix=`` 则把后端限制在某个前缀之下的 key。上传时会按 key 的
+    扩展名设置 ``ContentType``。``stat`` 报告大小、修改时间、ETag、内容类型、
+    版本 ID 与元数据。共用同一个客户端的两个 S3 位置之间的复制由 S3 本身完成。
+
+``AzureStorage``（``azure://<container>/<blob>``，别名 ``az://``）
+    通过共用的 ``azure_blob_instance`` 访问一个 container
+    （``azure_blob_instance.later_init(...)`` 或 ``FA_azure_blob_later_init``），
+    或以 ``AzureStorage(container, service=...)`` 改用另一个
+    ``BlobServiceClient``，例如 Azurite 模拟器。``prefix=`` 的用法与 S3 相同，
+    ``stat`` 报告的字段也相同。
+
+S3 与 Azure Blob 都是对象存储。目录只在其下还有 key 时才存在，因此 ``mkdir`` 不会
+创建任何东西，空目录也无法存在（``capabilities.directories`` 为 ``False``）。其他
+工具写入、以 ``/`` 结尾的文件夹占位 key 会显示为目录，绝不会显示为文件。校验码是
+由内容计算而来，不取自 ETag，因为分段上传的 ETag 并不是摘要。客户端尚未初始化时，
+每个调用都会抛出 ``StorageUnavailableException``。
+
+.. code-block:: python
+
+   from automation_file import File, azure_blob_instance, s3_instance
+
+   s3_instance.later_init(region_name="us-east-1")
+   azure_blob_instance.later_init(connection_string=connection_string)
+   File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
+
 挂载与注册后端
 --------------
 
@@ -205,7 +234,7 @@ URI 的解析分两步。**挂载** 优先：挂载把一个后端实例绑定�
    Storage.register_scheme("vault", lambda uri: (vault_backend(uri.authority), uri.path))
 
    Storage.resolve("sandbox://jobs/42/out.csv")       # (LocalStorage('/srv/jobs'), '42/out.csv')
-   Storage.schemes()                                  # ['local', 'memory', 'sandbox', 'vault']
+   Storage.schemes()                                  # ['azure', 'local', 'memory', 's3', 'sandbox', 'vault']
 
 ``Storage.mount`` / ``unmount`` / ``register_scheme`` / ``schemes`` / ``resolve``
 操作的是整个进程共用的表。需要私有的表时使用
@@ -239,6 +268,10 @@ scheme 或 authority，并且只接受其下的 URI。
        # 目录真实存在时（capabilities.directories=True）还需要：
        #   _mkdir(path)、_rmdir(path)
        # 可选择重写：_walk、_copy_from、_move_from、_checksum、_read_bytes
+
+如果是对象存储，请改为继承 :class:`~automation_file.ObjectStorage`，并实现
+``_head``、``_scan``、``_put``、``_get`` 与 ``_remove``。它提供 `内置后端`_ 一节
+所述的目录行为，``S3Storage`` 与 ``AzureStorage`` 都建立在它之上。
 
 请用契约测试套件检查。``tests/storage_contract.py`` 包含 70 个用例——嵌套目录、
 空文件与大文件、Unicode 路径、二进制数据、覆盖与路径不存在时的行为、路径规范化、

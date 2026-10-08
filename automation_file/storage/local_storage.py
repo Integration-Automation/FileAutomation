@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import contextlib
 import errno
-import mimetypes
 import os
 import re
 import shutil
@@ -25,13 +24,14 @@ import stat
 import uuid
 from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from automation_file.core.checksum import file_checksum
 from automation_file.exceptions import StorageException, StoragePermissionException
 from automation_file.local.safe_paths import safe_join
 from automation_file.storage.backend import (
     StorageBackend,
+    guess_content_type,
     join_path,
     missing_error,
     not_empty_error,
@@ -65,11 +65,6 @@ def _anchored(path: str) -> Path:
     return Path(f"/{path}")
 
 
-def _content_type(name: str) -> str | None:
-    # Only the suffixes are passed on: guess_type() parses its argument as a URL.
-    return mimetypes.guess_type("_" + "".join(PurePosixPath(name).suffixes))[0]
-
-
 def _file_info(path: str, result: os.stat_result) -> FileInfo:
     is_dir = stat.S_ISDIR(result.st_mode)
     return FileInfo(
@@ -77,7 +72,7 @@ def _file_info(path: str, result: os.stat_result) -> FileInfo:
         is_dir=is_dir,
         size=None if is_dir else result.st_size,
         modified_at=datetime.fromtimestamp(result.st_mtime, tz=timezone.utc),
-        content_type=None if is_dir else _content_type(path),
+        content_type=None if is_dir else guess_content_type(path),
     )
 
 

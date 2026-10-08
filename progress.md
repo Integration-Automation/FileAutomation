@@ -16,7 +16,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Universal storage layer (roadmap M2)
 
-- **#13** Storage adapters over the existing clients, each in `storage/<name>_storage.py` with a `StorageContract` class against a fake client: S3 (`s3://bucket/key`), Azure Blob (`azure://container/blob`), Dropbox (`dropbox:///path`), SFTP (`sftp://host/path`), FTP and FTPS, WebDAV, SMB (`smb://server/share/path`), fsspec. The object stores set `capabilities.directories=False` and override `_walk` with one flat listing. A session backend must refuse a URI whose host is not the one it is connected to; `SFTPClient` does not keep its host today. `tests/test_storage_imports.py` then needs the client modules on its allowlist.
+- **#13** Storage adapters over the remaining clients, each in `storage/<name>_storage.py` with a `StorageContract` class against a stand-in client: Dropbox (`dropbox:///path`), SFTP (`sftp://host/path`), FTP and FTPS, WebDAV, SMB (`smb://server/share/path`), fsspec. S3 and Azure Blob are done (U-20261008-02) and show the pattern: import the shared client and the SDK's exceptions inside functions, so `tests/test_storage_imports.py` keeps passing. A session backend must refuse a URI whose host is not the one it is connected to; `SFTPClient` does not keep its host today.
 - **#14** Google Drive adapter (`gdrive://`). Drive addresses files by ID and allows two files of one name in a folder, so the path-to-ID lookup and the duplicate-name rule have to be designed first.
 - **#15** [DECIDE] The eleventh backend slot, and whether OneDrive and Box are promoted to the storage contract or documented as action-only (roadmap §4).
 - **#16** Cross-backend operations through the layer: `copy_between` / `FA_copy_between` on `File.copy_to`, and `FA_storage_*` actions. `copy_between` accepts `local:<path>`, `sftp:/path`, `s3:bucket/key` and http(s) sources today; `parse_storage_uri` rejects the first three as ambiguous, so the action needs a translation step to stay compatible.
@@ -25,7 +25,7 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Backend integration tests (roadmap M3)
 
-- **#19** Integration environments for the contract suite in CI: MinIO, Azurite, SFTP, FTP/FTPS, WebDAV and Samba, plus credential-gated jobs for the cloud adapters, and Linux and macOS legs (`ci-dev.yml` runs pytest on Windows only). Needs #13.
+- **#19** Integration environments for the contract suite in CI: MinIO and Azurite (`S3Storage` and `AzureStorage` have only met stand-in clients and, for S3, botocore's Stubber; no request has reached a real service), SFTP, FTP/FTPS, WebDAV and Samba, plus credential-gated jobs for the cloud adapters, and Linux and macOS legs (`ci-dev.yml` runs pytest on Windows only). Needs #13.
 - **#20** Failure cases in the contract suite: access denied, transient failures mapped to `StorageTransientException` and retried, metadata kept where the backend supports it. Only `LocalStorage` has permission-error tests today (`tests/test_storage_local.py`).
 
 ### Later milestones

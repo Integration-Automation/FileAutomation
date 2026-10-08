@@ -26,7 +26,8 @@ automation_file/
 │                        # have a client only
 ├── storage/             # Universal storage layer: uri (StorageURI), types (FileInfo, Checksum,
 │                        # StorageCapabilities), backend (StorageBackend contract), local_storage,
-│                        # memory_storage, resolver (StorageResolver), file (File), storage (Storage)
+│                        # memory_storage, object_storage (ObjectStorage), s3_storage, azure_storage,
+│                        # resolver (StorageResolver), file (File), storage (Storage)
 ├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)
 ├── client/              # HTTPActionClient for the HTTP action server
@@ -65,7 +66,7 @@ automation_file/
 - `retry_on_transient(max_attempts, backoff_base, backoff_cap, retriable)` — decorator that retries with capped exponential back-off and raises `RetryExhaustedException` chained to the last error.
 - `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
 - `File(uri)` / `Storage(uri)` — the universal storage layer's application API: one file, one directory, in any backend. Both resolve their backend on every call through `StorageResolver` (`Storage.mount`, `Storage.register_scheme`).
-- `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. `LocalStorage` and `MemoryStorage` are built in.
+- `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. `LocalStorage`, `MemoryStorage`, `S3Storage` (`s3://bucket/key`) and `AzureStorage` (`azure://container/blob`) are built in; the last two extend `ObjectStorage` and use the shared `s3_instance` / `azure_blob_instance` unless given a client.
 - `StorageURI` / `parse_storage_uri` — `<scheme>://<authority>/<path>`; `FileInfo`, `Checksum`, `StorageCapabilities` are the frozen value types the layer returns.
 
 ## Branching & CI

@@ -10,10 +10,10 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
 
 .. note::
 
-   本層是新功能，API 在 1.0 之前仍可能調整。目前內建本機檔案系統與記憶體儲存兩種
-   後端。S3、Azure Blob、Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 與 fsspec
-   在各自的轉接器完成之前，仍透過既有的用戶端與動作使用（見 :doc:`cloud`）；你也
-   可以現在就自行撰寫後端，把它們接到本層之後（見 `撰寫後端`_）。
+   本層是新功能，API 在 1.0 之前仍可能調整。目前內建本機檔案系統、記憶體儲存、
+   S3 與 Azure Blob 四種後端。Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 與
+   fsspec 在各自的轉接器完成之前，仍透過既有的用戶端與動作使用（見 :doc:`cloud`）；
+   你也可以現在就自行撰寫後端，把它們接到本層之後（見 `撰寫後端`_）。
 
 快速開始
 --------
@@ -185,6 +185,35 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
     存在記憶體中的執行緒安全目錄樹，用於測試、試跑與範例。每個 ``<name>`` 是
     獨立的儲存，首次使用時建立。
 
+``S3Storage``（``s3://<bucket>/<key>``）
+    透過共用的 ``s3_instance`` 存取一個 bucket，初始化方式與以往相同：
+    ``s3_instance.later_init(...)`` 或 ``FA_s3_later_init``。
+    ``S3Storage(bucket, client=...)`` 可改用另一個 boto3 用戶端（其他帳號、
+    MinIO），``prefix=`` 則把後端限制在某個前綴之下的 key。上傳時會依 key 的
+    副檔名設定 ``ContentType``。``stat`` 回報大小、修改時間、ETag、內容類型、
+    版本 ID 與中繼資料。共用同一個用戶端的兩個 S3 位置之間的複製由 S3 本身完成。
+
+``AzureStorage``（``azure://<container>/<blob>``，別名 ``az://``）
+    透過共用的 ``azure_blob_instance`` 存取一個 container
+    （``azure_blob_instance.later_init(...)`` 或 ``FA_azure_blob_later_init``），
+    或以 ``AzureStorage(container, service=...)`` 改用另一個
+    ``BlobServiceClient``，例如 Azurite 模擬器。``prefix=`` 的用法與 S3 相同，
+    ``stat`` 回報的欄位也相同。
+
+S3 與 Azure Blob 都是物件儲存。目錄只在其下還有 key 時才存在，因此 ``mkdir`` 不會
+建立任何東西，空目錄也無法存在（``capabilities.directories`` 為 ``False``）。其他
+工具寫入、以 ``/`` 結尾的資料夾佔位 key 會顯示為目錄，絕不會顯示為檔案。校驗碼是
+由內容計算而來，不取自 ETag，因為分段上傳的 ETag 並不是摘要。用戶端尚未初始化時，
+每個呼叫都會拋出 ``StorageUnavailableException``。
+
+.. code-block:: python
+
+   from automation_file import File, azure_blob_instance, s3_instance
+
+   s3_instance.later_init(region_name="us-east-1")
+   azure_blob_instance.later_init(connection_string=connection_string)
+   File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
+
 掛載與註冊後端
 --------------
 
@@ -205,7 +234,7 @@ URI 的解析分兩步。**掛載** 優先：掛載把一個後端實例綁定�
    Storage.register_scheme("vault", lambda uri: (vault_backend(uri.authority), uri.path))
 
    Storage.resolve("sandbox://jobs/42/out.csv")       # (LocalStorage('/srv/jobs'), '42/out.csv')
-   Storage.schemes()                                  # ['local', 'memory', 'sandbox', 'vault']
+   Storage.schemes()                                  # ['azure', 'local', 'memory', 's3', 'sandbox', 'vault']
 
 ``Storage.mount`` / ``unmount`` / ``register_scheme`` / ``schemes`` / ``resolve``
 操作的是整個行程共用的表。需要私有的表時使用
@@ -239,6 +268,10 @@ scheme 或 authority，並且只接受其下的 URI。
        # 目錄真實存在時（capabilities.directories=True）還需要：
        #   _mkdir(path)、_rmdir(path)
        # 可選擇覆寫：_walk、_copy_from、_move_from、_checksum、_read_bytes
+
+若是物件儲存，請改為繼承 :class:`~automation_file.ObjectStorage`，並實作
+``_head``、``_scan``、``_put``、``_get`` 與 ``_remove``。它提供 `內建後端`_ 一節
+所述的目錄行為，``S3Storage`` 與 ``AzureStorage`` 都建立在它之上。
 
 請用契約測試套件檢查。``tests/storage_contract.py`` 包含 70 個案例——巢狀目錄、
 空檔與大檔、Unicode 路徑、二進位資料、覆寫與路徑不存在時的行為、路徑正規化、

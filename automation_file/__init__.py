@@ -266,11 +266,14 @@ from automation_file.server.tcp_server import (
 )
 from automation_file.server.web_ui import WebUIServer, start_web_ui
 from automation_file.storage import (
+    AzureStorage,
     Checksum,
     File,
     FileInfo,
     LocalStorage,
     MemoryStorage,
+    ObjectStorage,
+    S3Storage,
     Storage,
     StorageBackend,
     StorageCapabilities,
@@ -487,6 +490,9 @@ __all__ = [
     "StorageCapabilities",
     "LocalStorage",
     "MemoryStorage",
+    "ObjectStorage",
+    "S3Storage",
+    "AzureStorage",
     "StorageException",
     "StorageURIException",
     "StorageNotFoundException",

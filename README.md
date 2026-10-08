@@ -48,7 +48,7 @@ facade.
 - **HTTP server observability** — `GET /healthz` / `GET /readyz` probes, `GET /openapi.json` spec, and `GET /progress` WebSocket stream of live transfer snapshots
 - **HTMX Web UI** — `start_web_ui()` serves a read-only dashboard (health, progress, registry) that polls HTML fragments; stdlib-only HTTP plus one CDN script with SRI
 - **MCP (Model Context Protocol) server** — `MCPServer` bridges the registry to any MCP host (Claude Desktop, MCP CLIs) over newline-delimited JSON-RPC 2.0 on stdio; every `FA_*` action becomes an MCP tool with an auto-generated input schema
-- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; `LocalStorage` and `MemoryStorage` are built in, and a 70-case contract suite checks any backend
+- **Universal storage layer** — `File` / `Storage` address local and remote storage with one URI syntax (`local:///…`, `s3://…`, `azure://…`, `memory://…`), one `StorageBackend` contract and one error hierarchy; local, S3, Azure Blob and in-memory backends are built in, and a 70-case contract suite checks any backend
 - PySide6 GUI (`python -m automation_file ui`) with a tab per backend, the JSON-action runner, and dedicated tabs for Triggers, Scheduler, and live Progress
 - Rich CLI with one-shot subcommands plus legacy JSON-batch flags
 - Project scaffolding (`ProjectBuilder`) for executor-based automations
@@ -148,9 +148,9 @@ flowchart TD
     end
 
     subgraph StorageLayer["<b>storage (universal layer)</b>"]
-        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// memory:// …"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// memory:// s3:// azure://"]
         Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
-        Backends["<b>StorageBackend</b> contract<br/>LocalStorage · MemoryStorage"]
+        Backends["<b>StorageBackend</b> contract<br/>Local · Memory · S3 · Azure"]
     end
 
     subgraph Notify["<b>notifications</b>"]
@@ -189,6 +189,8 @@ flowchart TD
     Resolver ==> Backends
     Backends ==> SafeP
     Backends ==> Check
+    Backends ==> S3M
+    Backends ==> Azure
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -472,10 +474,14 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `StoragePermissionException`, `StorageTransientException`, `StorageUnavailableException`,
   `StorageUnsupportedException`, `StorageURIException`.
 - **Backends today** — `LocalStorage` (`local://`, optionally confined to a root through
-  `safe_join`) and `MemoryStorage` (`memory://`, for tests and dry runs). The cloud and SFTP
-  backends are still used through their own clients and `FA_*` actions; their adapters for
-  this layer are not written yet. Write your own by subclassing `StorageBackend` and check it with
-  the 70-case contract suite in `tests/storage_contract.py`.
+  `safe_join`), `S3Storage` (`s3://bucket/key`), `AzureStorage` (`azure://container/blob`) and
+  `MemoryStorage` (`memory://`, for tests and dry runs). S3 and Azure use the clients you already
+  initialise (`s3_instance.later_init(...)`, `azure_blob_instance.later_init(...)`), so
+  `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` works once both are ready.
+  Google Drive, Dropbox, SFTP, FTP, WebDAV, SMB and fsspec are still used through their own
+  clients and `FA_*` actions; their adapters are not written yet. Write your own by subclassing
+  `StorageBackend` (or `ObjectStorage` for an object store) and check it with the 70-case
+  contract suite in `tests/storage_contract.py`.
 
 The API is new and may still change before 1.0. Full reference: the *Universal Storage Layer*
 chapter of the documentation.

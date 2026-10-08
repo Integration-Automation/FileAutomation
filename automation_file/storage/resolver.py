@@ -21,9 +21,11 @@ import threading
 from collections.abc import Callable
 
 from automation_file.exceptions import StorageURIException
+from automation_file.storage.azure_storage import AZURE_SCHEME, AzureStorage
 from automation_file.storage.backend import StorageBackend
 from automation_file.storage.local_storage import LocalStorage
 from automation_file.storage.memory_storage import MEMORY_SCHEME, memory_store
+from automation_file.storage.s3_storage import S3_SCHEME, S3Storage
 from automation_file.storage.types import StorageCapabilities
 from automation_file.storage.uri import (
     LOCAL_SCHEME,
@@ -143,10 +145,28 @@ def _memory_factory(uri: StorageURI) -> tuple[StorageBackend, str]:
     return memory_store(uri.authority), uri.path
 
 
+def _container_of(uri: StorageURI, kind: str) -> str:
+    if not uri.authority:
+        raise StorageURIException(
+            f"{str(uri)!r} names no {kind}; write '{uri.scheme}://<{kind}>/<path>'"
+        )
+    return uri.authority
+
+
+def _s3_factory(uri: StorageURI) -> tuple[StorageBackend, str]:
+    return S3Storage(_container_of(uri, "bucket")), uri.path
+
+
+def _azure_factory(uri: StorageURI) -> tuple[StorageBackend, str]:
+    return AzureStorage(_container_of(uri, "container")), uri.path
+
+
 def register_default_schemes(resolver: StorageResolver) -> None:
     """Register the factory of every built-in backend on ``resolver``."""
     resolver.register_scheme(LOCAL_SCHEME, _local_factory)
     resolver.register_scheme(MEMORY_SCHEME, _memory_factory)
+    resolver.register_scheme(S3_SCHEME, _s3_factory)
+    resolver.register_scheme(AZURE_SCHEME, _azure_factory)
 
 
 default_resolver = StorageResolver()
