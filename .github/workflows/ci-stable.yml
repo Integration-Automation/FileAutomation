@@ -115,3 +115,25 @@ jobs:
           pip install -e ".[${{ matrix.extra }},test]"
       - name: Run pytest
         run: python -m pytest tests/ -v --tb=short
+
+  package:
+    # The sdist and the wheel build from stable.toml and their metadata renders, before anything is
+    # merged. It gates nothing: the publish job builds again from the locked tools.
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # no run yet: the floor of 15 minutes, to revisit after the first runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build the distribution and check its metadata
+        run: |
+          python -m pip install --upgrade pip build twine
+          cp stable.toml pyproject.toml
+          python -m build
+          twine check dist/*
