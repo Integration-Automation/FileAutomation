@@ -13,7 +13,7 @@ modification time, ETag, content type, version ID and metadata of the blob.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +118,9 @@ class AzureStorage(ObjectStorage):
                 "the Azure Blob client is not initialised; call azure_blob_instance.later_init() "
                 "or pass service= to AzureStorage"
             ) from error
+
+    def _store_identity(self) -> Hashable:
+        return (AZURE_SCHEME, id(self._service), self._container)
 
     def uri_for(self, path: str = "") -> str:
         key = self._key(self._normalize(path))

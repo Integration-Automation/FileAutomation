@@ -15,7 +15,7 @@ translation of those calls and of the service's errors.
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable
 from dataclasses import replace
 from pathlib import Path
 
@@ -79,6 +79,13 @@ class ObjectStorage(StorageBackend):
         """Delete the object ``key``."""
 
     # ------------------------------------------------------------------ StorageBackend primitives
+
+    def _store_identity(self) -> Hashable:
+        """Identify the container behind this backend, the same for every prefix of it."""
+        return id(self)
+
+    def _identity(self, path: str) -> Hashable:
+        return (self._store_identity(), self._key(path))
 
     def _key(self, path: str) -> str:
         return join_path(self._prefix, path) if path else self._prefix

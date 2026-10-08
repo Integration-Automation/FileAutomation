@@ -28,6 +28,8 @@ automation_file/
 ├── storage/             # Universal storage layer: uri (StorageURI), types (FileInfo, Checksum,
 │                        # StorageCapabilities), backend (StorageBackend contract), local_storage,
 │                        # memory_storage, object_storage (ObjectStorage), s3_storage, azure_storage,
+│                        # session_storage (SessionStorage), sftp_storage, ftp_storage, gdrive_storage,
+│                        # onedrive_storage, dropbox_storage, webdav_storage, smb_storage, fsspec_storage,
 │                        # resolver (StorageResolver), file (File), storage (Storage), streams,
 │                        # tree (copy_tree, sync_tree),
 │                        # actions (FA_storage_* and register_storage_ops)
@@ -71,7 +73,7 @@ automation_file/
 - `retry_on_transient(max_attempts, backoff_base, backoff_cap, retriable)` — decorator that retries with capped exponential back-off and raises `RetryExhaustedException` chained to the last error.
 - `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
 - `File(uri)` / `Storage(uri)` — the universal storage layer's application API: one file, one directory, in any backend. Both resolve their backend on every call through `StorageResolver` (`Storage.mount`, `Storage.register_scheme`).
-- `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. `LocalStorage`, `MemoryStorage`, `S3Storage` (`s3://bucket/key`) and `AzureStorage` (`azure://container/blob`) are built in; the last two extend `ObjectStorage` and use the shared `s3_instance` / `azure_blob_instance` unless given a client.
+- `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. Twelve are built in: `LocalStorage`, `MemoryStorage`, `S3Storage` and `AzureStorage` (both on `ObjectStorage`), `SFTPStorage` and `FTPStorage` (both on `SessionStorage`), `GoogleDriveStorage`, `OneDriveStorage`, `DropboxStorage`, and the mounted `WebDAVStorage`, `SMBStorage` and `FsspecStorage`. Each uses its backend's shared client singleton unless given one, and reports a missing SDK with the extra to install.
 - `Event` / `EventBus` / `event_bus` — every component reports through events (`PipelineFailed`, `TaskFailed`, `IntegrityViolation`, `StorageError`, ...) with a severity, a correlation ID and an actor; consumers subscribe on the bus by class, type name or prefix. New code that has something to report publishes an event; it does not call a notification sink or the audit log directly.
 - `StorageURI` / `parse_storage_uri` — `<scheme>://<authority>/<path>`; `FileInfo`, `Checksum`, `StorageCapabilities` are the frozen value types the layer returns.
 
@@ -160,6 +162,7 @@ All code must follow secure-by-default principles. Review every change against t
 ### Storage layer
 - A new storage backend subclasses `StorageBackend` and passes `tests/storage_contract.py` through a `StorageContract` subclass. Do not weaken a contract case to make a backend pass: fix the backend, or branch on `capabilities` when backends legitimately differ.
 - Keep the checks that live in the base class: `normalize_path` refuses `..`, `parse_storage_uri` refuses credentials in the authority (and its error does not repeat them), `delete` refuses the storage root, and `LocalStorage` deletes a symbolic link without following it. Never log a storage URI's credentials or a backend's secrets.
+- A backend that can show one stored file through two instances (two roots, two prefixes, a link) overrides `_identity`, so a copy or a move of a file onto itself is refused instead of deleting it.
 - When paths come from outside the process, use `LocalStorage(root)` behind a scheme or authority of its own (`Storage.mount("sandbox://jobs", LocalStorage(root))`), not the rootless `local://` backend.
 - At module level, `automation_file/storage/` imports only the standard library, `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`; `tests/test_storage_imports.py` fails on anything else. A backend SDK is imported lazily, inside the function that needs it.
 

@@ -136,3 +136,55 @@ def test_list_dir_returns_names(fake_ftp: _FakeFTP) -> None:
 def test_close_on_fresh_client_is_noop() -> None:
     client = FTPClient()
     assert client.close() is True
+
+
+class _StubSession:
+    """What ``later_init`` drives: connect, log in, choose the transfer mode, quit."""
+
+    def __init__(self, timeout: float | None = None) -> None:
+        self.steps: list[str] = []
+
+    def connect(self, host: str, port: int, timeout: float | None = None) -> None:
+        self.steps.append(f"connect {host}:{port}")
+
+    def auth(self) -> None:
+        self.steps.append("auth")
+
+    def login(self, user: str = "", passwd: str = "") -> None:
+        self.steps.append("login")
+
+    def prot_p(self) -> None:
+        self.steps.append("prot_p")
+
+    def set_pasv(self, value: bool) -> None:
+        self.steps.append("set_pasv")
+
+    def quit(self) -> None:
+        self.steps.append("quit")
+
+
+class _StubTLSSession(_StubSession):
+    """Stands in for ``FTP_TLS``, the session type that marks a session as FTPS."""
+
+
+@pytest.mark.parametrize("tls", [False, True])
+def test_client_reports_the_host_port_and_tls_of_its_session(
+    monkeypatch: pytest.MonkeyPatch, tls: bool
+) -> None:
+    from automation_file.remote.ftp import client as client_module
+
+    monkeypatch.setattr(client_module, "FTP", _StubSession)
+    monkeypatch.setattr(client_module, "FTP_TLS", _StubTLSSession)
+    client = FTPClient()
+    assert (client.host, client.port, client.tls) == (None, None, False)
+    session = client.later_init(host="files.example", port=2121, username="ops", tls=tls)
+    assert (client.host, client.port, client.tls) == ("files.example", 2121, tls)
+    assert session.steps[0] == "connect files.example:2121"
+    assert ("prot_p" in session.steps) is tls
+    assert set(vars(client)) == {"_ftp", "_host", "_port"}
+    for name in ("host", "port", "tls"):
+        with pytest.raises(AttributeError):
+            setattr(client, name, None)
+    client.close()
+    assert (client.host, client.port, client.tls) == (None, None, False)
+    assert session.steps[-1] == "quit"

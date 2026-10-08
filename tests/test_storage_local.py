@@ -230,3 +230,24 @@ def test_a_root_that_does_not_exist_reports_not_found(tmp_path: Path) -> None:
     assert storage.exists("") is False
     with pytest.raises(StorageNotFoundException):
         storage.list_dir()
+
+
+def test_a_rooted_and_the_rootless_view_of_one_file_are_the_same_file(tmp_path: Path) -> None:
+    rooted = LocalStorage(tmp_path)
+    rootless = LocalStorage()
+    rooted.write_bytes("dir/a.txt", b"payload")
+    absolute = _rootless(tmp_path / "dir" / "a.txt")
+    for operation in (rootless.move_from, rootless.copy_from):
+        with pytest.raises(StorageException, match="same file"):
+            operation(rooted, "dir/a.txt", absolute)
+    with pytest.raises(StorageException, match="same file"):
+        rooted.move_from(rootless, absolute, "dir/a.txt")
+    assert (tmp_path / "dir" / "a.txt").read_bytes() == b"payload"
+
+
+def test_a_link_to_a_file_is_the_same_file(storage: LocalStorage, root: Path) -> None:
+    (root / "real.txt").write_bytes(b"payload")
+    _symlink(root / "link.txt", root / "real.txt")
+    with pytest.raises(StorageException, match="same file"):
+        storage.move_from(storage, "link.txt", "real.txt")
+    assert (root / "real.txt").read_bytes() == b"payload"

@@ -3,9 +3,11 @@
 # pylint: disable=redefined-outer-name,undefined-variable  # pytest fixtures + lazy annotations
 from __future__ import annotations
 
+import errno
+import stat
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,6 +28,7 @@ class _FakeDirEntry:
     def stat(self) -> MagicMock:
         stat_result = MagicMock()
         stat_result.st_size = self._size
+        stat_result.st_mtime = 1_791_000_000.5
         return stat_result
 
 
@@ -42,8 +45,14 @@ def smbclient_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     fake.makedirs = MagicMock()  # type: ignore[attr-defined]
     fake.rmdir = MagicMock()  # type: ignore[attr-defined]
     fake.scandir = MagicMock()  # type: ignore[attr-defined]
+    fake.rename = MagicMock()  # type: ignore[attr-defined]
+    fake.replace = MagicMock()  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "smbclient", fake)
     return fake
+
+
+class _ProtocolOSError(OSError):
+    """Like smbprotocol's own error: an ``OSError`` subclass, so the errno is all there is."""
 
 
 def test_rejects_empty_server() -> None:
@@ -69,11 +78,87 @@ def test_exists_false_on_file_not_found(smbclient_module: ModuleType) -> None:
     assert client.exists("missing") is False
 
 
+def test_exists_false_on_the_errno_of_a_missing_path(smbclient_module: ModuleType) -> None:
+    missing = _ProtocolOSError(errno.ENOENT, "No such file or directory")
+    assert not isinstance(missing, FileNotFoundError)
+    smbclient_module.stat.side_effect = missing  # type: ignore[attr-defined]
+    client = SMBClient("fs", "pub")
+    assert client.exists("missing") is False
+
+
 def test_exists_wraps_os_error(smbclient_module: ModuleType) -> None:
     smbclient_module.stat.side_effect = OSError("boom")  # type: ignore[attr-defined]
     client = SMBClient("fs", "pub")
     with pytest.raises(SMBException):
         client.exists("x")
+    denied = _ProtocolOSError(errno.EACCES, "denied")
+    smbclient_module.stat.side_effect = denied  # type: ignore[attr-defined]
+    with pytest.raises(SMBException):
+        client.exists("x")
+
+
+def test_stat_reports_kind_size_and_modification_time(smbclient_module: ModuleType) -> None:
+    smbclient_module.stat.return_value = SimpleNamespace(  # type: ignore[attr-defined]
+        st_mode=stat.S_IFREG | 0o644, st_size=7, st_mtime=1_791_000_000.5
+    )
+    client = SMBClient("fs", "pub", port=4455)
+    entry = client.stat("folder/data.bin")
+    assert (entry.name, entry.is_dir, entry.size, entry.mtime) == (
+        "data.bin",
+        False,
+        7,
+        1_791_000_000.5,
+    )
+    call_args, call_kwargs = smbclient_module.stat.call_args  # type: ignore[attr-defined]
+    assert call_args[0] == "\\\\fs\\pub\\folder\\data.bin"
+    assert call_kwargs == {"port": 4455}
+    smbclient_module.stat.return_value = SimpleNamespace(  # type: ignore[attr-defined]
+        st_mode=stat.S_IFDIR | 0o755, st_size=0, st_mtime=1.0
+    )
+    folder = client.stat("folder\\")
+    assert (folder.name, folder.is_dir, folder.size) == ("folder", True, None)
+
+
+def test_stat_wraps_os_error(smbclient_module: ModuleType) -> None:
+    missing = _ProtocolOSError(errno.ENOENT, "No such file or directory")
+    smbclient_module.stat.side_effect = missing  # type: ignore[attr-defined]
+    client = SMBClient("fs", "pub")
+    with pytest.raises(SMBException) as caught:
+        client.stat("missing")
+    assert caught.value.__cause__ is missing
+
+
+def test_rename_keeps_or_replaces_the_target(smbclient_module: ModuleType) -> None:
+    client = SMBClient("fs", "pub", port=4455)
+    client.rename("a.txt", "dir/b.txt")
+    smbclient_module.rename.assert_called_once_with(  # type: ignore[attr-defined]
+        "\\\\fs\\pub\\a.txt", "\\\\fs\\pub\\dir\\b.txt", port=4455
+    )
+    assert smbclient_module.replace.call_count == 0  # type: ignore[attr-defined]
+    client.rename("a.txt", "dir/b.txt", overwrite=True)
+    smbclient_module.replace.assert_called_once_with(  # type: ignore[attr-defined]
+        "\\\\fs\\pub\\a.txt", "\\\\fs\\pub\\dir\\b.txt", port=4455
+    )
+    smbclient_module.rename.side_effect = FileExistsError  # type: ignore[attr-defined]
+    with pytest.raises(SMBException):
+        client.rename("a.txt", "dir/b.txt")
+
+
+def test_every_call_names_the_port(smbclient_module: ModuleType, tmp_path: Path) -> None:
+    local = tmp_path / "data.bin"
+    local.write_bytes(b"x")
+    smbclient_module.scandir.return_value = iter([])  # type: ignore[attr-defined]
+    client = SMBClient("fs", "pub", port=4455)
+    client.exists("a")
+    client.upload(local, "a")
+    client.delete("a")
+    client.mkdir("d")
+    client.rmdir("d")
+    client.list_dir("")
+    for name in ("register_session", "stat", "open_file", "remove", "makedirs", "rmdir", "scandir"):
+        _, call_kwargs = getattr(smbclient_module, name).call_args
+        assert call_kwargs["port"] == 4455, name
+    assert (client.server, client.share) == ("fs", "pub")
 
 
 def test_upload_streams_file(smbclient_module: ModuleType, tmp_path: Path) -> None:
@@ -168,6 +253,17 @@ def test_list_dir_returns_entries(smbclient_module: ModuleType) -> None:
     assert entries[1].name == "data.bin"
     assert entries[1].is_dir is False
     assert entries[1].size == 7
+    assert entries[1].mtime == 1_791_000_000.5
+
+
+def test_list_dir_keeps_an_entry_it_cannot_stat(smbclient_module: ModuleType) -> None:
+    unreadable = MagicMock()
+    unreadable.name = "locked.bin"
+    unreadable.is_dir.return_value = False
+    unreadable.stat.side_effect = OSError("sharing violation")
+    smbclient_module.scandir.return_value = iter([unreadable])  # type: ignore[attr-defined]
+    entries = SMBClient("fs", "pub").list_dir("folder")
+    assert (entries[0].name, entries[0].size, entries[0].mtime) == ("locked.bin", None, None)
 
 
 def test_close_is_idempotent(smbclient_module: ModuleType) -> None:

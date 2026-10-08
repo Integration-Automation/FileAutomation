@@ -438,3 +438,19 @@ def test_the_transfer_calls_exist_with_the_arguments_the_adapter_passes(real_cli
         "Key",
     ]
     assert real_client.can_paginate("list_objects_v2") is True
+
+
+def test_two_prefixes_of_one_bucket_do_not_lose_a_file_to_itself(client: FakeS3Client) -> None:
+    whole = S3Storage("bucket", client=client)
+    tenant = S3Storage("bucket", client=client, prefix="tenant/a")
+    tenant.write_bytes("docs/a.txt", b"payload")
+    for operation in (whole.move_from, whole.copy_from):
+        with pytest.raises(StorageException, match="same file"):
+            operation(tenant, "docs/a.txt", "tenant/a/docs/a.txt")
+    with pytest.raises(StorageException, match="same file"):
+        tenant.move_from(whole, "tenant/a/docs/a.txt", "docs/a.txt")
+    assert client.buckets["bucket"]["tenant/a/docs/a.txt"].data == b"payload"
+    # Another client's bucket of the same name is another store.
+    elsewhere = S3Storage("bucket", client=FakeS3Client())
+    elsewhere.copy_from(tenant, "docs/a.txt", "tenant/a/docs/a.txt")
+    assert elsewhere.read_bytes("tenant/a/docs/a.txt") == b"payload"

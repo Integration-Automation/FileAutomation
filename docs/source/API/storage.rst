@@ -72,3 +72,39 @@ Object stores
 
 .. automodule:: automation_file.storage.azure_storage
    :members:
+
+Login-session backends
+----------------------
+
+.. automodule:: automation_file.storage.session_storage
+   :members:
+
+.. automodule:: automation_file.storage.sftp_storage
+   :members:
+
+.. automodule:: automation_file.storage.ftp_storage
+   :members:
+
+Drive-style and mounted backends
+--------------------------------
+
+.. automodule:: automation_file.storage.gdrive_storage
+   :members:
+
+.. automodule:: automation_file.storage.onedrive_storage
+   :members:
+
+.. automodule:: automation_file.storage.dropbox_storage
+   :members:
+
+.. automodule:: automation_file.storage.webdav_storage
+   :members:
+
+.. automodule:: automation_file.storage.smb_storage
+   :members:
+
+.. automodule:: automation_file.storage.fsspec_storage
+   :members:
+
+.. automodule:: automation_file.storage.timestamps
+   :members:

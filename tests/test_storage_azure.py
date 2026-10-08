@@ -367,3 +367,20 @@ def test_the_sdk_has_the_calls_the_adapter_makes() -> None:
         assert hasattr(properties, attribute)
     assert hasattr(properties, "version_id")
     assert ContentSettings(content_type="text/plain").content_type == "text/plain"
+
+
+def test_two_prefixes_of_one_container_do_not_lose_a_blob_to_itself(
+    service: FakeBlobService,
+) -> None:
+    whole = AzureStorage("container", service=service)
+    tenant = AzureStorage("container", service=service, prefix="tenant/a")
+    tenant.write_bytes("docs/a.txt", b"payload")
+    for operation in (whole.move_from, whole.copy_from):
+        with pytest.raises(StorageException, match="same file"):
+            operation(tenant, "docs/a.txt", "tenant/a/docs/a.txt")
+    with pytest.raises(StorageException, match="same file"):
+        tenant.move_from(whole, "tenant/a/docs/a.txt", "docs/a.txt")
+    assert service.containers["container"]["tenant/a/docs/a.txt"].data == b"payload"
+    elsewhere = AzureStorage("container", service=FakeBlobService())
+    elsewhere.copy_from(tenant, "docs/a.txt", "tenant/a/docs/a.txt")
+    assert elsewhere.read_bytes("tenant/a/docs/a.txt") == b"payload"

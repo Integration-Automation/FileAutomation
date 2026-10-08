@@ -10,6 +10,8 @@ real cloud backend lives outside CI.
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -86,6 +88,51 @@ def test_register_sftp_ops_adds_entries() -> None:
     registry = ActionRegistry()
     register_sftp_ops(registry)
     assert "FA_sftp_upload_file" in registry
+
+
+def test_sftp_client_reports_the_host_and_port_of_its_session(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from automation_file.remote.sftp import client as client_module
+
+    class _StubSSH:
+        """What ``later_init`` drives on ``paramiko.SSHClient``."""
+
+        def __init__(self) -> None:
+            self.connected_to: tuple[str, int] | None = None
+
+        def load_host_keys(self, filename: str) -> None:
+            return None
+
+        def set_missing_host_key_policy(self, policy: object) -> None:
+            return None
+
+        def connect(self, **options: object) -> None:
+            self.connected_to = (str(options["hostname"]), int(str(options["port"])))
+
+        def open_sftp(self) -> _StubSSH:
+            return self
+
+        def close(self) -> None:
+            self.connected_to = None
+
+    stub = SimpleNamespace(SSHClient=_StubSSH, RejectPolicy=object)
+    monkeypatch.setattr(client_module, "_import_paramiko", lambda: stub)
+    known_hosts = tmp_path / "known_hosts"
+    known_hosts.write_text("", encoding="utf-8")
+    client = client_module.SFTPClient()
+    assert (client.host, client.port) == (None, None)
+    session = client.later_init(
+        host="nas.example", port=2222, username="ops", known_hosts=str(known_hosts)
+    )
+    assert session.connected_to == ("nas.example", 2222)
+    assert (client.host, client.port) == ("nas.example", 2222)
+    assert set(vars(client)) == {"_ssh", "_sftp", "_host", "_port"}
+    for name in ("host", "port"):
+        with pytest.raises(AttributeError):
+            setattr(client, name, None)
+    client.close()
+    assert (client.host, client.port) == (None, None)
 
 
 def test_register_onedrive_ops_adds_entries() -> None:

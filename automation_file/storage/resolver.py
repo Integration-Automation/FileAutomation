@@ -10,6 +10,11 @@ two steps:
    of a scheme no mount claimed. The factory receives the parsed URI and returns
    ``(backend, path)``.
 
+The default factories serve ``local``, ``memory``, ``s3``, ``azure``, ``gdrive``,
+``dropbox``, ``onedrive``, ``sftp``, ``ftp`` and ``ftps`` through the shared clients.
+WebDAV, SMB and fsspec backends need a client or a filesystem of their own, so they
+are mounted.
+
 :data:`default_resolver` is the process-wide instance behind
 :class:`~automation_file.storage.File` and :class:`~automation_file.storage.Storage`.
 """
@@ -23,9 +28,14 @@ from collections.abc import Callable
 from automation_file.exceptions import StorageURIException
 from automation_file.storage.azure_storage import AZURE_SCHEME, AzureStorage
 from automation_file.storage.backend import StorageBackend
+from automation_file.storage.dropbox_storage import DROPBOX_SCHEME, dropbox_factory
+from automation_file.storage.ftp_storage import FTP_SCHEME, FTPS_SCHEME, ftp_factory
+from automation_file.storage.gdrive_storage import GDRIVE_SCHEME, gdrive_factory
 from automation_file.storage.local_storage import LocalStorage
 from automation_file.storage.memory_storage import MEMORY_SCHEME, memory_store
+from automation_file.storage.onedrive_storage import ONEDRIVE_SCHEME, onedrive_factory
 from automation_file.storage.s3_storage import S3_SCHEME, S3Storage
+from automation_file.storage.sftp_storage import SFTP_SCHEME, sftp_factory
 from automation_file.storage.types import StorageCapabilities
 from automation_file.storage.uri import (
     LOCAL_SCHEME,
@@ -167,6 +177,12 @@ def register_default_schemes(resolver: StorageResolver) -> None:
     resolver.register_scheme(MEMORY_SCHEME, _memory_factory)
     resolver.register_scheme(S3_SCHEME, _s3_factory)
     resolver.register_scheme(AZURE_SCHEME, _azure_factory)
+    resolver.register_scheme(GDRIVE_SCHEME, gdrive_factory)
+    resolver.register_scheme(DROPBOX_SCHEME, dropbox_factory)
+    resolver.register_scheme(ONEDRIVE_SCHEME, onedrive_factory)
+    resolver.register_scheme(SFTP_SCHEME, sftp_factory)
+    resolver.register_scheme(FTP_SCHEME, ftp_factory)
+    resolver.register_scheme(FTPS_SCHEME, ftp_factory)
 
 
 default_resolver = StorageResolver()

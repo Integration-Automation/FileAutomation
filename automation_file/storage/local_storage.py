@@ -22,7 +22,7 @@ import re
 import shutil
 import stat
 import uuid
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO
@@ -151,6 +151,10 @@ class LocalStorage(StorageBackend):
         """Like :meth:`local_path`, but the last segment is not resolved: a link stays a link."""
         parent, _, name = path.rpartition("/")
         return self.local_path(parent) / name if name else self.local_path(parent)
+
+    def _identity(self, path: str) -> Hashable:
+        # Resolved, so a rooted view, the rootless one and a link all name one file alike.
+        return (LOCAL_SCHEME, os.path.normcase(os.path.realpath(self.local_path(path))))
 
     def _is_root(self, path: str) -> bool:
         if not path:

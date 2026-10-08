@@ -15,7 +15,7 @@ not a digest of a multipart upload, so it is never used as one.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -139,6 +139,9 @@ class S3Storage(ObjectStorage):
                 "the S3 client is not initialised; call s3_instance.later_init() "
                 "or pass client= to S3Storage"
             ) from error
+
+    def _store_identity(self) -> Hashable:
+        return (S3_SCHEME, id(self._client), self._bucket)
 
     def uri_for(self, path: str = "") -> str:
         key = self._key(self._normalize(path))

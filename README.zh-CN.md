@@ -46,7 +46,7 @@ TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功
 - **HTTP 服务器观测端点** — `GET /healthz` / `GET /readyz` 探针、`GET /openapi.json` 规格，以及 `GET /progress`（通过 WebSocket 推送实时传输快照）
 - **HTMX Web UI** — `start_web_ui()` 启动只读观测仪表板（health、progress、registry），通过 HTML 片段轮询；仅用标准库 HTTP，搭配一个带 SRI 的 CDN 脚本
 - **MCP（Model Context Protocol）服务器** — `MCPServer` 通过 stdio 上的 JSON-RPC 2.0（换行分隔 JSON）将注册表桥接到任意 MCP 主机（Claude Desktop、MCP CLI）；每个 `FA_*` 动作都会自动生成输入 schema 并成为 MCP 工具
-- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`memory://…`）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置本地、S3、Azure Blob 与内存后端，并附带 81 个用例的契约测试套件可检查任何后端
+- **通用存储层** — `File` / `Storage` 以同一套 URI 语法（`local:///…`、`s3://…`、`azure://…`、`gdrive://…`、`sftp://…`、…）、同一份 `StorageBackend` 契约与同一组异常层级访问本地与远端存储；内置十二种后端（本地、内存、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、WebDAV、SMB、fsspec），并附带 81 个用例的契约测试套件可检查任何后端
 - **事件总线** — 单一 `Event` 模型与十种核心事件（`pipeline.*`、`task.*`、`integrity.violation`、`storage.error`、`scheduler.error`、`system.error`），具备严重程度、关联 ID 与 actor；可以在 `event_bus` 上按类、type 或前缀订阅
 - PySide6 GUI（`python -m automation_file ui`）每个后端一个页签，含 JSON 动作执行器，另有 Triggers、Scheduler、实时 Progress 专属页签
 - 功能丰富的 CLI，包含一次性子命令与旧式 JSON 批量标志
@@ -147,9 +147,9 @@ flowchart TD
     end
 
     subgraph StorageLayer["<b>通用存储层</b>"]
-        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// memory:// s3:// azure://"]
+        FileAPI["<b>File</b> · <b>Storage</b><br/>local:// s3:// azure:// gdrive:// sftp:// …"]
         Resolver["<b>StorageResolver</b><br/>mounts · scheme factories"]
-        Backends["<b>StorageBackend</b> contract<br/>Local · Memory · S3 · Azure"]
+        Backends["<b>StorageBackend</b> contract<br/>Local · Memory · S3 · Azure · Drive · Dropbox<br/>OneDrive · SFTP · FTP · WebDAV · SMB · fsspec"]
     end
 
     subgraph Notify["<b>通知</b>"]
@@ -190,6 +190,14 @@ flowchart TD
     Backends ==> Check
     Backends ==> S3M
     Backends ==> Azure
+    Backends ==> Drive
+    Backends ==> Dropbox
+    Backends ==> OneD
+    Backends ==> SFTP
+    Backends ==> FTP
+    Backends ==> WebDAV
+    Backends ==> SMB
+    Backends ==> Fsspec
 
     TCP ==> Executor
     HTTPS ==> Executor
@@ -494,14 +502,15 @@ File("sandbox://jobs/42/out.csv").write(b"done")
   `StorageAlreadyExistsException`、`StoragePathTypeException`、`StorageNotEmptyException`、
   `StoragePermissionException`、`StorageTransientException`、`StorageUnavailableException`、
   `StorageUnsupportedException`、`StorageURIException`。
-- **目前的后端** — `LocalStorage`（`local://`，可通过 `safe_join` 限制在某个根目录内）、
-  `S3Storage`（`s3://bucket/key`）、`AzureStorage`（`azure://container/blob`）与
-  `MemoryStorage`（`memory://`，用于测试与试运行）。S3 与 Azure 使用你原本就会初始化的客户端
-  （`s3_instance.later_init(...)`、`azure_blob_instance.later_init(...)`），两者都就绪后，
-  `File("s3://reports/q1.csv").copy_to("azure://backups/q1.csv")` 即可运行。
-  Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 与 fsspec 目前仍通过各自的客户端与 `FA_*`
-  动作使用，其适配器尚未完成。你可以继承 `StorageBackend`（对象存储则继承 `ObjectStorage`）
-  编写自己的后端，并用 `tests/storage_contract.py` 中 81 个用例的契约测试套件检查。
+- **后端** — 内置十二种。可以直接用 URI 访问、并使用你原本就会初始化的共用客户端的有：`local://`、
+  `memory://`、`s3://bucket/key`、`azure://container/blob`、`gdrive://<root>/path`、`dropbox:///path`、
+  `onedrive:///path`、`sftp://host/path`、`ftp://host/path` 与 `ftps://host/path`。需要自己的客户端或
+  文件系统、因此以挂载方式使用的有：`WebDAVStorage`、`SMBStorage` 与 `FsspecStorage`
+  （`Storage.mount("webdav://files.example.com", WebDAVStorage(client))`）。每个远端后端都需要对应的
+  extra（`pip install "automation_file[sftp]"`）。`sftp://` 或 `ftp://` URI 必须写出会话实际连接
+  的主机，打错字就不会写到另一台服务器。Box 没有适配器，仍使用它的 `FA_box_*` 动作。你可以继承
+  `StorageBackend`（对象存储继承 `ObjectStorage`，登录会话继承 `SessionStorage`）编写自己的后端，
+  并用 `tests/storage_contract.py` 中 81 个用例的契约测试套件检查。
 
 - **动作** — `FA_storage_exists`, `FA_storage_stat`, `FA_storage_list`, `FA_storage_mkdir`,
   `FA_storage_upload`, `FA_storage_download`, `FA_storage_delete`, `FA_storage_checksum`,

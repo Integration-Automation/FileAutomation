@@ -25,7 +25,7 @@ import tempfile
 import time
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator
 from pathlib import Path, PurePosixPath
 from types import TracebackType
 from typing import BinaryIO, TypeVar
@@ -213,6 +213,16 @@ class StorageBackend(ABC):
                     self._rmdir(info.path)
         if self.capabilities.directories:
             self._rmdir(path)
+
+    def _identity(self, path: str) -> Hashable:
+        """Return a key that two paths share exactly when they are the same stored file.
+
+        The key is compared across backend instances. Two views of one store (two
+        roots, two prefixes, a link) must give the same key for the same file, or a
+        move between them would overwrite the file with itself and then delete it.
+        The default only recognises this instance's own paths.
+        """
+        return (id(self), path)
 
     def _normalize(self, path: str) -> str:
         """Normalise a caller-supplied path. Backends with extra separators extend it."""
@@ -487,7 +497,7 @@ class StorageBackend(ABC):
         if info.is_dir:
             raise not_a_file_error(source.uri_for(info.path))
         target = self._normalize(path)
-        if source == self and info.path == target:
+        if source._identity(info.path) == self._identity(target):
             raise StorageException(f"{self.uri_for(target)}: source and target are the same file")
         target = self._writable_file(target, overwrite)
         self._make_parents(target)

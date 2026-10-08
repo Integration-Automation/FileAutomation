@@ -66,7 +66,7 @@ OPTIONAL_DISTRIBUTIONS = {
 }
 
 _PROBE = """
-import importlib.abc, json, sys
+import importlib, importlib.abc, json, sys
 
 blocked = set(json.loads(sys.argv[1]))
 
@@ -81,7 +81,12 @@ class Blocker(importlib.abc.MetaPathFinder):
 if blocked:
     sys.meta_path.insert(0, Blocker())
 import automation_file
-from automation_file.exceptions import OptionalDependencyException
+from automation_file.exceptions import FileAutomationException, OptionalDependencyException
+
+
+def client(backend):
+    return importlib.import_module("automation_file.remote." + backend + ".client")
+
 
 # What the import itself pulled in, measured before any feature is used.
 loaded = sorted({name.split(".")[0] for name in sys.modules} & set(json.loads(sys.argv[2])))
@@ -91,11 +96,17 @@ features = {
     "azure": lambda: automation_file.azure_blob_instance.later_init(connection_string="x"),
     "dropbox": lambda: automation_file.dropbox_instance.later_init("token"),
     "gdrive": lambda: automation_file.drive_search_all_file(),
+    "sftp": lambda: client("sftp")._import_paramiko(),
+    "onedrive": lambda: client("onedrive")._import_msal(),
+    "smb": lambda: client("smb")._import_smbclient(),
 }
 for name, call in features.items() if blocked else ():
     try:
         call()
     except OptionalDependencyException as error:
+        messages[name] = str(error)
+    except FileAutomationException as error:
+        # A client with an exception type of its own keeps it, and adds the hint.
         messages[name] = str(error)
     except Exception as error:
         messages[name] = "OTHER " + type(error).__name__
@@ -126,7 +137,7 @@ def test_the_package_imports_without_any_optional_dependency() -> None:
     report = _probe((*OPTIONAL_ROOTS, "google"))
     assert report["commands"] > 100
     assert report["loaded"] == []
-    for extra in ("s3", "azure", "dropbox", "gdrive"):
+    for extra in ("s3", "azure", "dropbox", "gdrive", "sftp", "onedrive", "smb"):
         assert install_hint(extra) in report["messages"][extra], report["messages"]
 
 

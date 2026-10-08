@@ -108,7 +108,15 @@ class ArchiveException(FileAutomationException):
 
 
 class WebDAVException(FileAutomationException):
-    """Raised by the WebDAV client on transport / protocol failures."""
+    """Raised by the WebDAV client on transport / protocol failures.
+
+    ``status_code`` is the HTTP status the server answered with, or ``None`` when
+    the failure happened before a response arrived.
+    """
+
+    def __init__(self, *args: object, status_code: int | None = None) -> None:
+        super().__init__(*args)
+        self.status_code = status_code
 
 
 class SMBException(FileAutomationException):

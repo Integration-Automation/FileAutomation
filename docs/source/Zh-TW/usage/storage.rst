@@ -10,10 +10,12 @@ API；:class:`~automation_file.StorageBackend` 則是後端要實作的契約。
 
 .. note::
 
-   本層是新功能，API 在 1.0 之前仍可能調整。目前內建本機檔案系統、記憶體儲存、
-   S3 與 Azure Blob 四種後端。Google Drive、Dropbox、SFTP、FTP、WebDAV、SMB 與
-   fsspec 在各自的轉接器完成之前，仍透過既有的用戶端與動作使用（見 :doc:`cloud`）；
-   你也可以現在就自行撰寫後端，把它們接到本層之後（見 `撰寫後端`_）。
+   本層是新功能，API 在 1.0 之前仍可能調整。目前內建十二種後端：本機檔案系統、
+   記憶體儲存、S3、Azure Blob、Google Drive、Dropbox、OneDrive、SFTP、FTP / FTPS、
+   WebDAV、SMB，以及 fsspec 能存取的任何儲存。Box 沒有轉接器，只能透過它的
+   ``FA_box_*`` 動作使用（見 :doc:`cloud`）。每個遠端後端都需要安裝對應的 extra
+   （``pip install "automation_file[s3]"``）並初始化其用戶端，詳見 `內建後端`_
+   中各自的條目。
 
 快速開始
 --------
@@ -300,6 +302,254 @@ S3 與 Azure Blob 都是物件儲存。目錄只在其下還有 key 時才存在
    azure_blob_instance.later_init(connection_string=connection_string)
    File("s3://reports/2026/q1.csv").copy_to("azure://backups/2026/q1.csv")
 
+``SFTPStorage``（``sftp://<host>[:<port>]/<絕對路徑>``）
+    透過共用的 ``sftp_instance`` 存取一個 SFTP 工作階段所能到達的檔案。開啟工作階段
+    的方式與以往相同：``sftp_instance.later_init(host=..., username=..., ...)`` 或
+    ``FA_sftp_later_init``；主機金鑰會與 ``known_hosts`` 比對，未知的主機一律拒絕。
+    URI 的路徑就是伺服器上的絕對路徑，因此 ``sftp://nas/data/q1.csv`` 指的是
+    ``/data/q1.csv``，而不是登入目錄之下的路徑。
+
+    主機可以省略（``sftp:///data/q1.csv``），代表「已開啟的工作階段」。若寫出主機，
+    它必須是工作階段所連線的那一台；比對時不分大小寫，若同時寫了連接埠，連接埠也
+    必須相符。其他主機會拋出 ``StorageURIException``。要存取第二台主機，請另外
+    連線一個 ``SFTPClient`` 並為它掛載後端：
+    ``Storage.mount("sftp://backup", SFTPStorage(client))``。
+    ``SFTPStorage(client, root="/srv/data")`` 會把每個路徑都接在某個遠端目錄之下。
+    ``root`` 只是路徑前綴，並不是隔離環境：伺服器上的符號連結仍可能通往它之外。
+
+    ``stat`` 回報伺服器傳回的大小與修改時間（UTC，精確到秒）。同一個工作階段內的
+    移動是一次重新命名；複製則經由本機暫存檔，因為 SFTP 本身沒有複製功能。
+
+    讀寫時會跟隨符號連結；刪除時絕不跟隨：只移除連結本身，不動它指向的目標。
+    遞迴列出時不會進入被連結的目錄。目標已不存在的連結仍會被列出，但 ``exists``
+    與 ``stat`` 會回報它不存在。
+
+``FTPStorage``（``ftp://<host>[:<port>]/<絕對路徑>``、``ftps://…``）
+    透過共用的 ``ftp_instance`` 存取一個 FTP 或 FTPS 工作階段所能到達的檔案。開啟
+    工作階段的方式與以往相同：
+    ``ftp_instance.later_init(host=..., username=..., password=..., tls=True)`` 或
+    ``FA_ftp_later_init``。主機規則、``root=`` 與絕對路徑都和 ``SFTPStorage``
+    相同；要存取第二台主機，請以另一個已連線的 ``FTPClient`` 掛載
+    ``FTPStorage(client)``。除非已開啟的工作階段是以 ``tls=True`` 建立的，否則
+    ``ftps://`` 會以 ``StorageURIException`` 拒絕；``ftp://`` 則兩種工作階段都接受。
+    未加密的 FTP 會以明文傳送密碼與檔案內容。
+
+    伺服器若提供 ``MLST`` / ``MLSD``（RFC 3659），``stat`` 會依伺服器的 fact 回報
+    類型、大小與修改時間（UTC）。其他伺服器則以探測的方式判斷：``CWD`` 進得去的是
+    目錄，``SIZE`` 與 ``MDTM`` 有回應的是檔案，列出目錄則是 ``NLST`` 再加上每個名稱
+    最多三個指令。這種方式比較慢，目錄沒有修改時間，而且伺服器不在 ``NLST`` 中顯示
+    的檔案（通常是名稱以點開頭的檔案）不會被列出。每次探測後都會把工作階段的工作
+    目錄切回原處。
+
+    FTP 對「沒有這個檔案」與「不允許」使用同一個回覆碼 550。``exists``、``stat``
+    與列出目錄會把它視為「不存在」；上傳、下載與刪除則把它視為
+    ``StoragePermissionException``。含有換行字元的路徑會以 ``StorageURIException``
+    拒絕。
+
+    不論哪一種伺服器，刪除時都絕不跟隨符號連結。列出時則視伺服器而定：``MLSD``
+    會標示連結的伺服器，連結會列為檔案且不會被進入；以探測方式處理的伺服器則把
+    指向目錄的連結顯示為目錄，遞迴列出時會進入其中。
+
+SFTP 與 FTP 都有真正的目錄（``capabilities.directories`` 為 ``True``）：``mkdir``
+會建立目錄，空目錄也可以存在。兩者都不回報 ETag、版本、內容類型與中繼資料，校驗碼
+則由下載回來的內容計算。上傳時會先寫入目標旁邊的隱藏 ``.part`` 檔，再重新命名蓋過
+目標，因此失敗的上傳絕不會留下被截斷的檔案。若伺服器不允許重新命名到已存在的檔案
+之上（沒有 ``posix-rename@openssh.com`` 擴充的 SFTP、Windows 上的 FTP），會先把該
+檔案移到一旁，完成後再刪除，若重新命名仍然失敗則放回原處；這種取代方式不是原子
+操作。
+
+一個工作階段一次只能執行一個操作，因此同一個工作階段上的呼叫會互相等待。
+``FA_sftp_*`` / ``FA_ftp_*`` 動作不受這個機制保護：其他執行緒正透過儲存層使用某個
+工作階段時，不要同時對它執行這些動作。在呼叫 ``later_init`` 之前，每個呼叫都會拋出
+``StorageUnavailableException``。連線中斷或逾時會拋出
+``StorageTransientException``；儲存層不會自動重新連線，重試之前請再呼叫一次
+``later_init``。
+
+.. code-block:: python
+
+   from automation_file import (
+       File, SFTPClient, SFTPStorage, Storage, ftp_instance, sftp_instance,
+   )
+
+   sftp_instance.later_init(host="nas.example", username="ops",
+                            key_filename="/home/ops/.ssh/id_ed25519")
+   ftp_instance.later_init(host="files.example", username="ops",
+                           password=password, tls=True)
+
+   File("sftp://nas.example/exports/q1.csv").copy_to("ftps://files.example/incoming/q1.csv")
+   File("sftp:///exports/q1.csv").move_to("sftp:///archive/2026/q1.csv")   # 一次重新命名
+
+   # 第二台主機：使用自己的用戶端，掛載在自己的 authority 之下。
+   backup = SFTPClient()
+   backup.later_init(host="backup.example", username="ops")
+   Storage.mount("sftp://backup.example", SFTPStorage(backup, root="/srv/backups"))
+   File("sftp:///archive/2026/q1.csv").copy_to("sftp://backup.example/2026/q1.csv")
+
+``DropboxStorage``（``dropbox:///<path>``）
+    透過共用的 ``dropbox_instance`` 存取 Dropbox，初始化方式與以往相同：
+    ``dropbox_instance.later_init(token)`` 或 ``FA_dropbox_later_init``。authority
+    必須留空：``dropbox:///reports/q1.csv`` 就是檔案 ``/reports/q1.csv``，而
+    ``dropbox://reports/q1.csv`` 會被拒絕，並在錯誤訊息中給出正確寫法。
+    ``DropboxStorage(client)`` 可改用另一個 ``dropbox.Dropbox`` 用戶端，``root=``
+    則把後端限制在某個資料夾內；這樣的實例要掛載後才有 URI。資料夾是真正的目錄。
+
+    ``stat`` 回報大小、伺服器端的修改時間，並以修訂版本（rev）作為 ``version``、
+    以 Dropbox 的內容雜湊作為 ``etag``。超過 8 MiB 的檔案會透過上傳工作階段、每次
+    8 MiB 分段上傳，因此不會整個讀進記憶體。同一個用戶端內兩個路徑之間的複製與
+    搬移由 Dropbox 本身完成，刪除資料夾只需要一次請求。
+
+    Dropbox 比對名稱時不分大小寫。複製或搬移時它不會取代既有檔案，因此會先刪除
+    已存在的目標，這一步並非原子操作。用戶端尚未初始化時，每個呼叫都會拋出
+    ``StorageUnavailableException``。
+
+``WebDAVStorage``（以掛載方式使用，例如掛在 ``webdav://<host>``）
+    透過 :class:`~automation_file.WebDAVClient` 存取 WebDAV 伺服器。基底 URL 與
+    憑證都在用戶端上，因此沒有任何 URI 能自行解析：請把後端掛載到檔案應該出現的
+    位置。``root=`` 把後端限制在基底 URL 之下的某個集合（collection）內。集合是
+    真正的目錄。
+
+    ``stat`` 是一次 ``Depth: 0`` 的 ``PROPFIND``，回報伺服器提供的大小、修改時間
+    （``getlastmodified``）、``getetag`` 與 ``getcontenttype``。同一個用戶端內兩個
+    路徑之間的複製與搬移由伺服器以 ``COPY`` 與 ``MOVE`` 完成；不支援這兩個方法的
+    伺服器則改經本機暫存檔傳輸。刪除目錄只需要一次 ``DELETE``。HTTP 404 會拋出
+    ``StorageNotFoundException``，401 與 403 拋出 ``StoragePermissionException``，
+    408、429、5xx 與連線中斷則拋出 ``StorageTransientException``。
+
+    基底 URL 會經過 ``WebDAVClient`` 的 SSRF 檢查（伺服器位於私有網路時請傳入
+    ``allow_private_hosts=True``），而且預設會驗證 TLS。路徑不能以空白字元結尾。
+    用戶端由呼叫端負責關閉。
+
+``SMBStorage``（以掛載方式使用，例如掛在 ``smb://<server>/<share>``）
+    透過 :class:`~automation_file.SMBClient` 存取一個 SMB / CIFS 共用資料夾；
+    伺服器、共用名稱與憑證都在用戶端上。需要安裝 ``smbprotocol``
+    （``pip install smbprotocol``），未安裝時每個呼叫都會拋出
+    ``StorageUnavailableException``。請把後端掛載到檔案應該出現的位置。``root=``
+    把後端限制在共用資料夾內的某個目錄。目錄是真正的目錄。
+
+    ``stat`` 回報大小與修改時間。同一個用戶端內兩個路徑之間的搬移是伺服器上的
+    重新命名；複製則經由本機暫存檔。``/`` 與 ``\`` 都是路徑分隔符號，不論用哪一種
+    寫法，``..`` 區段都會被拒絕。用戶端由呼叫端負責關閉。
+
+``FsspecStorage``（可掛載在任何 scheme 之下）
+    把任何 `fsspec <https://filesystem-spec.readthedocs.io>`_ 檔案系統（Google
+    Cloud Storage、HDFS、FTP、壓縮檔……）放到儲存契約之後。需要安裝 ``fsspec`` 與
+    該服務的驅動程式（``gcsfs``、``adlfs`` ……），缺少時會拋出
+    ``StorageUnavailableException``。
+    ``FsspecStorage(filesystem, root=..., scheme=..., directories=...)`` 包裝一個
+    檔案系統物件；
+    ``FsspecStorage.from_url(url, directories=..., **storage_options)`` 則由 fsspec
+    URL 建立，URL 的路徑會成為根目錄。請用你選擇的 scheme 掛載這個後端。
+
+    ``directories`` 表示檔案系統是否保留沒有任何檔案的目錄。真正的檔案系統維持
+    ``True``；物件儲存的目錄只是 key 的前綴，請傳入 ``False``。``stat`` 回報大小，
+    並在檔案系統有提供時回報修改時間：``capabilities.modified_at`` 說明是否可以
+    期待這個欄位，而列出目錄時只有在檔案系統的清單本身帶有時間時才會回報。同一個
+    檔案系統物件內的複製與搬移由檔案系統本身完成。
+
+    路徑一律照字面解讀：名稱中含有 ``*``、``?`` 或 ``[`` 時絕不會被當成萬用字元
+    展開。fsspec 不在 SSRF 檢查的範圍內，因此後端應由設定建立，絕不要由請求輸入
+    建立。本機目錄請使用 ``LocalStorage(root)``，它還能阻止符號連結離開根目錄。
+
+.. code-block:: python
+
+   from automation_file import (
+       DropboxStorage, File, FsspecStorage, SMBClient, SMBStorage, Storage,
+       WebDAVClient, WebDAVStorage, dropbox_instance,
+   )
+
+   dropbox_instance.later_init(token)
+   File("dropbox:///reports/q1.csv").copy_to("local:///backup/q1.csv")
+   Storage.mount("dropbox://team", DropboxStorage(root="team/shared"))
+
+   dav = WebDAVClient("https://files.example.com/remote.php/dav", "user", password)
+   Storage.mount("webdav://files.example.com", WebDAVStorage(dav))
+
+   nas = SMBClient("nas.example.com", "projects", "user", password)
+   Storage.mount("smb://nas.example.com/projects", SMBStorage(nas, root="2026"))
+
+   Storage.mount("gcs://reports", FsspecStorage.from_url("gcs://reports", directories=False))
+
+   File("webdav://files.example.com/reports/q1.csv").copy_to("gcs://reports/2026/q1.csv")
+
+``GoogleDriveStorage``（``gdrive://<root>/<path>``）
+    透過共用的 ``driver_instance`` 存取「我的雲端硬碟」，初始化方式與以往相同：
+    ``driver_instance.later_init(token_path, credentials_path)`` 或
+    ``FA_drive_later_init``。URI 的 authority 是作為根目錄的資料夾 ID，留空或
+    寫成 ``root`` 則代表「我的雲端硬碟」：``gdrive:///reports/q1.csv``、
+    ``gdrive://<folder-id>/q1.csv``。在程式中即
+    ``GoogleDriveStorage(root_id="<folder-id>")``；共用雲端硬碟的 ID 也可以，
+    ``GoogleDriveStorage(client)`` 則可改用另一個 ``GoogleDriveClient``。
+
+    Drive 以 ID 而非路徑來定址，因此每次呼叫都會逐層資料夾查找路徑，呼叫之間
+    不保留任何結果。名稱採完全比對：``Report.txt`` 與 ``report.txt`` 是兩個
+    項目。Drive 也允許同一個資料夾內有多個同名項目；這樣的路徑無法指向單一
+    項目，因此對它的每個呼叫都會拋出 ``StorageException``，並說明有幾個項目
+    共用該名稱，絕不會從中挑選一個。列出目錄時仍會顯示每一個同名項目。名稱
+    含有 ``/`` 的項目同樣無法寫成路徑，列出時會略過它，並在記錄檔留下警告。
+    垃圾桶中的項目對這個後端而言並不存在。
+
+    資料夾是真實的目錄。寫入已有檔案的路徑時，會上傳該檔案的新修訂版本，因此
+    檔案的 ID、連結與共用設定都會保留；複製或搬移到既有檔案上也是如此。在同一
+    個用戶端之內複製或搬移到新路徑時由 Drive 本身完成，搬移會保留 ID。
+    ``delete`` 是永久刪除，不經過垃圾桶，資料夾會連同其中所有內容一併刪除。
+
+    Google 文件、試算表、簡報以及其他 ``application/vnd.google-apps.*`` 類型
+    沒有二進位內容。它們在列出時 ``size=None``，可以複製、搬移與刪除，但
+    ``download``、``read_bytes`` 與 ``checksum`` 會拋出
+    ``StorageUnsupportedException``，也不能用檔案覆寫它們。不會匯出成其他
+    格式，也不會跟隨捷徑。
+
+    ``stat`` 回報大小、修改時間、作為 ETag 的 Drive MD5、版本號與 MIME 類型。
+    ``checksum`` 對 MD5、SHA-1 與 SHA-256 直接回傳 Drive 為該檔案保存的值，
+    不需下載；其他演算法則由內容計算。
+
+    限制：路徑的每一層都要一次請求；而且 Drive 不保證名稱唯一，兩個寫入者若
+    同時建立同一個新路徑，會留下兩個同名項目。
+
+``OneDriveStorage``（``onedrive:///<path>``）
+    透過共用的 ``onedrive_instance`` 存取已登入使用者的 OneDrive，初始化方式
+    與以往相同：``onedrive_instance.later_init(access_token)``、
+    ``onedrive_instance.device_code_login(client_id)`` 或對應的
+    ``FA_onedrive_*`` 動作。URI 的 authority 一律留空：
+    ``onedrive:///reports/q1.csv``。在該位置寫了東西
+    （``onedrive://reports/q1.csv``）會被拒絕，並提示正確寫法。
+    ``OneDriveStorage(root="backups/2026")`` 把後端限制在某個資料夾內，該
+    資料夾必須已經存在；``OneDriveStorage(client)`` 則可改用另一個
+    ``OneDriveClient``。
+
+    資料夾是真實的目錄。OneDrive 比對名稱時不分大小寫，但會保留寫入時的
+    大小寫，因此 ``Report.txt`` 與 ``report.txt`` 是同一個項目，名稱在所屬
+    資料夾內是唯一的。名稱含有 OneDrive 禁用的字元（``" * : < > ? \ |``）時會
+    被服務拒絕，並拋出 ``StorageException``。
+
+    4 MiB 以內的檔案以單一請求上傳。更大的檔案透過上傳工作階段，以 10 MiB 的
+    分段邊讀邊送；下載則以串流寫入磁碟，因此兩者都不會把整個檔案放進記憶體。
+    寫入已有檔案的路徑時會取代其內容並保留該項目；複製或搬移到既有檔案上也是
+    如此。在同一個用戶端之內搬移到新路徑時由 OneDrive 本身完成，複製則經過
+    本機暫存檔。``delete`` 會把項目送進資源回收筒，資料夾會連同其中所有內容
+    一併送入。
+
+    ``stat`` 回報大小、修改時間、ETag 與 MIME 類型，沒有版本。校驗碼由內容
+    計算。
+
+    限制：只能存取已登入使用者自己的雲端硬碟；而且用戶端不會更新存取權杖，
+    權杖過期後每個呼叫都會拋出 ``StoragePermissionException``，直到安裝新的
+    權杖為止。
+
+Google Drive 與 OneDrive 都有真實的目錄，因此 ``mkdir`` 會建立資料夾，空目錄
+也可以存在（``capabilities.directories`` 為 ``True``）。兩個服務都會限流：收到
+限流回應、伺服器錯誤或連線中斷時會拋出 ``StorageTransientException``，可交給
+``retry_on_transient`` 重試。用戶端尚未初始化時，每個呼叫都會拋出
+``StorageUnavailableException``。
+
+.. code-block:: python
+
+   from automation_file import File, driver_instance, onedrive_instance
+
+   driver_instance.later_init("token.json", "credentials.json")
+   onedrive_instance.later_init(access_token)
+   File("gdrive:///reports/2026/q1.csv").copy_to("onedrive:///backups/2026/q1.csv")
+
 串流與目錄樹
 ------------
 
@@ -351,7 +601,8 @@ URI 的解析分兩步。**掛載** 優先：掛載把一個後端實例綁定�
    Storage.register_scheme("vault", lambda uri: (vault_backend(uri.authority), uri.path))
 
    Storage.resolve("sandbox://jobs/42/out.csv")       # (LocalStorage('/srv/jobs'), '42/out.csv')
-   Storage.schemes()                                  # ['azure', 'local', 'memory', 's3', 'sandbox', 'vault']
+   Storage.schemes()                                  # ['azure', 'dropbox', 'ftp', 'ftps', 'gdrive', 'local', 'memory',
+                                                      #  'onedrive', 's3', 'sandbox', 'sftp', 'vault']
 
 ``Storage.mount`` / ``unmount`` / ``register_scheme`` / ``schemes`` / ``resolve``
 操作的是整個行程共用的表。需要私有的表時使用
