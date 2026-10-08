@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-38 | 2026-10-08 | Integrate the PyBreeze all-extras dependency before stable release | #done #dependencies | [2026-10](2026-10.md) |
 | U-20261008-37 | 2026-10-08 | Main PR validation passes the full CI and analysis gates | #done #ci #security | [2026-10](2026-10.md) |
 | U-20261008-36 | 2026-10-08 | Keep the GUI on the tested Qt 6.11 series | #incident #gui #ci | [2026-10](2026-10.md) |
 | U-20261008-35 | 2026-10-08 | Share one Qt application and shut it down after GUI tests | #done #tests #gui | [2026-10](2026-10.md) |

@@ -32,4 +32,3 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 
 ### Packaging follow-ups
 
-- **#29** [BLOCKED] PyBreeze has to declare `automation-file[all]` before the stable release that splits the extras reaches users, or it installs without the SDKs it relied on. The change exists on PyBreeze's local branch `deps/automation-file-all-extra` (one commit on its `origin/dev`: `dev.toml`, `pyproject.toml`, `requirements.txt`), not pushed: it waits for someone to open the PR there and for PyBreeze's own update log. PyBreeze's checkout was on `docs/tutorials` with other work, so nothing else was touched.
