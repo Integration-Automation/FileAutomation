@@ -2,10 +2,18 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | **简体中文**
 
-一套模块化的自动化框架，涵盖本地文件 / 目录 / ZIP 操作、经 SSRF 验证的 HTTP
-下载、远程存储（Google Drive、S3、Azure Blob、Dropbox、SFTP），以及通过内嵌
-TCP / HTTP 服务器执行的 JSON 驱动动作。内附 PySide6 GUI，每个功能都有对应
-页签。所有公开 API 均由顶层 `automation_file` facade 统一导出。
+FileAutomation 是通用的文件层与数据流水线运行环境：以同一套 API 访问本地与远端存储，并提供
+文件完整性监控、具备重试与续跑能力的流水线、调度、事件驱动的通知、审计轨迹，以及通过 JSON
+动作、内嵌 TCP / HTTP 服务器与 MCP 进行的自动化。对象 API（`File`、`Storage`、`Pipeline`、
+`IntegrityMonitor`）与 `FA_*` JSON 动作是同一组操作的两种面貌，所有公开名称均由顶层
+`automation_file` facade 统一导出。另附桌面 GUI 与只读的 Web UI。
+
+```python
+from automation_file import File, IntegrityMonitor, Pipeline, Storage
+
+File("s3://reports/2026/q1.csv").copy_to("sftp://nas.example/archive/q1.csv")
+IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
+```
 
 - 本地文件 / 目录 / ZIP 操作，内置路径穿越防护（`safe_join`）
 - 经 SSRF 验证的 HTTP 下载，支持重试与大小 / 时间上限

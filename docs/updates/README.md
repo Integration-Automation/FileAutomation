@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-28 | 2026-10-08 | One positioning in the READMEs, the manuals and the metadata | #docs #packaging #roadmap | [2026-10](2026-10.md) |
 | U-20261008-27 | 2026-10-08 | Semantic MCP tools | #mcp #security #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-26 | 2026-10-08 | Production deployment guide | #docs #roadmap | [2026-10](2026-10.md) |
 | U-20261008-25 | 2026-10-08 | Metadata cases in the storage contract | #storage #tests #done | [2026-10](2026-10.md) |
@@ -122,5 +123,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 38 |
+| [2026-10.md](2026-10.md) | 2026-10 | 39 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

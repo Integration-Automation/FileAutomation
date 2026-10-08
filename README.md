@@ -2,12 +2,20 @@
 
 **English** | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)
 
-A modular automation framework for local file / directory / ZIP operations,
-SSRF-validated HTTP downloads, remote storage (Google Drive, S3, Azure Blob,
-Dropbox, SFTP), and JSON-driven action execution over embedded TCP / HTTP
-servers. Ships with a PySide6 GUI that exposes every feature through tabs.
-All public functionality is re-exported from the top-level `automation_file`
-facade.
+FileAutomation is a universal file layer and data-pipeline runtime: one API for local and
+remote storage, file integrity monitoring, pipelines with retry and resume, scheduling,
+event-driven notifications, an audit trail, and automation through JSON actions, embedded
+TCP / HTTP servers and MCP. The object API (`File`, `Storage`, `Pipeline`, `IntegrityMonitor`)
+and the `FA_*` JSON actions are two faces of the same operations, and everything public is
+re-exported from the top-level `automation_file` facade. A desktop GUI and a read-only web UI
+are included.
+
+```python
+from automation_file import File, IntegrityMonitor, Pipeline, Storage
+
+File("s3://reports/2026/q1.csv").copy_to("sftp://nas.example/archive/q1.csv")
+IntegrityMonitor("s3://reports/2026", baseline="reports.baseline.json").verify()
+```
 
 - Local file / directory / ZIP operations with path traversal guard (`safe_join`)
 - Validated HTTP downloads with SSRF protections, retry, and size / time caps

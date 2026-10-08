@@ -9,7 +9,11 @@ version = "0.0.31"
 authors = [
     { name = "JE-Chen", email = "jechenmailman@gmail.com" },
 ]
-description = "JSON-driven file, Drive, and cloud automation framework."
+description = "Universal file layer and data-pipeline runtime: one API for local and remote storage, integrity monitoring, pipelines, scheduling, notifications, audit and MCP automation."
+keywords = [
+    "file", "storage", "s3", "azure-blob", "sftp", "webdav", "pipeline", "dag", "scheduler",
+    "file-integrity", "audit", "automation", "mcp",
+]
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = "MIT"
@@ -100,6 +104,8 @@ automation_file_mcp = "automation_file.server.mcp_server:_cli"
 
 [project.urls]
 "Homepage" = "https://github.com/Integration-Automation/FileAutomation"
+"Source" = "https://github.com/Integration-Automation/FileAutomation"
+"Issues" = "https://github.com/Integration-Automation/FileAutomation/issues"
 
 [tool.setuptools.packages]
 # Only the library is installed. Without `include`, `tests` (it has an `__init__.py`) ships as a top-level package.

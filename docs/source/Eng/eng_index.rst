@@ -2,6 +2,11 @@
 automation_file English Manual
 ================================
 
+``automation_file`` is a universal file layer and data-pipeline runtime: one API
+for local and remote storage, file integrity monitoring, pipelines, scheduling,
+notifications, an audit trail, and automation through JSON actions, servers and
+MCP.
+
 The English manual is split into chapters that follow a typical reader
 journey: install → run JSON actions → drive locally → reach remote storage
 → expose servers → automate at scale. Use the table of contents on the
