@@ -910,6 +910,8 @@ python -m automation_file --execute_str '[["FA_create_dir",{"dir_path":"x"}]]'
 python -m automation_file --create_project ./my_project
 ```
 
+舊式旗標在清單中有動作失敗時，會在其餘動作執行完之後以狀態 1 結束，並在 stderr 印出 `error: N action(s) failed`。
+
 ## JSON 動作格式
 
 每一項動作可以是單純的指令名稱、`[name, kwargs]` 組合，或 `[name, args]`
