@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-32 | 2026-10-08 | An intermittent test failure, and its wrong first diagnosis | #tests #incident | [2026-10](2026-10.md) |
 | U-20261008-31 | 2026-10-08 | Migration guide | #docs #migration #roadmap | [2026-10](2026-10.md) |
 | U-20261008-30 | 2026-10-08 | UI 2.0 and the application layer | #ui #roadmap #done | [2026-10](2026-10.md) |
 | U-20261008-29 | 2026-10-08 | Scheduler v2 | #scheduler #roadmap #done | [2026-10](2026-10.md) |
@@ -126,5 +127,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 42 |
+| [2026-10.md](2026-10.md) | 2026-10 | 43 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

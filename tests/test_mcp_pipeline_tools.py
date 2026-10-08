@@ -718,7 +718,9 @@ def test_audit_search_filters_and_caps_the_records() -> None:
 def test_audit_search_finds_what_a_call_did_by_its_correlation_id() -> None:
     audited()
     kit = writable()
-    written = kit.call("file_write", {"uri": f"{INBOX}/a.txt", "content": "abc"})
+    # Not a word a random hexadecimal ID can contain.
+    content = "payload-kept-out-of-the-trail"
+    written = kit.call("file_write", {"uri": f"{INBOX}/a.txt", "content": content})
     body = succeed(kit.call("audit_search", {"correlation_id": written.correlation_id}))
     # Two records of one call can carry the same timestamp, so their order is not fixed.
     assert sorted((record["source"], record["action"]) for record in body["records"]) == [
@@ -726,4 +728,4 @@ def test_audit_search_finds_what_a_call_did_by_its_correlation_id() -> None:
         ("storage", "upload"),
     ]
     assert {record["actor"] for record in body["records"]} == {"mcp"}
-    assert "abc" not in json.dumps(body["records"])
+    assert content not in json.dumps(body["records"])
