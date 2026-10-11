@@ -15,6 +15,7 @@ transient errors are common.
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -62,6 +63,8 @@ class ActionExecutor(_CoreActionExecutor):
 
     def __init__(self, registry: ActionRegistry | None = None) -> None:
         super().__init__(_SETTINGS, registry or build_default_registry())
+        self._failures = 0
+        self._failures_lock = threading.Lock()
         self.registry.register_many(
             {
                 "FA_execute_action": self.execute_action,
@@ -84,6 +87,18 @@ class ActionExecutor(_CoreActionExecutor):
         return _PARSER.parse(action)
 
     # Public API --------------------------------------------------------
+    @property
+    def failure_count(self) -> int:
+        """How many actions have failed in this executor since it was created.
+
+        A failed action is recorded as ``repr(error)`` and the batch goes on, so
+        the return value of ``execute_action`` does not say whether anything
+        failed. A caller that must know (the CLI, for its exit status) compares
+        this count before and after. Dry runs are not counted.
+        """
+        with self._failures_lock:
+            return self._failures
+
     def validate(self, action_list: list | Mapping[str, Any]) -> list[str]:
         """Validate shape and resolve every name; return the list of action names.
 
@@ -179,6 +194,9 @@ class ActionExecutor(_CoreActionExecutor):
             return repr(error)
         finally:
             record_action(name, time.monotonic() - started, ok)
+            if not ok:
+                with self._failures_lock:
+                    self._failures += 1
 
     def _run_dry(self, action: list, display: list | None = None) -> Any:
         display_action = action if display is None else display

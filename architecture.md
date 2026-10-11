@@ -134,7 +134,10 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze also declares `automation-file` as
   a dependency.
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
-  (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
+  (`test_pioneer/executor/file/file_processing.py`). Its `file-runner` runs an action file through
+  `execute_action` in-process, and `parallel_run` spawns `python -m automation_file --execute_file <script>`
+  and reads the exit status: 1 when an action failed (`ActionExecutor.failure_count`, compared by
+  `__main__.main`), guarded by `tests/test_legacy_cli_contract.py`.
 - **Names inherited from AutoControl**: the TCP starter is still called `start_autocontrol_socket_server`
   and the action-dict key is `auto_control`. MailThunder has renamed both (`start_mail_thunder_socket_server`, `mail_thunder` key) and keeps the old names as deprecated aliases. MailThunder's
   socket-server default is 9942, so it runs next to this package's servers (TCP 9943, HTTP 9944,

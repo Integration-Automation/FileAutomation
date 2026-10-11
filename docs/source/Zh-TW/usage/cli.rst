@@ -23,3 +23,10 @@ CLI
 ``mcp`` 子指令以 stdio 啟動 Model Context Protocol 伺服器，
 讓 Claude Desktop 之類的宿主可把 ``FA_*`` 動作當成 MCP 工具呼叫——
 完整整合說明請見 :doc:`mcp`。
+
+舊式旗標的結束狀態
+------------------
+
+``-e``、``-d`` 與 ``--execute_str`` 在清單中有動作失敗時以狀態 1 結束。失敗的動作不會中止清單：
+其餘動作會先執行完，最後在 stderr 印出 ``error: N action(s) failed``。
+無法讀取的腳本和以前一樣以 1 結束。

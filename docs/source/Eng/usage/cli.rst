@@ -23,3 +23,10 @@ Subcommands for one-shot operations::
 The ``mcp`` subcommand starts a Model Context Protocol server over stdio so
 hosts such as Claude Desktop can call ``FA_*`` actions as MCP tools — see
 :doc:`mcp` for the full integration guide.
+
+Exit status of the legacy flags
+-------------------------------
+
+``-e``, ``-d`` and ``--execute_str`` exit with status 1 when an action of the list failed. A failed
+action does not stop the list: the rest runs first, and ``error: N action(s) failed`` is printed on
+stderr at the end. A script that cannot be read exits with 1 as before.

@@ -929,6 +929,8 @@ python -m automation_file --execute_str '[["FA_create_dir",{"dir_path":"x"}]]'
 python -m automation_file --create_project ./my_project
 ```
 
+The legacy flags exit with status 1 when an action of the list failed, after the rest of the list has run, and print `error: N action(s) failed` on stderr.
+
 ## JSON action format
 
 Each entry is either a bare command name, a `[name, kwargs]` pair, or a

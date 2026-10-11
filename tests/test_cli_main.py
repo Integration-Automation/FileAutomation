@@ -95,3 +95,38 @@ def test_execute_str_accepts_double_encoded_payload(
 
     assert rc == 0
     assert received == [actions]
+
+
+def test_legacy_flag_returns_1_when_an_action_failed(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    actions = tmp_path / "actions.json"
+    actions.write_text(json.dumps([["FA_no_such_action"], ["FA_no_such_action"]]), encoding="utf-8")
+
+    assert cli_main.main(["--execute_file", str(actions)]) == 1
+    assert "error: 2 action(s) failed" in capsys.readouterr().err
+
+
+def test_legacy_flag_returns_0_when_every_action_passed(tmp_path: Any) -> None:
+    target = tmp_path / "created.txt"
+    actions = tmp_path / "actions.json"
+    actions.write_text(
+        json.dumps([["FA_create_file", {"file_path": str(target), "content": "x"}]]),
+        encoding="utf-8",
+    )
+
+    assert cli_main.main(["--execute_file", str(actions)]) == 0
+    assert target.exists()
+
+
+def test_failures_of_an_earlier_run_are_not_counted_again(tmp_path: Any) -> None:
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps([["FA_no_such_action"]]), encoding="utf-8")
+    good = tmp_path / "good.json"
+    good.write_text(
+        json.dumps([["FA_create_file", {"file_path": str(tmp_path / "x.txt"), "content": "x"}]]),
+        encoding="utf-8",
+    )
+
+    assert cli_main.main(["--execute_file", str(bad)]) == 1
+    assert cli_main.main(["--execute_file", str(good)]) == 0
