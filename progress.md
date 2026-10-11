@@ -31,4 +31,3 @@ Items #10 to #26 are what is left of the 1.0 roadmap (`docs/FILEAUTOMATION-1.0-R
 - **#34** [BLOCKED] PyPI Trusted Publishing (roadmap §13). `publish.yml` and `publish-dev` still upload with the `PYPI_API_TOKEN` secret. Switching needs the owner to add a trusted publisher for each project on PyPI (`automation_file`: workflow `publish.yml`; `automation_file_dev`: workflow `ci-dev.yml`; an environment name if one is wanted) before the workflows can drop the token for `id-token: write` and `pypa/gh-action-pypi-publish`. Changing the workflows first would break both channels.
 
 ### Packaging follow-ups
-
