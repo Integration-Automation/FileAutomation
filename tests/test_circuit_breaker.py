@@ -10,8 +10,8 @@ from automation_file.core.circuit_breaker import CircuitBreaker
 from automation_file.exceptions import CircuitOpenException
 
 
-@pytest.fixture
-def breaker_clock(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+@pytest.fixture(name="breaker_clock")
+def _breaker_clock(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     clock = [100.0]
     monkeypatch.setattr(
         "automation_file.core.circuit_breaker.time",
@@ -26,7 +26,8 @@ def test_closed_passes_through() -> None:
     assert cb.state == "closed"
 
 
-def test_opens_after_threshold_failures(breaker_clock: list[float]) -> None:
+@pytest.mark.usefixtures("breaker_clock")
+def test_opens_after_threshold_failures() -> None:
     cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
 
     def boom() -> None:
