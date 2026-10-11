@@ -58,6 +58,9 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261011-02 | 2026-10-11 | Keep circuit breaker clock fixtures lint clean | #done #ci | [2026-10](2026-10.md) |
+| U-20261011-01 | 2026-10-11 | Integrate open pull requests and stabilize circuit breaker tests | #ci #tests #dependencies | [2026-10](2026-10.md) |
+| U-20261008-39 | 2026-10-08 | The legacy CLI flags exit 1 when an action failed | #feature #cli #testpioneer | [2026-10](2026-10.md) |
 | U-20261008-38 | 2026-10-08 | Integrate the PyBreeze all-extras dependency before stable release | #done #dependencies | [2026-10](2026-10.md) |
 | U-20261008-37 | 2026-10-08 | Main PR validation passes the full CI and analysis gates | #done #ci #security | [2026-10](2026-10.md) |
 | U-20261008-36 | 2026-10-08 | Keep the GUI on the tested Qt 6.11 series | #incident #gui #ci | [2026-10](2026-10.md) |
@@ -133,5 +136,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-10.md](2026-10.md) | 2026-10 | 44 |
+| [2026-10.md](2026-10.md) | 2026-10 | 52 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |
