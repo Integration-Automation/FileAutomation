@@ -90,6 +90,39 @@ def test_create_project(tmp_path, flag):
     assert any(project.rglob("*.json")), result.stdout + result.stderr
 
 
+def _failing_actions(target: Path) -> list:
+    """An action that fails (no command has that name), then one that writes *target*."""
+    return [["FA_no_such_action"], *_actions(target)]
+
+
+@pytest.mark.parametrize("flag", ["-e", "--execute_file"])
+def test_a_failed_action_exits_1_after_the_rest_ran(tmp_path, flag):
+    target = tmp_path / "created.txt"
+    action_file = tmp_path / "actions.json"
+    action_file.write_text(json.dumps(_failing_actions(target)), encoding="utf-8")
+    result = _run_cli(tmp_path, flag, str(action_file))
+    assert result.returncode == 1
+    assert "error: 1 action(s) failed" in result.stderr
+    assert target.exists(), result.stdout + result.stderr
+
+
+def test_a_failed_action_in_a_directory_exits_1(tmp_path):
+    action_dir = tmp_path / "actions"
+    action_dir.mkdir()
+    (action_dir / "a_ok.json").write_text(
+        json.dumps(_actions(tmp_path / "a.txt")), encoding="utf-8"
+    )
+    (action_dir / "b_bad.json").write_text(
+        json.dumps(_failing_actions(tmp_path / "b.txt")), encoding="utf-8"
+    )
+    assert _run_cli(tmp_path, "--execute_dir", str(action_dir)).returncode == 1
+
+
+def test_a_failed_action_in_execute_str_exits_1(tmp_path):
+    payload = _pybreeze_execute_str(_failing_actions(tmp_path / "created.txt"))
+    assert _run_cli(tmp_path, "--execute_str", payload).returncode == 1
+
+
 def test_no_flag_exits_non_zero(tmp_path):
     assert _run_cli(tmp_path).returncode != 0
 

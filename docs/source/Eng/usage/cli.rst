@@ -128,3 +128,10 @@ offset is read as local time.
 ``purge`` deletes the records older than a number of days and prints how many it
 removed. A pipeline run's ID is its correlation ID, so one search shows everything
 a run did.
+
+Exit status of the legacy flags
+-------------------------------
+
+``-e``, ``-d`` and ``--execute_str`` exit with status 1 when an action of the list failed. A failed
+action does not stop the list: the rest runs first, and ``error: N action(s) failed`` is printed on
+stderr at the end. A script that cannot be read exits with 1 as before.
