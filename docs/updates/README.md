@@ -58,6 +58,18 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261008-01 | 2026-10-08 | The legacy CLI flags exit 1 when an action failed | #feature #cli #testpioneer | [2026-10](2026-10.md) |
+| U-20261001-11 | 2026-10-01 | The publish jobs build with the locked setuptools | #done #ci #security #X-13 | [2026-10](2026-10.md) |
+| U-20261001-10 | 2026-10-01 | The publish jobs install hash-locked build tools | #done #ci #security #deps | [2026-10](2026-10.md) |
+| U-20261001-09 | 2026-10-01 | The source distributions stop carrying the tests | #done #packaging #tests | [2026-10](2026-10.md) |
+| U-20261001-08 | 2026-10-01 | The wheels stop installing the test suite | #done #packaging #tests | [2026-10](2026-10.md) |
+| U-20261001-07 | 2026-10-01 | CI publishes automation_file_dev from the dev branch | #release #ci #X-13 | [2026-10](2026-10.md) |
+| U-20261001-06 | 2026-10-01 | The TCP server moves to je_action_core | #migration #socket-server #L-6 | [2026-10](2026-10.md) |
+| U-20261001-05 | 2026-10-01 | X-12: no action command loads packages, so the gate stays off | #decision #security #X-12 | [2026-10](2026-10.md) |
+| U-20261001-04 | 2026-10-01 | je_action_core comes from PyPI | #done #build #L-6 | [2026-10](2026-10.md) |
+| U-20261001-03 | 2026-10-01 | Registry, executor pipeline and helpers move to je_action_core | #migration #executor #L-6 | [2026-10](2026-10.md) |
+| U-20261001-02 | 2026-10-01 | Workflow-timeout test failed CI lint (ruff B905) | #incident #ci | [2026-10](2026-10.md) |
+| U-20261001-01 | 2026-10-01 | Every workflow job has a timeout | #ci #tests | [2026-10](2026-10.md) |
 | U-20260925-03 | 2026-09-25 | Python classifiers list every version CI tests | #packaging #tests | [2026-09](2026-09.md) |
 | U-20260925-02 | 2026-09-25 | License metadata uses the SPDX expression in both channels | #packaging | [2026-09](2026-09.md) |
 | U-20260925-01 | 2026-09-25 | Dependabot waits 7 days before proposing a new release | #ci #security #deps | [2026-09](2026-09.md) |
@@ -84,4 +96,5 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
+| [2026-10.md](2026-10.md) | 2026-10 | 12 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

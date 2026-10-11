@@ -1,43 +1,42 @@
 """JSON persistence for action lists.
 
-Reads/writes are serialised through a module-level lock so concurrent callers
-cannot interleave writes against the same file.
+Reads/writes are serialised through one lock so concurrent callers cannot
+interleave writes against the same file (je_action_core's ``ActionJsonFile``).
 """
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from threading import Lock
 from typing import Any
+
+from je_action_core import ActionJsonFile, JsonFileMessages, JsonFileSettings
 
 from automation_file.exceptions import JsonActionException
 from automation_file.logging_config import file_automation_logger
 
-_lock = Lock()
+_json_file = ActionJsonFile(
+    JsonFileSettings(
+        error=JsonActionException,
+        messages=JsonFileMessages(
+            missing="can't read JSON file: {path}",
+            unreadable="can't read JSON file: {path}",
+            unwritable="can't write JSON file: {path}",
+        ),
+        read_errors=(OSError, json.JSONDecodeError),
+        write_errors=(OSError, TypeError),
+        log_info=file_automation_logger.info,
+    )
+)
 
 
 def read_action_json(json_file_path: str) -> Any:
     """Return the parsed JSON content at ``json_file_path``."""
-    with _lock:
-        path = Path(json_file_path)
-        if not path.is_file():
-            raise JsonActionException(f"can't read JSON file: {json_file_path}")
-        try:
-            with path.open(encoding="utf-8") as read_file:
-                data = json.load(read_file)
-        except (OSError, json.JSONDecodeError) as error:
-            raise JsonActionException(f"can't read JSON file: {json_file_path}") from error
-        file_automation_logger.info("read_action_json: %s", json_file_path)
-        return data
+    return _json_file.read(json_file_path)
 
 
 def write_action_json(json_save_path: str, action_json: Any) -> None:
-    """Write ``action_json`` to ``json_save_path`` as pretty UTF-8 JSON."""
-    with _lock:
-        try:
-            with open(json_save_path, "w", encoding="utf-8") as file_to_write:
-                json.dump(action_json, file_to_write, indent=4, ensure_ascii=False)
-        except (OSError, TypeError) as error:
-            raise JsonActionException(f"can't write JSON file: {json_save_path}") from error
-        file_automation_logger.info("write_action_json: %s", json_save_path)
+    """Write ``action_json`` to ``json_save_path`` as pretty UTF-8 JSON.
+
+    Data that cannot be serialised leaves the file as it was.
+    """
+    _json_file.write(json_save_path, action_json)

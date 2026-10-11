@@ -19,7 +19,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from automation_file.core.action_executor import execute_action, execute_files
+from automation_file.core.action_executor import execute_action, execute_files, executor
 from automation_file.core.json_store import read_action_json
 from automation_file.exceptions import ArgparseException
 from automation_file.local.file_ops import create_file
@@ -235,6 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         return args.handler(args)
 
     ran = False
+    failed_before = executor.failure_count
     for key, handler in _LEGACY_DISPATCH.items():
         value = getattr(args, key, None)
         if value is None:
@@ -243,6 +244,11 @@ def main(argv: list[str] | None = None) -> int:
         ran = True
     if not ran:
         raise ArgparseException("no argument supplied; try --help")
+    # A failed action does not stop the batch, so it is reported once the batch is done.
+    failed = executor.failure_count - failed_before
+    if failed:
+        print(f"error: {failed} action(s) failed", file=sys.stderr)
+        return 1
     return 0
 
 

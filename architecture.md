@@ -17,7 +17,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | --- | --- |
 | `automation_file/__init__.py` | Public facade (`__all__`). Wires the shared `executor`, `callback_executor` and `package_manager` over one registry. `launch_ui` is loaded lazily through `__getattr__` |
 | `automation_file/__main__.py` | CLI: legacy flags plus subcommands |
-| `automation_file/core/` | Engine: `action_registry.py` (`ActionRegistry`, `build_default_registry`), `action_executor.py` (`ActionExecutor`, shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
+| `automation_file/core/` | Engine, on je_action_core: `action_registry.py` (`ActionRegistry`, a `CommandRegistry`; `build_default_registry`), `action_executor.py` (`ActionExecutor`, an `ActionExecutor` with strict actions, indexed records and the dry-run, validate, substitute and parallel extras; shared `executor`), `callback_executor.py`, `package_loader.py`, `plugins.py`, `dag_executor.py`, `action_queue.py`, `json_store.py`, `substitution.py`. Also cross-cutting helpers: `retry`, `quota`, `rate_limit`, `circuit_breaker`, `file_lock`, `sqlite_lock`, `checksum`, `manifest`, `crypto`, `secrets`, `config`, `config_watcher`, `audit`, `metrics`, `tracing`, `progress`, `fim`, `content_store` |
 | `automation_file/local/` | Local strategy modules: file, dir, zip, tar and archive ops, sync, diff, text/JSON/data edits, templates, versioning, trash, `shell_ops` (argv-only subprocess), conditional branches. `safe_paths.py` guards against path traversal |
 | `automation_file/remote/` | `url_validator.py` (SSRF guard), `http_download.py`, `cross_backend.py`, `fsspec_bridge.py`. One subpackage per backend: `google_drive/`, `s3/`, `azure_blob/`, `dropbox_api/`, `sftp/`, `ftp/`, `onedrive/`, `box/`, each with `client.py`, `*_ops.py` and `register_<backend>_ops`. `smb/` and `webdav/` have a client only |
 | `automation_file/server/` | `tcp_server.py`, `http_server.py`, `mcp_server.py`, `web_ui.py`, `metrics_server.py`, `action_acl.py` (`ActionACL`), `network_guards.py` (`ensure_loopback`) |
@@ -27,7 +27,10 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 | `automation_file/ui/` | PySide6 GUI: `launcher.launch_ui`, `main_window.MainWindow`, `worker.ActionWorker`, `log_widget.LogPanel`, `tabs/` (backend panels are grouped under `TransferTab`) |
 | `automation_file/utils/` | File discovery, fast find, grep, duplicate finder, backup rotation |
 | `automation_file/exceptions.py`, `logging_config.py` | `FileAutomationException` hierarchy; `file_automation_logger` (INFO+ to stderr, DEBUG+ to `$FILE_AUTOMATION_LOG_FILE` or `~/.automation_file/logs/FileAutomation.log`, opened on first use) |
-| `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and publish copy one of these TOMLs into place |
+| `stable.toml`, `dev.toml` | Packaging for `automation_file` and `automation_file_dev`. No `pyproject.toml` is committed; CI and the publish jobs write one of these TOMLs into place. Apart from the name, version and description they say the same thing (`tests/test_dev_toml_parity.py`) |
+| `MANIFEST.in` | Keeps `tests/` out of both source distributions (`tests/test_sdist_manifest.py`); package discovery in the TOMLs already keeps it out of the wheels |
+| `scripts/dev_release.py` | Release helper for the dev channel (standard library only): picks the next `automation_file_dev` version from PyPI and tells whether the built wheel differs from the newest published one |
+| `.github/requirements/publish.in`, `publish.txt` | The tools of the two publish jobs (`build`, `twine`, and the build backend `setuptools`) and their hash-locked resolution for Python 3.12 on Linux. `publish.in` holds the `uv pip compile` command that regenerates `publish.txt`; Dependabot reads the directory |
 | `main_ui.py` | Development shortcut for `launch_ui()` |
 | `tests/`, `docs/`, `examples/mcp/` | pytest suite (fixtures in `tests/conftest.py`); Sphinx docs; MCP host configuration example |
 
@@ -57,6 +60,20 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
   default port 9945).
 - **GUI**: `launch_ui()`, `python -m automation_file ui` or `python main_ui.py`.
 - **Plugins**: third-party packages register actions through the entry-point group `automation_file.actions`.
+- **PyPI packages**: `automation_file` (stable) and `automation_file_dev` (dev channel), both the same
+  import package.
+  - Stable: a push to `main` runs `publish.yml`, which bumps both TOMLs, builds from `stable.toml`,
+    uploads, and commits and tags the bump.
+  - Dev: the `publish-dev` job of `ci-dev.yml` runs after `lint` and `pytest` on a push to `dev`. It
+    builds from `dev.toml` and uploads when the commit is still the tip of `dev` and the wheel differs
+    from the newest published one. `scripts/dev_release.py` takes the version from PyPI (newest release
+    plus one patch, never below the version in `dev.toml`), so nothing is committed back.
+  - Both jobs hold the PyPI token and install only the wheels pinned by hash in
+    `.github/requirements/publish.txt` (`pip install --require-hashes --only-binary :all:`);
+    `tests/test_workflow_actions.py` fails on any other `pip install` in them.
+  - Both jobs build with `python -m build --no-isolation`, so the build backend is the locked
+    `setuptools` and not a download made at build time. The same test file fails on a build without
+    the flag and when the lock does not satisfy `[build-system] requires` of `stable.toml` or `dev.toml`.
 
 ## 4. Main flows
 
@@ -66,7 +83,7 @@ the CLI, over loopback TCP or HTTP servers, as MCP tools, or from the PySide6 GU
 JSON file / --execute_str / Python → ActionExecutor.execute_action(list|dict, validate_first, dry_run, substitute)
   → _coerce (list or {"auto_control": [...]}) → _execute_event → registry.resolve(name)
   → FA_* callable in local/ | remote/ | utils/ | core/ (inside tracing.action_span)
-  → {"execute: <action>": return value | repr(error)}   (one failure never aborts the batch)
+  → {"execute[<index>]: <action>": return value | repr(error)}   (one failure never aborts the batch)
 ```
 
 **Remote transports**
@@ -117,15 +134,36 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
   contract, guarded by `tests/test_legacy_cli_contract.py`. PyBreeze also declares `automation-file` as
   a dependency.
 - **TestPioneer** imports `download_file` and `unzip_all` from the facade in-process
-  (`test_pioneer/executor/file/file_processing.py`). Its `parallel_run` does not spawn this package.
+  (`test_pioneer/executor/file/file_processing.py`). Its `file-runner` runs an action file through
+  `execute_action` in-process, and `parallel_run` spawns `python -m automation_file --execute_file <script>`
+  and reads the exit status: 1 when an action failed (`ActionExecutor.failure_count`, compared by
+  `__main__.main`), guarded by `tests/test_legacy_cli_contract.py`.
 - **Names inherited from AutoControl**: the TCP starter is still called `start_autocontrol_socket_server`
   and the action-dict key is `auto_control`. MailThunder has renamed both (`start_mail_thunder_socket_server`, `mail_thunder` key) and keeps the old names as deprecated aliases. MailThunder's
   socket-server default is 9942, so it runs next to this package's servers (TCP 9943, HTTP 9944,
   metrics 9945) on their defaults.
 - **Wire format**: TCP replies end with the same `Return_Data_Over_JE` terminator as the sibling servers.
 - **Builtins policy**: the default registry contains no Python builtins; only `PackageLoader` can add
-  them. In the siblings, APITestka uses an explicit allowlist, LoadDensity a `_UNSAFE_BUILTINS`
-  blacklist, and MailThunder registers every builtin (known gap).
+  them. In the siblings, APITestka registers none, and LoadDensity, MailThunder and WebRunner register the
+  same `SAFE_BUILTINS` allowlist.
+- **ActionCore (this repo depends on it)**: `je_action_core` (Integration-Automation/ActionCore) holds the registry,
+  executor pipeline, package loader, callback executor and JSON files. FileAutomation configures them as follows:
+  - **registry**: accepts any callable; a refused one raises `AddCommandException("<name> is not callable")`;
+  - **executor**: `StrictActionParser` (its messages are this repo's), `execute[<index>]: <action>` record keys,
+    document key `auto_control`, its list messages, and the tracing span through `invoke`;
+  - **package loader**: `<package>_<member>` names, import errors logged, gate off, the count returned through
+    `check_and_add`;
+  - **callback executor**: strict checks, errors raised;
+  - **JSON files**: `JSONDecodeError` / `OSError` wrapped on read, `OSError` / `TypeError` on write.
+
+  - **TCP server**: `SecretHeaderRequestHandler` (`AUTH <secret>` first line) on a `TCPActionServer`
+    (`ActionTCPServer` with daemon threads and address reuse), the ACL as its `validate` hook, and
+    `ReplyMessages` for `<key> -> <value>` lines and the `json error` / `forbidden` / `execution error` /
+    `decode error` / `auth error` replies; `ensure_loopback` runs before it starts.
+
+  The extras (dry run, validate, substitute, parallel, metrics) and the HTTP server stay here. It is a PyPI
+  dependency (`je_action_core>=0.0.2`); the CI lint job installs it too, so mypy reads its types. ActionCore lists
+  FileAutomation in its own §6.
 
 ## 7. Design constraints
 
@@ -140,10 +178,13 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 - Resolve user paths through `safe_join` / `is_within` (§ Security › Path traversal). SFTP keeps
   `paramiko.RejectPolicy()` (§ Security › SFTP host verification).
 - `retry_on_transient` retries only the listed exception types (§ Security › Reliability (retry / quota)).
-  `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading).
+  `PackageLoader` is eval-grade; never expose it remotely (§ Security › Plugin / package loading). No `FA_*`
+  command reaches it, so je_action_core's package gate is off here (`tests/test_package_loader.py` fails if one
+  is added; workspace X-12).
 - No `shell=True`; subprocesses use argument lists and a timeout (§ Security › General rules; › Subprocess execution).
 - Backends and PySide6 are first-class runtime dependencies. Keep `stable.toml` and `dev.toml`
-  dependencies in sync, and let the publish workflow bump versions (§ Branching & CI).
+  in sync (`tests/test_dev_toml_parity.py`), and let CI number both channels: never bump a version by
+  hand (§ Branching & CI).
 - Limits: cyclomatic complexity ≤ 15 (hard cap 20), cognitive complexity ≤ 15, functions ≤ 75 lines,
   ≤ 7 parameters, nesting ≤ 4, files ≤ 1000 lines (§ Code quality › Complexity & size).
 - Run `ruff check`, `ruff format --check`, `mypy` and `pytest` before committing (§ Development).
@@ -153,6 +194,7 @@ ActionExecutor() → build_default_registry(): local + http + utils + drive comm
 
 - A top-level subpackage, backend or server module is added, removed or renamed.
 - CLI flags, subcommands, `[project.scripts]` in the TOMLs, or the entry-point group change.
+- How either PyPI package is built or published changes.
 - The action format, the `auto_control` key, the registry build order, or plugin override semantics change.
 - Server defaults (host, port, auth, ACL, terminator) or HTTP routes change.
 - A §6 contract changes: PyBreeze invocation, the Windows double decode, the facade names TestPioneer uses.

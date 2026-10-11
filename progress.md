@@ -5,4 +5,3 @@ Item numbers (`#n`) are never reused. Tags: [DECIDE] needs the owner's decision,
 Cross-repo and workspace items live in `D:\Codes\progress.md` (relevant here: X-12, X-13).
 
 ## Open
-

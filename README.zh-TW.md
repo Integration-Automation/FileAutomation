@@ -308,7 +308,8 @@ pip install "automation_file[dev]"       # ruff, mypy, pre-commit, pytest-cov, b
   `tqdm`、`boto3`、`azure-storage-blob`、`dropbox`、
   `paramiko`、`msal`、`boxsdk`、`PySide6`、
   `watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
-  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`
+  `PyYAML`、`pyarrow`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`(與 APITestka、
+  LoadDensity、MailThunder 共用的 action 執行器)
 
 ## 使用方式
 
@@ -908,6 +909,8 @@ python -m automation_file --execute_dir ./actions/
 python -m automation_file --execute_str '[["FA_create_dir",{"dir_path":"x"}]]'
 python -m automation_file --create_project ./my_project
 ```
+
+舊式旗標在清單中有動作失敗時，會在其餘動作執行完之後以狀態 1 結束，並在 stderr 印出 `error: N action(s) failed`。
 
 ## JSON 動作格式
 

@@ -310,7 +310,8 @@ Requirements:
   `tqdm`, `boto3`, `azure-storage-blob`, `dropbox`,
   `paramiko`, `msal`, `boxsdk`, `PySide6`,
   `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
-  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`
+  `PyYAML`, `pyarrow`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
+  shared with APITestka, LoadDensity and MailThunder)
 
 ## Usage
 
@@ -927,6 +928,8 @@ python -m automation_file --execute_dir ./actions/
 python -m automation_file --execute_str '[["FA_create_dir",{"dir_path":"x"}]]'
 python -m automation_file --create_project ./my_project
 ```
+
+The legacy flags exit with status 1 when an action of the list failed, after the rest of the list has run, and print `error: N action(s) failed` on stderr.
 
 ## JSON action format
 
