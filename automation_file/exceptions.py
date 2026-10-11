@@ -108,7 +108,15 @@ class ArchiveException(FileAutomationException):
 
 
 class WebDAVException(FileAutomationException):
-    """Raised by the WebDAV client on transport / protocol failures."""
+    """Raised by the WebDAV client on transport / protocol failures.
+
+    ``status_code`` is the HTTP status the server answered with, or ``None`` when
+    the failure happened before a response arrived.
+    """
+
+    def __init__(self, *args: object, status_code: int | None = None) -> None:
+        super().__init__(*args)
+        self.status_code = status_code
 
 
 class SMBException(FileAutomationException):
@@ -141,6 +149,54 @@ class BoxException(FileAutomationException):
 
 class TracingException(FileAutomationException):
     """Raised when OpenTelemetry tracing setup cannot be completed."""
+
+
+class OptionalDependencyException(FileAutomationException, RuntimeError):
+    """Raised when a feature needs a package that only an optional extra installs."""
+
+
+class StorageException(FileAutomationException):
+    """Root of the errors raised by the universal storage layer (``automation_file.storage``)."""
+
+
+class StorageURIException(StorageException):
+    """Raised when a storage URI or path is malformed, ambiguous, or has no backend."""
+
+
+class StorageNotFoundException(StorageException, FileNotExistsException):
+    """Raised when a storage path, or the local source of an upload, does not exist."""
+
+
+class StorageAlreadyExistsException(StorageException):
+    """Raised when a write would replace a path and ``overwrite`` / ``exist_ok`` is off."""
+
+
+class StoragePathTypeException(StorageException):
+    """Raised when a file operation targets a directory, or a directory operation a file."""
+
+
+class StorageNotEmptyException(StorageException):
+    """Raised when a directory with entries is deleted without ``recursive=True``."""
+
+
+class StoragePermissionException(StorageException):
+    """Raised when the backend denies access to a path."""
+
+
+class StorageTransientException(StorageException):
+    """Raised for failures worth retrying: timeouts, dropped connections, throttling."""
+
+
+class StorageUnavailableException(StorageException):
+    """Raised when a backend is not initialised or its SDK is not installed."""
+
+
+class StorageUnsupportedException(StorageException):
+    """Raised when a backend cannot perform the requested operation."""
+
+
+class StorageChecksumException(StorageException):
+    """Raised when a file does not have the digest a strict verification expected."""
 
 
 _ARGPARSE_EMPTY_MESSAGE = "argparse received no actionable argument"

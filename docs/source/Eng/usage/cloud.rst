@@ -1,10 +1,14 @@
 Cloud and SFTP backends
 =======================
 
-Every backend (Google Drive, S3, Azure Blob, Dropbox, SFTP) is bundled
-with ``automation_file`` and auto-registered by
-:func:`~automation_file.core.action_registry.build_default_registry`.
-There is no extra install step — call ``later_init`` on the singleton and go:
+Every backend's actions are registered by
+:func:`~automation_file.core.action_registry.build_default_registry`, whether
+or not its SDK is installed. The SDK itself comes with an extra:
+``pip install "automation_file[s3]"`` (``azure``, ``gdrive``, ``dropbox``,
+``sftp``, ``onedrive``, ``box``, ``smb``, ``fsspec``), or ``[all]`` for every
+backend. Using a backend whose extra is missing raises
+``OptionalDependencyException`` with the command to run. With the SDK in place,
+call ``later_init`` on the singleton and go:
 
 .. code-block:: python
 
@@ -46,17 +50,44 @@ swap in ``AutoAddPolicy`` for convenience.
 Cross-backend copy
 ------------------
 
-The cross-backend dispatcher accepts URI syntax for every backend:
+``FA_copy_between`` (``copy_between(source, target)``) copies one file from a
+location to another and returns ``True`` when it was transferred. It is the
+older spelling of ``File(source).copy_to(target)`` and runs on the storage layer
+(:doc:`storage`): the copy is native where two backends can do it between
+themselves, a file already at the target is replaced, and the operation reaches
+the storage observers and the audit trail.
 
 .. code-block:: python
 
    from automation_file import execute_action
 
    execute_action([
-       ["FA_cross_copy",
-        {"src": "s3://reports/2026-04.csv",
-         "dst": "drive:///Backups/april.csv"}],
+       ["FA_copy_between",
+        {"source": "s3://reports/2026-04.csv",
+         "target": "azure://backups/april.csv"}],
    ])
 
-URI prefixes: ``local://``, ``s3://``, ``drive://``, ``sftp://``,
-``azure://``, ``dropbox://``, ``ftp://``.
+It accepts:
+
+* any storage URI: ``s3://bucket/key``, ``azure://container/blob`` (or
+  ``az://``), ``gdrive:///path``, ``onedrive:///path``, ``dropbox:///path``,
+  ``sftp://host/absolute/path``, ``memory://name/path``, a mounted prefix;
+* a plain filesystem path, ``local:<path>`` or ``local:/path``;
+* the spellings it has always taken: ``s3:bucket/key``, ``azure:container/blob``
+  and ``dropbox:/path``;
+* ``sftp:/path`` and ``ftp:/path`` with one slash or none, where the path is
+  relative to the directory the session logged in to, as it always was. With two
+  slashes (``sftp://host/path``) the URI names a host and an absolute path, and
+  the host must be the one the session is connected to;
+* ``http://`` / ``https://`` as a source only, fetched through the validated
+  downloader (:doc:`transfer`).
+
+Each backend must be initialised first (``s3_instance.later_init(...)`` and so
+on). The function returns ``False`` when the transfer itself fails (a missing
+source, a refused write, a copy of a file onto itself) and logs the reason. It
+raises ``CrossBackendException`` for a location it cannot make sense of and
+``StorageUnavailableException`` for a backend that is not initialised.
+
+For new code prefer ``FA_storage_copy`` (:doc:`storage`): it takes storage
+URIs, reports what it copied, and raises a specific error instead of returning
+``False``.

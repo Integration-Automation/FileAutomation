@@ -1,6 +1,42 @@
 快速開始
 ========
 
+物件 API
+--------
+
+大多數程式只需要四個名稱：``File`` 與 ``Storage``（:doc:`storage`）、
+``IntegrityMonitor``（:doc:`integrity`）以及 ``Pipeline``（:doc:`pipeline`）。
+
+.. code-block:: python
+
+   from automation_file import File, IntegrityMonitor, Pipeline, Storage
+
+   # 每一種後端都用同一套 API：一般路徑或儲存 URI。
+   report = File("memory://demo/reports/q1.csv")
+   report.write(b"region,total\nnorth,42\n")
+   report.copy_to("/srv/demo/q1.csv")                          # 任何後端之間都能複製
+   [entry.path for entry in Storage("/srv/demo").list_dir()]   # ['q1.csv']
+   print(File("/srv/demo/q1.csv").checksum())                  # sha256:8372…
+
+   # 這棵目錄樹是否仍與核可時相同？
+   monitor = IntegrityMonitor("/srv/demo", baseline="/srv/demo.baseline.json")
+   monitor.create_baseline()
+   monitor.verify().ok                                         # True
+
+   # 具有相依關係、重試與執行紀錄的步驟。
+   pipeline = Pipeline("publish")
+   pipeline.task("copy", ["FA_storage_copy", {"source": "memory://demo/reports/q1.csv",
+                                              "target": "memory://demo/published/q1.csv"}])
+   pipeline.task("check", ["FA_storage_exists", {"uri": "memory://demo/published/q1.csv"}],
+                 depends_on=["copy"])
+   pipeline.run().status                                       # RunStatus.SUCCEEDED
+
+只要安裝了對應的 extra（``pip install "automation_file[s3]"``）並初始化其用戶端，
+就可以把 ``memory://`` 與本機路徑換成 ``s3://bucket/key``、``sftp://host/path``
+或任何其他後端。
+
+下面的 JSON 動作清單是同一組操作的資料寫法，可用於設定檔、動作伺服器與命令列。
+
 JSON 動作清單
 -------------
 

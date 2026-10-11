@@ -10,6 +10,9 @@ Automation-first Python library for local file / directory / zip operations, HTT
 automation_file/
 ├── __init__.py          # Public API facade (__all__); launch_ui is loaded lazily via __getattr__
 ├── __main__.py          # CLI entry: subcommands plus the legacy -e/-d/-c/--execute_str flags
+├── cli_storage.py       # the `storage` subcommand (ls, cp, mv, rm, sync, checksum, ...)
+├── cli_operations.py    # the `integrity`, `pipeline` and `audit` subcommands
+├── cli_common.py        # what the subcommands share: JSON output, --init, --audit, the cli actor
 ├── exceptions.py        # FileAutomationException hierarchy
 ├── logging_config.py    # file_automation_logger (file + stderr handlers)
 ├── core/                # Engine: action_registry (ActionRegistry, build_default_registry), action_executor
@@ -24,15 +27,41 @@ automation_file/
 │                        # subpackage per backend: google_drive, s3, azure_blob, dropbox_api, sftp, ftp,
 │                        # onedrive, box (client.py + *_ops.py + register_<backend>_ops); smb and webdav
 │                        # have a client only
-├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), web_ui, metrics_server,
+├── storage/             # Universal storage layer: uri (StorageURI), types (FileInfo, Checksum,
+│                        # StorageCapabilities), backend (StorageBackend contract), local_storage,
+│                        # memory_storage, object_storage (ObjectStorage), s3_storage, azure_storage,
+│                        # session_storage (SessionStorage), sftp_storage, ftp_storage, gdrive_storage,
+│                        # onedrive_storage, dropbox_storage, webdav_storage, smb_storage, fsspec_storage,
+│                        # resolver (StorageResolver), file (File), storage (Storage), streams,
+│                        # tree (copy_tree, sync_tree),
+│                        # actions (FA_storage_* and register_storage_ops)
+├── events/              # Event model: model (Event, Severity, the ten core events), bus (EventBus,
+│                        # event_bus, emit), context (correlation_scope, actor_scope), storage_bridge
+├── integrity/           # IntegrityMonitor 2.0: target, hashing, snapshot, manifest (schema 2), baseline,
+│                        # detector, report, alerts, remediation, watcher / local_watcher, legacy, monitor,
+│                        # actions (FA_integrity_*); core/fim.py re-exports IntegrityMonitor
+├── server/              # tcp_server, http_server, mcp_server (MCP over stdio), mcp_policy (MCPPolicy),
+│                        # mcp_tools + mcp_*_tools (the fourteen semantic tools), web_ui, metrics_server,
 │                        # action_acl (ActionACL), network_guards (ensure_loopback)
 ├── client/              # HTTPActionClient for the HTTP action server
-├── trigger/, scheduler/, notify/   # watchdog file triggers, cron scheduler, notification sinks;
+├── pipeline/            # Pipeline runtime: model (Task, RetryPolicy, PipelineRun, ...), graph, pipeline
+│                        # (Pipeline), runner + worker, substitution, store (RunStore, MemoryRunStore,
+│                        # SQLiteRunStore), definition (YAML/JSON + PIPELINE_SCHEMA), reporting, actions
+├── app/                 # Application layer (no Qt, no SDK at import): services (AppServices), one
+│                        # *_service per navigation entry, pipeline_draft (PipelineDraft), masking
+├── audit/               # Audit schema v2: record (AuditRecord), store (AuditStore, AuditQuery,
+│                        # MemoryAuditStore), sqlite_store (SQLiteAuditStore), trail (AuditTrail,
+│                        # audit_trail, configure_audit), actions (FA_audit_*)
+├── trigger/, scheduler/, notify/   # watchdog file triggers, the scheduler (cron with a time zone,
+│                                   # manual, file, event and pipeline triggers; run records),
+│                                   # notification sinks;
+│                                   # notify/router.py routes events to sinks (NotificationRouter);
 │                                   # each registers its own FA_* ops
 ├── project/             # ProjectBuilder, create_project_dir
-├── ui/                  # PySide6 GUI: launcher.launch_ui, main_window.MainWindow, worker.ActionWorker,
-│                        # log_widget.LogPanel, tabs/ (home, local, http, JSON editor, servers, scheduler,
-│                        # trigger, progress; the cloud backends are panels grouped under transfer_tab)
+├── ui/                  # PySide6 GUI on the application layer: launcher.launch_ui, main_window.MainWindow
+│                        # (sidebar), pages/ (one per navigation entry, pipeline_canvas, task_form, run_panel,
+│                        # advanced_page), worker.ActionWorker, log_widget.LogPanel, tabs/ (the older tabs,
+│                        # shown under Advanced)
 └── utils/               # file discovery, fast find, grep, duplicate finder, backup rotation
 ```
 
@@ -53,24 +82,34 @@ automation_file/
 - `CallbackExecutor` — runs a registered trigger, then a user callback, sharing the executor's registry.
 - `PackageLoader` — imports a package by name and registers its top-level functions / classes / builtins as `<package>_<member>`.
 - `GoogleDriveClient` — wraps OAuth2 credential loading; exposes `service` lazily. `later_init(token_path, credentials_path)` bootstraps; `require_service()` raises if not initialised.
-- `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — singleton wrappers around the required SDKs. Each exposes `later_init(...)` plus `close()` where relevant. Their ops are auto-registered by `build_default_registry()`; `register_<backend>_ops(registry)` is still exported so callers can populate custom registries.
-- `MainWindow` — PySide6 tabbed control surface (`ui/main_window.py`). Nine tabs — Local, HTTP, Google Drive, S3, Azure Blob, Dropbox, SFTP, JSON actions, Servers — share a `LogPanel` and dispatch work through `ActionWorker(QRunnable)` on the global `QThreadPool`.
+- `S3Client` / `AzureBlobClient` / `DropboxClient` / `SFTPClient` — singleton wrappers around the SDKs of their extras. Each exposes `later_init(...)` plus `close()` where relevant. Their ops are auto-registered by `build_default_registry()`; `register_<backend>_ops(registry)` is still exported so callers can populate custom registries.
+- `MainWindow` — PySide6 window with a sidebar (`ui/main_window.py`): Dashboard, Files, Storage, Pipelines (a canvas editor over `PipelineDraft`), Scheduler, Integrity, Audit, Notifications, Settings, and Advanced, which holds the older tabs (Local, Transfer, Progress, JSON actions, Triggers, Servers). Each page talks only to its service in `automation_file.app`; long work runs through `ActionWorker(QRunnable)` on the global `QThreadPool`. A new screen starts as a service in `app/`, tested without Qt, and a page is a thin view of it. The Web UI (`server/web_ui.py`) renders the same services, read-only.
 - `launch_ui(argv=None)` — boots / reuses a `QApplication`, shows `MainWindow`, and returns the exec code. Exposed lazily on the facade via `__getattr__` so the Qt runtime isn't paid for by non-UI importers.
 - `TCPActionServer` — threaded TCP server that deserialises a JSON action list per connection. Defaults to loopback; optional `shared_secret` enforces `AUTH <secret>\n` prefix.
 - `HTTPActionServer` — `ThreadingHTTPServer` exposing `POST /actions` plus `GET /healthz`, `/readyz`, `/openapi.json` and `/progress`. Defaults to loopback; optional `shared_secret` enforces `Authorization: Bearer <secret>`.
 - `Quota` — frozen dataclass capping bytes and wall-clock seconds per action or block (`check_size`, `time_budget` context manager, `wraps` decorator). `0` disables each cap.
 - `retry_on_transient(max_attempts, backoff_base, backoff_cap, retriable)` — decorator that retries with capped exponential back-off and raises `RetryExhaustedException` chained to the last error.
 - `safe_join(root, user_path)` / `is_within(root, path)` — path traversal guard; `safe_join` raises `PathTraversalException` when the resolved path escapes `root`.
+- `File(uri)` / `Storage(uri)` — the universal storage layer's application API: one file, one directory, in any backend. Both resolve their backend on every call through `StorageResolver` (`Storage.mount`, `Storage.register_scheme`).
+- `StorageBackend` — the contract a storage backend implements. The public operations (`exists`, `stat`, `list_dir`, `mkdir`, `upload`, `download`, `delete`, `checksum`, `read_bytes`, `write_bytes`, `copy_from`, `move_from`) are template methods; a backend supplies only the `_`-prefixed primitives. Twelve are built in: `LocalStorage`, `MemoryStorage`, `S3Storage` and `AzureStorage` (both on `ObjectStorage`), `SFTPStorage` and `FTPStorage` (both on `SessionStorage`), `GoogleDriveStorage`, `OneDriveStorage`, `DropboxStorage`, and the mounted `WebDAVStorage`, `SMBStorage` and `FsspecStorage`. Each uses its backend's shared client singleton unless given one, and reports a missing SDK with the extra to install.
+- `IntegrityMonitor` — compares a tree at any storage URI with an approved baseline (`create_baseline`, `verify`, `accept`, `watch`, `start` / `stop`, `snapshot`) and returns a `DriftReport`; drift is published as one `IntegrityViolation` per pass. It only reads unless a `RemediationPolicy` is passed. Its options are keyword arguments (`MonitorKeywords`). The first monitor's call and `check_once()` summary are kept, including the notification through `manager` or the process-wide `notification_manager`.
+- `Pipeline` — tasks (a callable taking a `TaskContext`, or an `FA_*` action) with `depends_on`, run in dependency order with `RetryPolicy`, a timeout, `when` conditions and idempotency keys. `run` executes in the calling thread, `start` in the background, `resume(run_id)` repeats only what did not succeed, `run(dry_run=True)` plans. Every transition is checkpointed in a `RunStore` (`MemoryRunStore`, `SQLiteRunStore`) and reported as a `pipeline.*` / `task.*` event. A task fails only by raising: an action that reports through its return value needs its raising form (`FA_storage_verify` with `strict=True`).
+- `Scheduler` / `scheduler` — runs an action list or a pipeline when one of its triggers fires (`CronTrigger` with an IANA time zone, a manual `run_now`, `FileTrigger`, `EventTrigger`, `PipelineTrigger`). Every firing is a `JobRun` with one of seven states (`scheduled`, `started`, `completed`, `failed`, `skipped`, `timeout`, `cancelled`) in a bounded history. Overlap is refused unless `allow_overlap=True`. A failed or timed-out run publishes one `scheduler.error`. Tests drive it with `tick(now)` and an injected clock; never sleep through a minute. `Scheduler.add(name, cron, action_list, *, allow_overlap=False)` and the four original `FA_schedule_*` actions keep their shape.
+- `NotificationRouter` / `Route` / `notification_router` — delivers events to named sinks by type, source and minimum severity, with deduplication and a rate limit per route and sink. Opt-in: nothing is routed until a route exists and the router is started (`FA_notify_route_add` and `AutomationConfig.apply_to(manager, router)` start it). While it is active, `notify_on_failure` and the integrity monitor leave the direct notification to it, so nothing is announced twice.
+- `AuditTrail` / `audit_trail` / `configure_audit(path)` — audit schema v2: one `AuditRecord` per event and per storage operation in an `AuditStore` (`SQLiteAuditStore`, `MemoryAuditStore`), searched with `audit_search` / `FA_audit_search`. Records nothing until configured, and never raises into the code it audits. The v1 `AuditLog` is unchanged.
+- `Event` / `EventBus` / `event_bus` — every component reports through events (`PipelineFailed`, `TaskFailed`, `IntegrityViolation`, `StorageError`, ...) with a severity, a correlation ID and an actor; consumers subscribe on the bus by class, type name or prefix. New code that has something to report publishes an event; it does not call a notification sink or the audit log directly.
+- `StorageURI` / `parse_storage_uri` — `<scheme>://<authority>/<path>`; `FileInfo`, `Checksum`, `StorageCapabilities` are the frozen value types the layer returns.
 
 ## Branching & CI
 
 - `main` branch: stable releases, publishes `automation_file` to PyPI (version in `stable.toml`).
 - `dev` branch: development, publishes `automation_file_dev` to PyPI from CI. The version in `dev.toml` is only a floor.
-- Keep `dependencies` and `[project.optional-dependencies]` (`dev`) in sync across both TOMLs; `tests/test_dev_toml_parity.py` fails when those, the entry points, `requires-python`, `[build-system]` or `[tool.setuptools]` differ. Backends (`boto3`, `azure-storage-blob`, `dropbox`, `paramiko`) and `PySide6` are first-class runtime deps — do not move them back under extras.
-- **Version bumping is automatic.** A dedicated publish workflow bumps the patch in both `stable.toml` and `dev.toml`, builds, uploads to PyPI, then commits the bump back to `main` tagged as `vX.Y.Z`. Do not hand-bump before merging to `main`. The next publish run is skipped via a commit-message guard (`chore: bump version`), so the bump itself never re-triggers publishing. The dev channel takes its number from PyPI, so never hand-bump `dev.toml` either.
+- Keep `dependencies` and `[project.optional-dependencies]` (`dev`) in sync across both TOMLs; `tests/test_dev_toml_parity.py` fails when those, the entry points, `requires-python`, `[build-system]` or `[tool.setuptools]` differ. The base `dependencies` carry no cloud SDK and no GUI toolkit: each backend's SDK, `pyarrow` and `PySide6` live in an extra (`s3`, `azure`, `gdrive`, `dropbox`, `sftp`, `smb`, `fsspec`, `onedrive`, `box`, `parquet`, `gui`; `ftp` and `webdav` are empty; `all` lists every one). Do not move one into `dependencies`, and do not import one at module level: code asks for it at the moment of use with `automation_file.core.optional.require_module(name, extra=...)`, which raises `OptionalDependencyException` naming the extra. `tests/test_optional_dependencies.py` fails when the package cannot be imported without them, when importing it loads one, or when the extras and `all` drift apart. A new optional package needs its extra in both TOMLs, its line in `all`, and its entry in `core.optional.EXTRAS`.
+- **Patch releases bump themselves.** The publish workflow runs `scripts/stable_release.py bump`, which raises the patch in both `stable.toml` and `dev.toml`, then builds, uploads to PyPI and commits the bump back to `main` tagged as `vX.Y.Z`. Do not hand-bump the patch before merging to `main`. The next publish run is skipped via a commit-message guard (`chore: bump version`), so the bump itself never re-triggers publishing. The dev channel takes its number from PyPI, so never hand-bump `dev.toml` for a patch either.
+- **A MINOR or MAJOR release is written in the pull request.** Set the version to `X.Y.0` in both `stable.toml` and `dev.toml` in the pull request that goes to `main`. When a file's `MAJOR.MINOR` is above the newest `vX.Y.Z` tag's, the script publishes the version as written instead of adding a patch; it stops the job when the stable version would not be above the newest tag. What counts as MINOR and MAJOR is in `docs/source/Eng/usage/api_policy.rst`.
 - CI: GitHub Actions — a `lint` job on Ubuntu (Python 3.12), then `pytest` on Windows across Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14. One workflow per branch: `.github/workflows/ci-dev.yml`, `.github/workflows/ci-stable.yml`.
-- CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage → uploads `coverage.xml` as an artifact.
-- Stable publishing lives in a separate workflow (`.github/workflows/publish.yml`) that runs on push to `main`: bumps both TOMLs, copies `stable.toml` to `pyproject.toml`, builds the sdist + wheel, `twine upload` via `PYPI_API_TOKEN`, then commits + tags + pushes and creates `gh release create v<version> --generate-notes`.
+- CI steps: `lint` (ruff check + ruff format --check + mypy) → `pytest` with coverage, installed with `.[all,test]` → uploads `coverage.xml` as an artifact. Two more jobs follow `lint`: `minimal` installs `.[test]` only and runs the whole suite (the tests of a missing extra skip), and `extras` installs each extra on its own. `publish-dev` needs all four. A `package` job builds the sdist and the wheel and runs `twine check`; it gates nothing. `.github/workflows/integration.yml` (§ Testing) runs next to them and gates nothing either.
+- Stable publishing lives in a separate workflow (`.github/workflows/publish.yml`) that runs on push to `main`: picks the version in both TOMLs (`scripts/stable_release.py`), copies `stable.toml` to `pyproject.toml`, builds the sdist + wheel, `twine upload` via `PYPI_API_TOKEN`, then commits + tags + pushes and creates `gh release create v<version> --generate-notes`.
 - Dev publishing is the `publish-dev` job at the end of `ci-dev.yml`. It runs only on a push to `dev`, after `lint` and `pytest` pass: `scripts/dev_release.py prepare` writes `pyproject.toml` from `dev.toml` with one patch above the newest `automation_file_dev` on PyPI, the job builds and runs `twine check`, and it uploads (same `PYPI_API_TOKEN`) only when the commit is still the tip of `dev` and the wheel differs from the newest published one. Nothing is committed back.
 - Both publish jobs hold `PYPI_API_TOKEN`, so they install their tools (`build`, `twine`, and the build backend `setuptools`) with one command and nothing else: `python -m pip install --require-hashes --only-binary :all: -r .github/requirements/publish.txt`. No `pip install --upgrade pip`, no unpinned install; `tests/test_workflow_actions.py` fails on any other `pip install` in a job that is given the token. To add or raise a tool, edit `.github/requirements/publish.in` and regenerate `publish.txt` with the `uv pip compile` command written in that file. Dependabot reads the directory and proposes updates on `dev`.
 - Both publish jobs build with `python -m build --no-isolation`, so the backend is the locked `setuptools` and nothing is downloaded at build time. `--no-isolation` checks `[build-system] requires` against what is installed instead of installing it: when you raise that floor in `stable.toml` and `dev.toml`, or add a build requirement, regenerate `publish.txt` in the same commit. `tests/test_workflow_actions.py` fails on a build without `--no-isolation` in those jobs and on a build requirement the lock does not satisfy.
@@ -80,7 +119,7 @@ automation_file/
 
 ```bash
 python -m pip install -r dev_requirements.txt pytest pytest-cov
-python -m pip install -e ".[dev]"       # ruff, mypy, pre-commit
+python -m pip install -e ".[all,dev]"   # every backend and the GUI, plus ruff, mypy, pre-commit
 python -m pytest tests/ -v --tb=short
 ruff check automation_file/ tests/
 ruff format --check automation_file/ tests/
@@ -92,6 +131,7 @@ python -m automation_file --help
 - Unit tests live under `tests/` (pytest). Fixtures in `tests/conftest.py` (`sample_file`, `sample_dir`).
 - Tests cover every module in `core/`, `local/`, `remote/url_validator`, `project/`, `server/`, `utils/`, plus a facade smoke test, retry/quota/safe_paths, HTTP+TCP auth, and optional-backend registration.
 - Google Drive / HTTP-download / S3 / Azure / Dropbox / SFTP code paths that require real credentials or network access are **not** exercised in CI — only their URL-validation, auth, and guard-clause behaviour are.
+- `tests/integration/` runs the storage contract suite against real services (S3Mock, Azurite, OpenSSH, FTP, WebDAV, Samba). Each module is skipped unless its `FA_IT_*` variables are set; `tests/integration/start_service.sh <service>` starts the container and exports them, and `.github/workflows/integration.yml` runs one service per job with `FA_IT_REQUIRED=1`, which turns a skip into a failure. The same workflow runs the unit tests on Linux and macOS. It does not gate publishing. A backend whose service can run in a container gets a module there, an entry in the script and one in the workflow matrix.
 - Run all tests before submitting changes: `python -m pytest tests/ -v`.
 
 ## Conventions
@@ -103,6 +143,7 @@ python -m automation_file --help
 - Action-list shape: `[name]`, `[name, {kwargs}]`, or `[name, [args]]` — nothing else.
 - Delete all unused code — no dead imports, commented-out blocks, unreachable branches, or `_old_`-prefixed names. Git history is the archive.
 - Prefer updating the registry over extending the executor class. Plugins register via `add_command_to_executor({name: callable})`.
+- Public API: what `docs/source/Eng/usage/api_policy.rst` lists (the facade and package `__all__`s, `FA_*` actions with their parameters and result shapes, CLI flags and exit codes, storage URI syntax, versioned data formats, event types and payload keys, the exception hierarchy). Never rename, remove or change the meaning of one of those in place. Retire it with `automation_file.core.deprecation.deprecated(since=, removal=, replacement=)` or `warn_deprecated`, keep it working for at least two minor releases, and remove it only in a major release. A format written to disk carries a schema version, and its reader refuses a version it does not know.
 
 ## Security
 
@@ -134,6 +175,7 @@ All code must follow secure-by-default principles. Review every change against t
 - Do not remove the loopback guard to "make it easier to test remotely". The server dispatches arbitrary registry commands; exposing it to the network is equivalent to exposing a Python REPL.
 - The server accepts a single JSON payload per connection (`recv(8192)`). Do not raise that limit without also adding a length-framed protocol.
 - `quit_server` triggers an orderly shutdown; do not add an administrative bypass that skips the loopback check.
+- `ActionACL` checks every registered action name anywhere in a request, so an action nested in the arguments of another (`FA_execute_action`, a pipeline definition, a scheduled list) is covered; the MCP server applies the same check against the tools it exposes (`nested_action_names`). Neither can see what a request only points to: an action file, a definition file, a stored pipeline run. A new action that runs other actions from such a place must say so in its documentation, and must never be added to a default allow list.
 - Optional `shared_secret=` enforces an `AUTH <secret>\n` prefix; the comparison uses `hmac.compare_digest` (constant time). Never log the secret or the raw payload.
 
 ### HTTP server
@@ -141,8 +183,21 @@ All code must follow secure-by-default principles. Review every change against t
 - `POST /actions` is the only endpoint that runs anything; the `GET` routes (`/healthz`, `/readyz`, `/openapi.json`, `/progress`) only report. Request body capped at 1 MB — do not raise without also switching to a streaming parser.
 - Responses are JSON. Auth failures return `401`; malformed JSON returns `400`; unknown paths return `404`.
 
+### MCP server
+- The semantic tools work only below the roots of the server's `MCPPolicy`, and with no root they refuse. A local root is enforced by `LocalStorage(root)` / `safe_join`, never by comparing strings; a remote root by scheme, exact authority and a path prefix that ends at a segment boundary.
+- The default policy is read-only. Writing, overwriting and deleting are three separate permissions; never fold one into another, and never make a new changing tool available without `dry_run`.
+- A pipeline made or run through MCP uses the guarded action set of `mcp_pipeline_actions.py`. An action added with `--pipeline-actions` runs unconfined, and the manual says so: keep it that explicit.
+- A refused call is logged without argument values, and returned as a tool result with `isError`.
+
 ### Path traversal
 - Any caller resolving a user-supplied path against a trusted root must go through `automation_file.local.safe_paths.safe_join` (raises `PathTraversalException`) or the `is_within` check. Never concatenate + `Path.resolve()` yourself and skip the containment check — symlinks and `..` segments bypass naive string checks.
+
+### Storage layer
+- A new storage backend subclasses `StorageBackend` and passes `tests/storage_contract.py` through a `StorageContract` subclass. Do not weaken a contract case to make a backend pass: fix the backend, or branch on `capabilities` when backends legitimately differ.
+- Keep the checks that live in the base class: `normalize_path` refuses `..`, `parse_storage_uri` refuses credentials in the authority (and its error does not repeat them), `delete` refuses the storage root, and `LocalStorage` deletes a symbolic link without following it. Never log a storage URI's credentials or a backend's secrets.
+- A backend that can show one stored file through two instances (two roots, two prefixes, a link) overrides `_identity`, so a copy or a move of a file onto itself is refused instead of deleting it.
+- When paths come from outside the process, use `LocalStorage(root)` behind a scheme or authority of its own (`Storage.mount("sandbox://jobs", LocalStorage(root))`), not the rootless `local://` backend.
+- At module level, `automation_file/storage/` imports only the standard library, `exceptions`, `logging_config`, `core.checksum` and `local.safe_paths`; `tests/test_storage_imports.py` fails on anything else. A backend SDK is imported lazily, inside the function that needs it.
 
 ### SFTP host verification
 - `SFTPClient` uses `paramiko.RejectPolicy()` — unknown hosts are rejected, never auto-added. Callers pass `known_hosts=` explicitly or rely on `~/.ssh/known_hosts`. Do not swap in `AutoAddPolicy` for convenience.

@@ -2,6 +2,10 @@
 automation_file 简体中文文档
 ============================
 
+``automation_file`` 是通用的文件层与数据流水线运行环境：以同一套 API 访问本地与远端
+存储，并提供文件完整性监控、流水线、调度、通知、审计轨迹，以及通过 JSON 动作、
+服务器与 MCP 进行的自动化。
+
 简中手册按典型读者旅程拆分为章节：安装 → 执行 JSON 动作 → 操作本地文件
 → 串接远端存储 → 对外开服务器 → 规模化自动化。可使用左侧目录，或直接
 跳到下方任一章节。
@@ -146,6 +150,7 @@ PySide6 桌面控制界面——分页布局、日志面板，以及 ``ActionWor
    :caption: 图形界面
 
    usage/gui
+   usage/app_layer
 
 .. _zh-cn-reliability:
 
@@ -177,6 +182,7 @@ cron 风格调度器（``FA_schedule_*``）按调度周期性运行动作列表�
    :caption: 触发器与调度
 
    usage/events
+   usage/scheduler
 
 .. _zh-cn-notifications:
 
@@ -237,3 +243,117 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 插件
 
    usage/plugins
+
+.. _zh-cn-storage:
+
+第 16 章 — 通用存储层
+=====================
+
+``File`` 与 ``Storage`` 以同一套 URI 语法访问本地与远端存储；
+``StorageBackend`` 是后端需要实现的唯一契约，提供共用的操作、共用的异常，
+以及可重复使用的契约测试套件。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 通用存储层
+
+   usage/storage
+
+.. _zh-cn-event-bus:
+
+第 17 章 — 事件
+===============
+
+所有组件共用的事件模型：``Event``、十种核心事件、供订阅者监听的
+``EventBus``、关联 ID 与 actor，以及报告存储操作的观察者。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 事件
+
+   usage/event_bus
+
+.. _zh-cn-integrity:
+
+第 18 章 — 文件完整性监控
+=========================
+
+``IntegrityMonitor`` 为任何存储后端中的目录树保存一份经过核准的基准，并报告
+与基准不符之处：快照、manifest 结构、四种模式、告警，以及可选的修复。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 文件完整性监控
+
+   usage/integrity
+
+.. _zh-cn-audit:
+
+第 19 章 — 审计轨迹
+===================
+
+审计模式 v2：每个事件与每次存储操作各记录一条，包含 actor、资源、后端、
+结果与关联 ID；以及各种存储、搜索条件、从 v1 ``AuditLog`` 的迁移与运行指标。
+通知路由请见 :doc:`usage/notifications`。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 审计轨迹
+
+   usage/audit
+
+.. _zh-cn-pipeline:
+
+第 20 章 — 流水线（Pipeline）
+=============================
+
+具有依赖关系的任务，按顺序执行，并支持重试、超时、取消、条件、幂等、检查点与续跑、
+试运行（dry run）以及执行历史；可以用 Python 编写，或写成带版本的 YAML / JSON 定义。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 流水线
+
+   usage/pipeline
+
+.. _zh-cn-api-policy:
+
+第 21 章 — 公开 API 与兼容性
+============================
+
+哪些是公开的、哪些不是，稳定等级，版本号所作的承诺，以及名称如何被弃用与移除。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 公开 API 与兼容性
+
+   usage/api_policy
+   usage/migration
+
+.. _zh-cn-integration-tests:
+
+第 22 章 — 集成测试
+===================
+
+把存储契约测试套件拿去对容器中的真实服务运行：如何在本地运行、各模块读取的变量，
+以及 CI 运行了什么。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 集成测试
+
+   usage/integration_tests
+
+.. _zh-cn-deployment:
+
+第 23 章 — 部署到生产环境
+=========================
+
+无人值守地运行：要安装什么、单一的长时间进程、磁盘上的状态、网络上要开放什么、
+该监控什么，以及如何升级。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 部署到生产环境
+
+   usage/deployment

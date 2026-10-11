@@ -66,7 +66,7 @@ dispatchers.
 
        subgraph Events["<b>event-driven</b>"]
            Trigger["<b>TriggerManager</b><br/>watchdog file watcher"]
-           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+           Sched["<b>Scheduler</b><br/>cron · file · event · pipeline triggers<br/>run records + overlap guard"]
        end
 
        subgraph Servers["<b>servers</b>"]
@@ -78,7 +78,8 @@ dispatchers.
        end
 
        subgraph UI["<b>ui (PySide6)</b>"]
-           MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+           MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings<br/>Advanced: Local · Transfer · Progress · JSON · Triggers · Servers"]
+           AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
            Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
        end
 
@@ -104,7 +105,7 @@ dispatchers.
            WebDAV["<b>webdav</b>"]
            SMB["<b>smb / cifs</b>"]
            Fsspec["<b>fsspec_bridge</b>"]
-           Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+           Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
        end
 
        subgraph Notify["<b>notifications</b>"]
@@ -128,6 +129,7 @@ dispatchers.
        Plugins ==> Loader
 
        MainWin ==> Worker
+       Worker ==> AppLayer
        Worker ==> PublicAPI
 
        PublicAPI ==> Executor
@@ -143,6 +145,8 @@ dispatchers.
        HTTPS ==> Executor
        MCP ==> Registry
        MetSrv ==> Metrics
+       WebUI ==> AppLayer
+       AppLayer ==> PublicAPI
        WebUI ==> Registry
        ACL ==> TCP
        ACL ==> HTTPS
@@ -238,7 +242,7 @@ dispatchers.
        class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
        class Trigger,Sched event;
        class TCP,HTTPS,MCP,MetSrv,WebUI server;
-       class MainWin,Worker ui;
+       class MainWin,Worker,AppLayer ui;
        class FileOps,Archives,DataOps,TextOps,Misc localOps;
        class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
        class NM,Sinks notify;
@@ -325,22 +329,33 @@ Module layout
    ├── trigger/
    │   └── manager.py           # FileWatcher + TriggerManager (watchdog-backed)
    ├── scheduler/
-   │   ├── cron.py              # 5-field cron expression parser
-   │   └── manager.py           # Scheduler background thread + ScheduledJob
+   │   ├── cron.py              # 5-field cron expression parser, time zones
+   │   ├── triggers.py          # cron / file / event / pipeline triggers
+   │   ├── job.py               # ScheduledJob
+   │   ├── runs.py              # JobRun, RunState, RunHistory
+   │   ├── targets.py           # running an action list or a pipeline
+   │   ├── dispatch.py          # overlap, timeout, cancellation, scheduler.error
+   │   └── manager.py           # Scheduler background thread + FA_schedule_* actions
    ├── notify/
    │   ├── sinks.py             # Webhook / Slack / Email sinks
    │   └── manager.py           # NotificationManager (fanout + dedup + auto-notify hook)
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
-   ├── ui/                      # PySide6 GUI
+   ├── app/                     # application layer: what a user interface calls
+   │   ├── services.py          # AppServices, app_services(), NAVIGATION
+   │   ├── pipeline_draft.py    # PipelineDraft: the editable definition
+   │   └── *_service.py         # one service per navigation entry
+   ├── ui/                      # PySide6 GUI, built on app/
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # tabbed MainWindow (Home, Local, Transfer,
-   │   │                        #   Progress, JSON actions, Triggers,
-   │   │                        #   Scheduler, Servers)
+   │   ├── main_window.py       # sidebar MainWindow (Dashboard, Files, Storage,
+   │   │                        #   Pipelines, Scheduler, Integrity, Audit,
+   │   │                        #   Notifications, Settings, Advanced)
    │   ├── worker.py            # ActionWorker (QRunnable)
    │   ├── log_widget.py        # LogPanel
-   │   └── tabs/                # one tab per backend + JSON runner + servers
+   │   ├── pages/               # one page per navigation entry + pipeline editor
+   │   └── tabs/                # the tools under Advanced: one tab per backend,
+   │                            #   JSON runner, triggers, servers
    └── utils/
        ├── file_discovery.py
        ├── fast_find.py         # OS-index (mdfind/locate/es) + scandir fallback
@@ -413,11 +428,13 @@ their own dispatch paths:
   events to an action list dispatched through the shared registry.
   :data:`~automation_file.trigger.trigger_manager` owns the name → watcher
   map so the GUI and JSON actions share one lifecycle.
-* :mod:`automation_file.scheduler` runs one background thread that wakes on
-  minute boundaries, iterates registered
-  :class:`~automation_file.scheduler.ScheduledJob` instances, and dispatches
-  every matching job on a short-lived worker thread so a slow action can't
-  starve subsequent jobs.
+* :mod:`automation_file.scheduler` runs one background thread that wakes
+  every second, fires the :class:`~automation_file.scheduler.ScheduledJob`
+  instances whose cron trigger is due in the current minute, and gives every
+  run a short-lived worker thread so a slow action can't starve subsequent
+  jobs. A job runs an action list or a pipeline, and can also be fired by a
+  file event, an event on the bus, the end of another pipeline's run, or by
+  hand; every firing leaves a run record. See :doc:`usage/scheduler`.
 
 Both dispatchers call
 :func:`automation_file.notify.manager.notify_on_failure` when an action

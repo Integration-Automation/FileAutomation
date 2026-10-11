@@ -27,3 +27,17 @@ def sample_dir(tmp_path: Path) -> Path:
     nested.mkdir()
     (nested / "d.txt").write_text("d", encoding="utf-8")
     return root
+
+
+@pytest.fixture(scope="session")
+def qt_app():
+    """Keep one application alive until every GUI module has released its widgets."""
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    app = widgets.QApplication.instance() or widgets.QApplication([])
+    yield app
+    app.closeAllWindows()
+    app.processEvents()
+    app.shutdown()

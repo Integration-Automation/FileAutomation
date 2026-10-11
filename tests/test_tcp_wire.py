@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import socket
 import time
 
@@ -13,7 +14,7 @@ from automation_file.server.action_acl import ActionACL
 from automation_file.server.tcp_server import start_autocontrol_socket_server
 
 END = b"Return_Data_Over_JE\n"
-SECRET = "s3cr3t"
+SECRET = secrets.token_hex(16)
 
 
 def _wire_echo(value: str) -> str:

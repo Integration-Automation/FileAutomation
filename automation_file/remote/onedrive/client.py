@@ -23,6 +23,7 @@ from typing import Any
 
 import requests
 
+from automation_file.core.optional import install_hint
 from automation_file.exceptions import OneDriveException
 from automation_file.logging_config import file_automation_logger
 
@@ -36,7 +37,7 @@ def _import_msal() -> Any:
         import msal
     except ImportError as error:
         raise OneDriveException(
-            "msal import failed — reinstall `automation_file` to restore the OneDrive backend"
+            f"msal is not installed; the OneDrive backend needs it: {install_hint('onedrive')}"
         ) from error
     return msal
 
@@ -102,6 +103,32 @@ class OneDriveClient:
             )
         return self._session
 
+    def graph_send(
+        self,
+        method: str,
+        path: str,
+        *,
+        timeout: float = 30.0,
+        authorized: bool = True,
+        **request_kwargs: Any,
+    ) -> requests.Response:
+        """Send one request and return the response, whatever its status.
+
+        ``path`` is resolved as in :meth:`graph_request`. ``authorized=False``
+        leaves the bearer token out: the pre-authenticated URLs Graph hands out
+        (an upload session) must not receive it. A
+        :class:`requests.RequestException` is raised as it is, so the caller
+        decides what a status or a transport failure means.
+        """
+        session = self.require_session()
+        url = path if path.startswith("http") else f"{_GRAPH_BASE}{path}"
+        if not authorized:
+            # requests leaves out a session header whose per-request value is None.
+            headers: dict[str, Any] = dict(request_kwargs.pop("headers", None) or {})
+            headers["Authorization"] = None
+            request_kwargs["headers"] = headers
+        return session.request(method, url, timeout=timeout, **request_kwargs)
+
     def graph_request(
         self,
         method: str,
@@ -119,10 +146,8 @@ class OneDriveClient:
         forwarded to :meth:`requests.Session.request` — ``params``, ``json``,
         ``data``, and ``headers`` are the common ones.
         """
-        session = self.require_session()
-        url = path if path.startswith("http") else f"{_GRAPH_BASE}{path}"
         try:
-            response = session.request(method, url, timeout=timeout, **request_kwargs)
+            response = self.graph_send(method, path, timeout=timeout, **request_kwargs)
         except requests.RequestException as error:
             raise OneDriveException(f"graph request failed: {error}") from error
         if not response.ok:

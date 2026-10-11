@@ -172,3 +172,88 @@ File-discovery, fast-find, deduplicate, grep, and rotate helpers.
    :caption: Utils
 
    utils
+
+.. _api-storage:
+
+Chapter M — Universal Storage Layer
+===================================
+
+``File``, ``Storage``, the ``StorageBackend`` contract, storage URIs, the
+resolver, and the built-in local and in-memory backends.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Universal Storage Layer
+
+   storage
+
+.. _api-events:
+
+Chapter N — Events
+==================
+
+The event model, the event bus, the correlation and actor scopes, and the
+storage observers.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Events
+
+   events
+
+.. _api-integrity:
+
+Chapter O — File Integrity Monitoring
+=====================================
+
+``IntegrityMonitor``, snapshots and the manifest, the change detector, the
+drift report, alerts, remediation, the watchers and the ``FA_integrity_*``
+actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: File Integrity Monitoring
+
+   integrity
+
+.. _api-audit:
+
+Chapter P — Audit Trail
+=======================
+
+Audit schema v2: the record, the stores, the trail and the ``FA_audit_*``
+actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Audit Trail
+
+   audit
+
+.. _api-pipeline:
+
+Chapter Q — Pipelines
+=====================
+
+``Pipeline``, the task and run model, the run stores, the definition format
+and its schema, and the ``FA_pipeline_*`` actions.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Pipelines
+
+   pipeline
+
+.. _api-app:
+
+Chapter R — Application Layer
+=============================
+
+``automation_file.app``: one plain-Python service per navigation entry, the
+pipeline draft the editor works on, and the masking of secrets.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Application Layer
+
+   app

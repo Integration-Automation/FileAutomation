@@ -12,17 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from automation_file.core.optional import require_module
 from automation_file.logging_config import file_automation_logger
 
 
 def _import_paramiko() -> Any:
-    try:
-        import paramiko
-    except ImportError as error:
-        raise RuntimeError(
-            "paramiko import failed — reinstall `automation_file` to restore the SFTP backend"
-        ) from error
-    return paramiko
+    return require_module("paramiko", extra="sftp")
 
 
 @dataclass(frozen=True)
@@ -44,6 +39,18 @@ class SFTPClient:
     def __init__(self) -> None:
         self._ssh: Any = None
         self._sftp: Any = None
+        self._host: str | None = None
+        self._port: int | None = None
+
+    @property
+    def host(self) -> str | None:
+        """The host of the open session, or ``None`` while there is none."""
+        return self._host
+
+    @property
+    def port(self) -> int | None:
+        """The port of the open session, or ``None`` while there is none."""
+        return self._port
 
     def later_init(self, options: SFTPConnectOptions | None = None, **kwargs: Any) -> Any:
         """Open the SSH + SFTP session. Raises if the host key is not pinned.
@@ -76,6 +83,8 @@ class SFTPClient:
         )
         self._ssh = ssh
         self._sftp = ssh.open_sftp()
+        self._host = opts.host
+        self._port = opts.port
         file_automation_logger.info(
             "SFTPClient: connected to %s@%s:%d", opts.username, opts.host, opts.port
         )
@@ -88,6 +97,8 @@ class SFTPClient:
 
     def close(self) -> bool:
         """Close the underlying SFTP and SSH connections."""
+        self._host = None
+        self._port = None
         if self._sftp is not None:
             try:
                 self._sftp.close()

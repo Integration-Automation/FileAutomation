@@ -10,12 +10,16 @@ Events are dispatched through the shared :class:`ActionExecutor`, so the
 same JSON action-list shape is used everywhere. Dispatch always happens on
 watchdog's dispatcher thread — the executor's per-action ``try/except``
 prevents a bad action from killing the observer.
+
+A watcher given ``on_event`` calls it with the event kind and the path instead
+of running an action list; the scheduler's file trigger watches that way.
 """
 
 from __future__ import annotations
 
+import os
 import threading
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +32,7 @@ from automation_file.exceptions import FileAutomationException
 from automation_file.logging_config import file_automation_logger
 
 _SUPPORTED_EVENTS = frozenset({"created", "modified", "deleted", "moved"})
+EventCallback = Callable[[str, str], object]
 
 
 class TriggerException(FileAutomationException):
@@ -47,24 +52,29 @@ def _parse_events(events: Iterable[str] | str | None) -> frozenset[str]:
 
 
 class _DispatchingHandler(FileSystemEventHandler):
-    """Route watchdog events into an action list on the shared executor."""
+    """Route watchdog events into an action list on the shared executor, or into a callback."""
 
     def __init__(
         self,
         name: str,
         events: frozenset[str],
         action_list: list[list[Any]],
+        on_event: EventCallback | None = None,
     ) -> None:
         super().__init__()
         self._name = name
         self._events = events
         self._action_list = action_list
+        self._on_event = on_event
 
     def on_any_event(self, event: FileSystemEvent) -> None:
         kind = event.event_type
         if kind not in self._events:
             return
         file_automation_logger.info("trigger[%s]: %s %s", self._name, kind, event.src_path)
+        if self._on_event is not None:
+            self._call_back(self._on_event, kind, os.fsdecode(event.src_path))
+            return
         from automation_file.core.action_executor import executor
         from automation_file.notify.manager import notify_on_failure
 
@@ -76,9 +86,20 @@ class _DispatchingHandler(FileSystemEventHandler):
             )
             notify_on_failure(f"trigger[{self._name}]", error)
 
+    def _call_back(self, on_event: EventCallback, kind: str, path: str) -> None:
+        try:
+            on_event(kind, path)
+        except FileAutomationException as error:
+            # A failing callback must not end the observer's thread.
+            file_automation_logger.warning("trigger[%s]: callback failed: %r", self._name, error)
+
 
 class FileWatcher:
-    """One named watchdog observer tied to an action list."""
+    """One named watchdog observer tied to an action list, or to a callback.
+
+    With ``on_event`` the watcher runs no action list: every matching event
+    calls ``on_event(kind, path)`` on watchdog's dispatcher thread.
+    """
 
     def __init__(
         self,
@@ -88,6 +109,7 @@ class FileWatcher:
         *,
         events: Iterable[str] | str | None = None,
         recursive: bool = True,
+        on_event: EventCallback | None = None,
     ) -> None:
         resolved = Path(path).expanduser().resolve()
         if not resolved.exists():
@@ -97,6 +119,7 @@ class FileWatcher:
         self.recursive = bool(recursive)
         self.events = _parse_events(events)
         self.action_list: list[list[Any]] = list(action_list)
+        self._on_event = on_event
         self._observer: BaseObserver | None = None
 
     @property
@@ -107,7 +130,7 @@ class FileWatcher:
     def start(self) -> None:
         if self.is_running:
             return
-        handler = _DispatchingHandler(self.name, self.events, self.action_list)
+        handler = _DispatchingHandler(self.name, self.events, self.action_list, self._on_event)
         observer = Observer()
         observer.schedule(handler, str(self.path), recursive=self.recursive)
         observer.daemon = True

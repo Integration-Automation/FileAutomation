@@ -12,6 +12,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+
+pytest.importorskip("box_sdk_gen", reason="needs the box extra")
+
+# pylint: disable=wrong-import-position  # importorskip must precede these imports
 from box_sdk_gen.schemas.file_base import FileBaseTypeField
 
 from automation_file import (

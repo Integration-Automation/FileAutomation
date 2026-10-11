@@ -4,18 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from automation_file.core.optional import require_module
 from automation_file.logging_config import file_automation_logger
 
 
 def _import_blob_service_client() -> Any:
-    try:
-        from azure.storage.blob import BlobServiceClient
-    except ImportError as error:
-        raise RuntimeError(
-            "azure-storage-blob import failed — reinstall `automation_file` to restore"
-            " the Azure Blob backend"
-        ) from error
-    return BlobServiceClient
+    return require_module("azure.storage.blob", extra="azure").BlobServiceClient
 
 
 class AzureBlobClient:

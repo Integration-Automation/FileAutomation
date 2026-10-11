@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from automation_file.core.optional import require_module
 from automation_file.exceptions import FileNotExistsException
 from automation_file.logging_config import file_automation_logger
 from automation_file.remote._upload_tree import walk_and_upload
@@ -20,12 +21,7 @@ def dropbox_upload_file(file_path: str, remote_path: str) -> bool:
     if not path.is_file():
         raise FileNotExistsException(str(path))
     client = dropbox_instance.require_client()
-    try:
-        from dropbox import files as dropbox_files
-    except ImportError as error:
-        raise RuntimeError(
-            "dropbox import failed — reinstall `automation_file` to restore the Dropbox backend"
-        ) from error
+    dropbox_files = require_module("dropbox.files", extra="dropbox")
     try:
         with open(path, "rb") as fp:
             client.files_upload(

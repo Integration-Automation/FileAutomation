@@ -4,17 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from automation_file.core.optional import require_module
 from automation_file.logging_config import file_automation_logger
 
 
 def _import_dropbox() -> Any:
-    try:
-        import dropbox
-    except ImportError as error:
-        raise RuntimeError(
-            "dropbox import failed — reinstall `automation_file` to restore the Dropbox backend"
-        ) from error
-    return dropbox
+    return require_module("dropbox", extra="dropbox")
 
 
 class DropboxClient:

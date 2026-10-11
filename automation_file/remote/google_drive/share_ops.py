@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from googleapiclient.errors import HttpError
-
 from automation_file.logging_config import file_automation_logger
-from automation_file.remote.google_drive.client import driver_instance
+from automation_file.remote.google_drive.client import drive_http_error, driver_instance
 
 
 def _create_permission(file_id: str, body: dict, description: str) -> dict | None:
+    http_error = drive_http_error()
     try:
         response = (
             driver_instance.require_service()
@@ -18,7 +17,7 @@ def _create_permission(file_id: str, body: dict, description: str) -> dict | Non
         )
         file_automation_logger.info("drive_share (%s): file=%s", description, file_id)
         return response
-    except HttpError as error:
+    except http_error as error:
         file_automation_logger.error("drive_share (%s) failed: %r", description, error)
         return None
 

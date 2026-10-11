@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,10 @@ from automation_file import (
     yaml_set,
 )
 from automation_file.exceptions import FileNotExistsException
+
+needs_pyarrow = pytest.mark.skipif(
+    importlib.util.find_spec("pyarrow") is None, reason="needs the parquet extra"
+)
 
 # --- YAML -----------------------------------------------------------------
 
@@ -87,6 +92,7 @@ def test_yaml_handles_missing_file(tmp_path: Path) -> None:
 # --- Parquet --------------------------------------------------------------
 
 
+@needs_pyarrow
 def test_parquet_write_and_read_roundtrip(tmp_path: Path) -> None:
     path = tmp_path / "data.parquet"
     records = [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]
@@ -94,29 +100,34 @@ def test_parquet_write_and_read_roundtrip(tmp_path: Path) -> None:
     assert parquet_read(str(path)) == records
 
 
+@needs_pyarrow
 def test_parquet_read_respects_limit(tmp_path: Path) -> None:
     path = tmp_path / "data.parquet"
     parquet_write(str(path), [{"i": n} for n in range(5)])
     assert parquet_read(str(path), limit=2) == [{"i": 0}, {"i": 1}]
 
 
+@needs_pyarrow
 def test_parquet_read_projects_columns(tmp_path: Path) -> None:
     path = tmp_path / "data.parquet"
     parquet_write(str(path), [{"id": 1, "name": "alice", "team": "red"}])
     assert parquet_read(str(path), columns=["id", "team"]) == [{"id": 1, "team": "red"}]
 
 
+@needs_pyarrow
 def test_parquet_write_rejects_non_list(tmp_path: Path) -> None:
     path = tmp_path / "data.parquet"
     with pytest.raises(DataOpsException):
         parquet_write(str(path), {"not": "a list"})  # type: ignore[arg-type]
 
 
+@needs_pyarrow
 def test_parquet_read_rejects_missing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotExistsException):
         parquet_read(str(tmp_path / "gone.parquet"))
 
 
+@needs_pyarrow
 def test_csv_to_parquet_roundtrip(tmp_path: Path) -> None:
     csv_path = tmp_path / "a.csv"
     csv_path.write_text("id,name\n1,alice\n2,bob\n", encoding="utf-8")

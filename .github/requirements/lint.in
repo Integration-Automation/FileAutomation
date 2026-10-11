@@ -1,0 +1,6 @@
+# Regenerate with uv pip compile --generate-hashes --python-version 3.12
+# --only-binary :all: --exclude-newer 2026-10-02T00:00:00Z
+# .github/requirements/lint.in -o .github/requirements/lint.txt
+ruff
+mypy
+je_action_core>=0.0.2

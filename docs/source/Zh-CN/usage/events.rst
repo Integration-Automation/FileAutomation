@@ -27,32 +27,19 @@
 也可以从 JSON 动作列表里调用 ``FA_watch_start`` /
 ``FA_watch_stop`` / ``FA_watch_stop_all`` / ``FA_watch_list``。
 
-Cron 调度器
------------
+调度器
+------------
 
-按重复时刻执行动作列表。5 字段 cron 解析器支持
-``*``、精确值、``a-b`` 区间、逗号分隔列表与 ``*/n`` 步长，
-也支持 ``jan``..``dec`` / ``sun``..``sat`` 别名。
-
-.. code-block:: python
-
-   from automation_file import schedule_add
-
-   schedule_add(
-       name="nightly-snapshot",
-       cron_expression="0 2 * * *",           # 每天本地时间 02:00
-       action_list=[["FA_zip_dir", {"dir_we_want_to_zip": "/data",
-                                    "zip_name": "/backup/data_nightly"}]],
-   )
-
-后台线程在每分钟边界唤醒，因此不支持小于一分钟的精度。
-JSON 形式：``FA_schedule_add`` / ``FA_schedule_remove`` /
-``FA_schedule_remove_all`` / ``FA_schedule_list``。
+按带时区的 cron 表达式、文件事件、事件总线上的事件、另一条流水线结束之后，或以手动
+方式运行动作列表或流水线，都写在 :doc:`scheduler` 中，其中也说明了运行记录、重叠保护、
+超时与 ``FA_schedule_*`` 动作。需要在文件事件发生时运行并为每次运行留下记录的作业，
+请使用调度器的 ``FileTrigger``，而不是 ``FA_watch_start``。
 
 当动作列表抛出
 :class:`~automation_file.exceptions.FileAutomationException` 时，
-两个调度器都会调用
+监听器会调用
 :func:`~automation_file.notify.manager.notify_on_failure`。
 若未注册任何 sink，该助手是 no-op，因此自动通知是
 注册 :class:`~automation_file.NotificationSink` 的可选副作用——
-详见 :doc:`notifications`。
+详见 :doc:`notifications`。调度器对它无法分派的动作列表也会这么做，其他每一次
+失败的运行则发布成 ``scheduler.error`` 事件。

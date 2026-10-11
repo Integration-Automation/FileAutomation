@@ -1,9 +1,11 @@
 """PySide6 GUI for automation_file.
 
-Exposes every registered ``FA_*`` action through a tabbed main window so users
-can drive local file ops, HTTP downloads, Google Drive, S3, Azure Blob,
-Dropbox, SFTP, JSON action lists, and the TCP / HTTP action servers without
-writing any code.
+The main window is organised by workflow: Dashboard, Files, Storage, Pipelines,
+Scheduler, Integrity, Audit, Notifications and Settings, each a page over one
+service of :mod:`automation_file.app`. An Advanced entry keeps the tools that
+address a single action or backend: local file ops, the per-backend transfer
+panels, transfer progress, JSON action lists, file triggers and the TCP / HTTP
+action servers.
 
 The entry point is :func:`launch_ui` (also mirrored as the ``ui`` subcommand
 of ``python -m automation_file``).

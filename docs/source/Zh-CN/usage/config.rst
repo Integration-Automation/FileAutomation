@@ -31,10 +31,14 @@
 
 .. code-block:: python
 
-   from automation_file import AutomationConfig, notification_manager
+   from automation_file import AutomationConfig, notification_manager, notification_router
 
    config = AutomationConfig.load("automation_file.toml")
-   config.apply_to(notification_manager)
+   config.apply_to(notification_manager, notification_router)
+
+``apply_to`` 会注册各个 sink。同时传入路由器时，也会应用 ``[[notify.routes]]``
+表格，并在文件声明了路由时启动路由器（见 :doc:`notifications`）；没有传入时，
+路由只会被验证而不会应用。
 
 未解析的 ``${…}`` 引用会抛出
 :class:`~automation_file.SecretNotFoundException`，

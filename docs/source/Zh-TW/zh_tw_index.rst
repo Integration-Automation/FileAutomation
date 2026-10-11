@@ -2,6 +2,10 @@
 automation_file 繁體中文文件
 ============================
 
+``automation_file`` 是通用的檔案層與資料管線執行環境：以同一套 API 存取本機與遠端
+儲存，並提供檔案完整性監控、管線、排程、通知、稽核軌跡，以及透過 JSON 動作、
+伺服器與 MCP 進行的自動化。
+
 繁中手冊依典型讀者旅程拆分為章節：安裝 → 執行 JSON 動作 → 操作本地檔案
 → 串接遠端儲存 → 對外開伺服器 → 規模化自動化。可使用左側目錄，或直接
 跳到下方任一章節。
@@ -146,6 +150,7 @@ PySide6 桌面控制介面——分頁佈局、日誌面板，以及 ``ActionWor
    :caption: 圖形介面
 
    usage/gui
+   usage/app_layer
 
 .. _zh-tw-reliability:
 
@@ -177,6 +182,7 @@ cron 風格排程器（``FA_schedule_*``）會依排程定期執行動作清單�
    :caption: 觸發器與排程
 
    usage/events
+   usage/scheduler
 
 .. _zh-tw-notifications:
 
@@ -237,3 +243,117 @@ Slack、Email（SMTP）、Discord、Telegram、Microsoft Teams、PagerDuty
    :caption: 外掛
 
    usage/plugins
+
+.. _zh-tw-storage:
+
+第 16 章 — 通用儲存層
+=====================
+
+``File`` 與 ``Storage`` 以同一套 URI 語法存取本機與遠端儲存；
+``StorageBackend`` 是後端要實作的唯一契約，提供共用的操作、共用的例外，
+以及可重複使用的契約測試套件。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 通用儲存層
+
+   usage/storage
+
+.. _zh-tw-event-bus:
+
+第 17 章 — 事件
+===============
+
+所有元件共用的事件模型：``Event``、十種核心事件、供訂閱者監聽的
+``EventBus``、關聯 ID 與 actor，以及回報儲存操作的觀察者。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 事件
+
+   usage/event_bus
+
+.. _zh-tw-integrity:
+
+第 18 章 — 檔案完整性監控
+=========================
+
+``IntegrityMonitor`` 為任何儲存後端中的目錄樹保存一份經過核可的基準，並回報
+與基準不符之處：快照、manifest 結構、四種模式、警示，以及選用的修復。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 檔案完整性監控
+
+   usage/integrity
+
+.. _zh-tw-audit:
+
+第 19 章 — 稽核軌跡
+===================
+
+稽核結構描述 v2：每個事件與每次儲存操作各記錄一筆，包含 actor、資源、後端、
+結果與關聯 ID；以及各種儲存、搜尋條件、從 v1 ``AuditLog`` 的遷移與營運指標。
+通知路由請見 :doc:`usage/notifications`。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 稽核軌跡
+
+   usage/audit
+
+.. _zh-tw-pipeline:
+
+第 20 章 — 管線（Pipeline）
+===========================
+
+具有相依關係的任務，依序執行，並支援重試、逾時、取消、條件、冪等、檢查點與續跑、
+試跑（dry run）以及執行歷史；可用 Python 撰寫，或寫成帶版本的 YAML / JSON 定義。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 管線
+
+   usage/pipeline
+
+.. _zh-tw-api-policy:
+
+第 21 章 — 公開 API 與相容性
+============================
+
+哪些是公開的、哪些不是，穩定等級，版本號碼所作的承諾，以及名稱如何被棄用與移除。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 公開 API 與相容性
+
+   usage/api_policy
+   usage/migration
+
+.. _zh-tw-integration-tests:
+
+第 22 章 — 整合測試
+===================
+
+把儲存契約測試套件拿去對容器中的真實服務執行：如何在本機執行、各模組讀取的變數，
+以及 CI 執行了什麼。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 整合測試
+
+   usage/integration_tests
+
+.. _zh-tw-deployment:
+
+第 23 章 — 部署到正式環境
+=========================
+
+無人看管地運作：要安裝什麼、單一的長時間行程、磁碟上的狀態、網路上要開放什麼、
+該監看什麼，以及如何升級。
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 部署到正式環境
+
+   usage/deployment

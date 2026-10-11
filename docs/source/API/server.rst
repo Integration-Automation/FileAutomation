@@ -18,6 +18,33 @@ The HTTP server also exposes ``GET /healthz`` (liveness), ``GET /readyz``
 .. automodule:: automation_file.server.mcp_server
    :members:
 
+The semantic MCP tools: the policy, the toolkit, and the modules that hold the
+tools.
+
+.. automodule:: automation_file.server.mcp_policy
+   :members:
+
+.. automodule:: automation_file.server.mcp_tools
+   :members:
+
+.. automodule:: automation_file.server.mcp_tool_model
+   :members:
+
+.. automodule:: automation_file.server.mcp_file_tools
+   :members:
+
+.. automodule:: automation_file.server.mcp_storage_tools
+   :members:
+
+.. automodule:: automation_file.server.mcp_pipeline_tools
+   :members:
+
+.. automodule:: automation_file.server.mcp_pipeline_actions
+   :members:
+
+.. automodule:: automation_file.server.mcp_report_tools
+   :members:
+
 .. automodule:: automation_file.server.metrics_server
    :members:
 

@@ -153,7 +153,8 @@ def _publish_job() -> str:
 
 def test_the_workflow_publishes_only_a_tested_push_to_dev():
     job = _publish_job()
-    assert "needs: [lint, pytest]" in job
+    # Lint, the full matrix, the base install and each extra on its own all come first.
+    assert "needs: [lint, pytest, minimal, extras]" in job
     assert "if: github.event_name == 'push' && github.ref == 'refs/heads/dev'" in job
 
 

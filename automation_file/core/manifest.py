@@ -164,6 +164,12 @@ def _load_manifest(path: str | os.PathLike[str]) -> dict[str, Any]:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as err:
         raise ManifestException(f"cannot read manifest {manifest_path}: {err}") from err
+    if isinstance(data, dict) and "schema_version" in data:
+        raise ManifestException(
+            f"{manifest_path} is an integrity baseline (schema version "
+            f"{data['schema_version']}), which verify_manifest does not read: verify it "
+            "with IntegrityMonitor.verify() or FA_integrity_verify"
+        )
     if not isinstance(data, dict) or "files" not in data:
         raise ManifestException(f"manifest missing 'files' mapping: {manifest_path}")
     return data

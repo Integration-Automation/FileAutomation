@@ -193,3 +193,40 @@ def test_cli_serves_whitelisted_registry(monkeypatch: pytest.MonkeyPatch) -> Non
     assert captured["name"] == "t"
     assert captured["version"] == "2.0.0"
     assert captured["served"] is True
+
+
+def _call(server: MCPServer, name: str, arguments: dict) -> dict:
+    return server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        }
+    )
+
+
+def test_a_tool_cannot_run_an_action_the_server_does_not_expose() -> None:
+    from automation_file import executor
+
+    exposed = _filtered_registry(executor.registry, ["FA_execute_action", "FA_storage_exists"])
+    server = MCPServer(exposed)
+    refused = _call(
+        server, "FA_execute_action", {"action_list": [["FA_run_shell", {"argv": ["echo"]}]]}
+    )
+    assert "FA_run_shell, which this server does not expose" in refused["error"]["message"]
+    allowed = _call(
+        server,
+        "FA_execute_action",
+        {"action_list": [["FA_storage_exists", {"uri": "memory://mcp/absent.txt"}]]},
+    )
+    assert allowed["result"]["isError"] is False
+
+
+def test_an_unfiltered_server_runs_nested_actions() -> None:
+    answer = _call(
+        MCPServer(),
+        "FA_execute_action",
+        {"action_list": [["FA_storage_exists", {"uri": "memory://mcp/absent.txt"}]]},
+    )
+    assert answer["result"]["isError"] is False

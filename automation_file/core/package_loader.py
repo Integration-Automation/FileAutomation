@@ -16,7 +16,7 @@ from automation_file.logging_config import file_automation_logger
 
 _SETTINGS = PackageManagerSettings(
     import_errors=(ImportError,),
-    # No FA_* command reaches the loader (it is Python-only, see CLAUDE.md, Plugin / package loading),
+    # No FA_* command reaches the loader (Python-only, see CLAUDE.md, Plugin / package loading),
     # so je_action_core's package gate would only warn the host itself. tests/test_package_loader.py
     # fails if a command that loads packages is added; switch the gate on then (workspace X-12).
     gate=PackageGate.OFF,

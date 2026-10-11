@@ -1,5 +1,7 @@
 """Tests for automation_file.notify."""
 
+# pylint: disable=use-implicit-booleaness-not-comparison  # an exact empty value is what is asserted
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -286,3 +288,101 @@ def test_manager_list_describes_sinks() -> None:
     webhook_desc = next(d for d in descriptions if d["name"] == "hook-a")
     assert webhook_desc["type"] == "WebhookSink"
     assert webhook_desc["url_host"] == "example.com"
+
+
+class _Named(NotificationSink):
+    def __init__(self, name: str, error: Exception | None = None) -> None:
+        self.name = name
+        self.sent: list[tuple[str, str, str]] = []
+        self._error = error
+
+    def send(self, subject: str, body: str, level: str = "info") -> None:
+        if self._error is not None:
+            raise self._error
+        self.sent.append((subject, body, level))
+
+
+def test_manager_names_are_in_registration_order() -> None:
+    manager = NotificationManager(dedup_seconds=0.0)
+    assert manager.names() == ()
+    for name in ("mail", "chat", "pager"):
+        manager.register(_Named(name))
+    manager.register(_Named("mail"))
+    assert manager.names() == ("mail", "chat", "pager")
+    manager.unregister("chat")
+    assert manager.names() == ("mail", "pager")
+
+
+def test_send_to_delivers_to_one_named_sink() -> None:
+    manager = NotificationManager(dedup_seconds=60.0)
+    chat, mail = _Named("chat"), _Named("mail")
+    manager.register(chat)
+    manager.register(mail)
+    assert manager.send_to("chat", "subject", "body", "warning") == "sent"
+    assert manager.send_to("chat", "subject", "body", "warning") == "sent"
+    assert chat.sent == [("subject", "body", "warning")] * 2
+    assert mail.sent == []
+    assert manager.send_to("mail", "only a subject") == "sent"
+    assert mail.sent == [("only a subject", "", "info")]
+
+
+def test_send_to_reports_a_failure_without_raising() -> None:
+    manager = NotificationManager(dedup_seconds=0.0)
+    manager.register(_Named("down", NotificationException("channel is down")))
+    manager.register(_Named("buggy", KeyError("oops")))
+    assert manager.send_to("down", "subject") == "NotificationException: channel is down"
+    assert manager.send_to("buggy", "subject") == "KeyError: 'oops'"
+
+
+def test_send_to_rejects_an_unknown_sink_and_an_empty_subject() -> None:
+    manager = NotificationManager(dedup_seconds=0.0)
+    manager.register(_Named("chat"))
+    with pytest.raises(NotificationException, match="'pager'"):
+        manager.send_to("pager", "subject")
+    with pytest.raises(NotificationException, match="subject"):
+        manager.send_to("chat", "")
+
+
+def test_a_secret_url_in_a_sink_error_is_redacted() -> None:
+    leak = NotificationException(
+        "slack sink 'slack' post failed: HTTPSConnectionPool(host='hooks.slack.com', port=443): "
+        "Max retries exceeded with url: /services/T000/B000/SECRET (Caused by timeout) "
+        "while calling https://bot:pw@hooks.slack.com/services/T000/B000/SECRET"
+    )
+    manager = NotificationManager(dedup_seconds=0.0)
+    manager.register(_Named("slack", leak))
+    for outcome in (manager.notify("s", "b")["slack"], manager.send_to("slack", "s")):
+        assert "SECRET" not in outcome
+        assert "bot:pw" not in outcome
+        assert "hooks.slack.com" in outcome
+        assert "(Caused by timeout)" in outcome
+    assert manager.notify("s", "b")["slack"].startswith("NotificationException(")
+
+
+def test_route_actions_are_registered() -> None:
+    from automation_file.core.action_registry import build_default_registry
+
+    registry = build_default_registry()
+    for name in ("FA_notify_route_add", "FA_notify_route_remove", "FA_notify_route_list"):
+        assert name in registry
+
+
+def test_notify_on_failure_publishes_an_event() -> None:
+    from automation_file.events import event_bus
+    from automation_file.notify.manager import notify_on_failure
+
+    published: list = []
+    subscription = event_bus.subscribe(published.append, types=["scheduler.error", "system.error"])
+    try:
+        notify_on_failure("scheduler[published]", RuntimeError("boom"))
+        notify_on_failure("trigger[published]", RuntimeError("boom"))
+    finally:
+        event_bus.unsubscribe(subscription)
+    mine = [event for event in published if "[published]" in event.subject]
+    assert [(event.type, event.source) for event in mine] == [
+        ("scheduler.error", "scheduler"),
+        ("system.error", "trigger"),
+    ]
+    assert mine[0].payload["job"] == "published"
+    assert mine[1].payload["trigger"] == "published"
+    assert mine[0].payload["error"] == "RuntimeError: boom"

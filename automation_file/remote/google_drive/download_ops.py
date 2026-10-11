@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import io
 
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
-
 from automation_file.logging_config import file_automation_logger
-from automation_file.remote.google_drive.client import driver_instance
+from automation_file.remote.google_drive.client import (
+    drive_http_error,
+    drive_media,
+    driver_instance,
+)
 
 
 def drive_download_file(file_id: str, file_name: str) -> io.BytesIO | None:
@@ -18,11 +19,12 @@ def drive_download_file(file_id: str, file_name: str) -> io.BytesIO | None:
     is **only** written after the download completes cleanly, so a failed
     request cannot leave an empty file behind.
     """
+    http_error = drive_http_error()
     service = driver_instance.require_service()
     buffer = io.BytesIO()
     try:
         request = service.files().get_media(fileId=file_id)
-        downloader = MediaIoBaseDownload(buffer, request)
+        downloader = drive_media().MediaIoBaseDownload(buffer, request)
         done = False
         while not done:
             status, done = downloader.next_chunk()
@@ -32,7 +34,7 @@ def drive_download_file(file_id: str, file_name: str) -> io.BytesIO | None:
                     file_name,
                     int(status.progress() * 100),
                 )
-    except HttpError as error:
+    except http_error as error:
         file_automation_logger.error("drive_download_file failed: %r", error)
         return None
 
@@ -44,6 +46,7 @@ def drive_download_file(file_id: str, file_name: str) -> io.BytesIO | None:
 
 def drive_download_file_from_folder(folder_name: str) -> dict[str, str] | None:
     """Download every file inside the Drive folder named ``folder_name``."""
+    http_error = drive_http_error()
     service = driver_instance.require_service()
     try:
         folders = (
@@ -60,7 +63,7 @@ def drive_download_file_from_folder(folder_name: str) -> dict[str, str] | None:
             return None
         folder_id = folder_list[0].get("id")
         response = service.files().list(q=f"'{folder_id}' in parents").execute()
-    except HttpError as error:
+    except http_error as error:
         file_automation_logger.error("drive_download_file_from_folder failed: %r", error)
         return None
 

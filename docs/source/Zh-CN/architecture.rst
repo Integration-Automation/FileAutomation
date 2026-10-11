@@ -63,7 +63,7 @@
 
        subgraph Events["<b>事件驱动</b>"]
            Trigger["<b>TriggerManager</b><br/>watchdog 文件监听"]
-           Sched["<b>Scheduler</b><br/>5-field cron + overlap guard"]
+           Sched["<b>Scheduler</b><br/>cron · file · event · pipeline triggers<br/>run records + overlap guard"]
        end
 
        subgraph Servers["<b>服务器</b>"]
@@ -75,7 +75,8 @@
        end
 
        subgraph UI["<b>ui (PySide6)</b>"]
-           MainWin["<b>MainWindow</b><br/>Home · Local · HTTP · Drive · S3 · Azure · Dropbox<br/>SFTP · OneDrive · Box · JSON · Triggers · Scheduler<br/>Progress · Transfer · Servers"]
+           MainWin["<b>MainWindow</b><br/>Dashboard · Files · Storage · Pipelines · Scheduler<br/>Integrity · Audit · Notifications · Settings<br/>Advanced: Local · Transfer · Progress · JSON · Triggers · Servers"]
+           AppLayer["<b>automation_file.app</b><br/>one service per navigation entry"]
            Worker["<b>ActionWorker</b><br/>QRunnable on QThreadPool"]
        end
 
@@ -101,7 +102,7 @@
            WebDAV["<b>webdav</b>"]
            SMB["<b>smb / cifs</b>"]
            Fsspec["<b>fsspec_bridge</b>"]
-           Cross["<b>cross_backend</b><br/>local:// s3:// drive:// azure://<br/>dropbox:// sftp:// ftp://"]
+           Cross["<b>cross_backend</b><br/>local:// s3:// azure://<br/>dropbox:// sftp:// ftp://"]
        end
 
        subgraph Notify["<b>通知</b>"]
@@ -125,6 +126,7 @@
        Plugins ==> Loader
 
        MainWin ==> Worker
+       Worker ==> AppLayer
        Worker ==> PublicAPI
 
        PublicAPI ==> Executor
@@ -140,6 +142,8 @@
        HTTPS ==> Executor
        MCP ==> Registry
        MetSrv ==> Metrics
+       WebUI ==> AppLayer
+       AppLayer ==> PublicAPI
        WebUI ==> Registry
        ACL ==> TCP
        ACL ==> HTTPS
@@ -235,7 +239,7 @@
        class Secrets,Config,ConfW,Crypto,Check,SafeP,ACL sec;
        class Trigger,Sched event;
        class TCP,HTTPS,MCP,MetSrv,WebUI server;
-       class MainWin,Worker ui;
+       class MainWin,Worker,AppLayer ui;
        class FileOps,Archives,DataOps,TextOps,Misc localOps;
        class UrlVal,Http,Drive,S3M,Azure,Dropbox,SFTP,FTP,OneD,Box,WebDAV,SMB,Fsspec,Cross remote;
        class NM,Sinks notify;
@@ -318,22 +322,33 @@
    ├── trigger/
    │   └── manager.py           # FileWatcher + TriggerManager（基于 watchdog）
    ├── scheduler/
-   │   ├── cron.py              # 5 字段 cron 表达式解析器
-   │   └── manager.py           # Scheduler 后台线程 + ScheduledJob
+   │   ├── cron.py              # 5 字段 cron 表达式解析器、时区
+   │   ├── triggers.py          # cron / 文件 / 事件 / 流水线触发器
+   │   ├── job.py               # ScheduledJob
+   │   ├── runs.py              # JobRun、RunState、RunHistory
+   │   ├── targets.py           # 执行动作列表或流水线
+   │   ├── dispatch.py          # 重叠、超时、取消、scheduler.error
+   │   └── manager.py           # Scheduler 后台线程 + FA_schedule_* 动作
    ├── notify/
    │   ├── sinks.py             # Webhook / Slack / Email sink
    │   └── manager.py           # NotificationManager（扇出 + 去重 + auto-notify hook）
    ├── project/
    │   ├── project_builder.py
    │   └── templates.py
-   ├── ui/                      # PySide6 GUI
+   ├── app/                     # 应用层：用户界面所调用的那一层
+   │   ├── services.py          # AppServices、app_services()、NAVIGATION
+   │   ├── pipeline_draft.py    # PipelineDraft：可编辑的定义
+   │   └── *_service.py         # 每个导航条目一个服务
+   ├── ui/                      # PySide6 GUI，建立在 app/ 之上
    │   ├── launcher.py          # launch_ui(argv)
-   │   ├── main_window.py       # 标签式 MainWindow（Home、Local、Transfer、
-   │   │                        #   Progress、JSON actions、Triggers、
-   │   │                        #   Scheduler、Servers）
+   │   ├── main_window.py       # 侧边栏式 MainWindow（Dashboard、Files、Storage、
+   │   │                        #   Pipelines、Scheduler、Integrity、Audit、
+   │   │                        #   Notifications、Settings、Advanced）
    │   ├── worker.py            # ActionWorker（QRunnable）
    │   ├── log_widget.py        # LogPanel
-   │   └── tabs/                # 每个后端一个标签 + JSON runner + servers
+   │   ├── pages/               # 每个导航条目一个页面 + 流水线编辑器
+   │   └── tabs/                # Advanced 之下的工具：每个后端一个标签、
+   │                            #   JSON runner、triggers、servers
    └── utils/
        ├── file_discovery.py
        ├── fast_find.py         # OS 索引（mdfind/locate/es）+ scandir 兜底
@@ -398,9 +413,12 @@
   转发给共享注册表调度的动作列表。
   :data:`~automation_file.trigger.trigger_manager` 持有 name → watcher
   映射，让 GUI 与 JSON 动作共享同一个生命周期。
-* :mod:`automation_file.scheduler` 运行一个后台线程，在分钟边界唤醒、
-  遍历已注册的 :class:`~automation_file.scheduler.ScheduledJob`，并在
-  短生命周期的工作线程上调度每个匹配的任务，避免慢动作拖累后续任务。
+* :mod:`automation_file.scheduler` 运行一个后台线程，每秒唤醒一次，触发
+  cron 触发器在当前这一分钟到期的
+  :class:`~automation_file.scheduler.ScheduledJob`，并让每次运行使用自己的
+  短生命周期工作线程，避免慢动作拖累后续任务。作业可以运行动作列表或流水线，
+  也可以由文件事件、事件总线上的事件、另一条流水线的运行结束或手动触发；每次
+  触发都会留下一条运行记录。详见 :doc:`usage/scheduler`。
 
 当动作列表抛出 :class:`~automation_file.exceptions.FileAutomationException`
 时，两个调度器都会调用
