@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-import time
+from types import SimpleNamespace
 
 import pytest
 
 from automation_file.core.circuit_breaker import CircuitBreaker
 from automation_file.exceptions import CircuitOpenException
+
+
+@pytest.fixture
+def breaker_clock(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    clock = [100.0]
+    monkeypatch.setattr(
+        "automation_file.core.circuit_breaker.time",
+        SimpleNamespace(monotonic=lambda: clock[0]),
+    )
+    return clock
 
 
 def test_closed_passes_through() -> None:
@@ -16,7 +26,7 @@ def test_closed_passes_through() -> None:
     assert cb.state == "closed"
 
 
-def test_opens_after_threshold_failures() -> None:
+def test_opens_after_threshold_failures(breaker_clock: list[float]) -> None:
     cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
 
     def boom() -> None:
@@ -38,23 +48,23 @@ def _raise_value_error(msg: str = "v") -> None:
     raise ValueError(msg)
 
 
-def test_half_open_allows_probe_and_closes_on_success() -> None:
+def test_half_open_allows_probe_and_closes_on_success(breaker_clock: list[float]) -> None:
     cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
     with pytest.raises(ConnectionError):
         cb.call(_raise_connection_error)
     assert cb.state == "open"
 
-    time.sleep(0.08)
+    breaker_clock[0] += 0.08
     assert cb.state == "half_open"
     assert cb.call(lambda: "ok") == "ok"
     assert cb.state == "closed"
 
 
-def test_half_open_failure_reopens() -> None:
+def test_half_open_failure_reopens(breaker_clock: list[float]) -> None:
     cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
     with pytest.raises(ConnectionError):
         cb.call(_raise_connection_error)
-    time.sleep(0.08)
+    breaker_clock[0] += 0.08
     assert cb.state == "half_open"
     with pytest.raises(ConnectionError):
         cb.call(_raise_connection_error, "y")
