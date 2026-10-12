@@ -219,6 +219,25 @@ def test_lint_and_integration_jobs_cannot_resolve_unlocked_dependencies(workflow
                 assert "--only-binary :all:" in command
 
 
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {"platform_system": "Linux", "sys_platform": "linux"},
+        {"platform_system": "Darwin", "sys_platform": "darwin"},
+        {"platform_system": "Windows", "sys_platform": "win32"},
+    ],
+    ids=["linux-compiler", "macos-compiler", "windows-compiler"],
+)
+def test_shared_integration_inputs_keep_timezone_data_on_every_compiler(environment):
+    """A Linux dependency update must retain Windows timezone data in the shared lock."""
+    lines = (_REQUIREMENTS / "integration.in").read_text(encoding="utf-8").splitlines()
+    requirements = [
+        Requirement(line) for line in lines if line.strip() and not line.startswith("#")
+    ]
+    timezone = next(item for item in requirements if canonicalize_name(item.name) == "tzdata")
+    assert timezone.marker is None or timezone.marker.evaluate(environment)
+
+
 def test_integration_lock_covers_the_package_and_its_build_backend():
     text = (_REQUIREMENTS / "integration.txt").read_text(encoding="utf-8")
     pins = {canonicalize_name(name): version for name, version in _PIN.findall(text)}
