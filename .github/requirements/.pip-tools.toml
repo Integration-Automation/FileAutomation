@@ -1,0 +1,7 @@
+# Dependabot reads the legacy section; pip-tools reads the tool section.
+# setuptools is the required build backend, installed at a reviewed hash.
+[pip-tools]
+allow-unsafe = true
+
+[tool.pip-tools]
+allow-unsafe = true
