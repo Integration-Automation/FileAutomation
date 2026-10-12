@@ -1,22 +1,23 @@
 # Python 3.12 integration dependencies, locked for all runner platforms.
 # Regenerate: uv pip compile --universal --python-version 3.12 --generate-hashes
-# --only-binary :all: --exclude-newer 2026-10-02T00:00:00Z
+# --only-binary :all: --exclude-newer 2026-10-05T00:00:00Z
 # .github/requirements/integration.in -o .github/requirements/integration.txt
 setuptools>=77
 wheel
 requests>=2.31.0
 tqdm>=4.66.0
 watchdog>=4.0.0
-cryptography>=50.0.0
+cryptography>=50.0.2
 prometheus_client>=0.26.0
 defusedxml>=0.7.1
 je_action_core>=0.0.2
 PyYAML>=6.0.3
-tzdata>=2024.1; platform_system == 'Windows'
+# Keep Windows timezone data even when Dependabot recompiles this shared lock on Linux.
+tzdata>=2026.5
 opentelemetry-api>=1.44.0
 opentelemetry-sdk>=1.44.0
 tomli>=2.0.1; python_version<"3.11"
-boto3>=1.34.0
+boto3>=1.43.108
 azure-storage-blob>=12.19.0
 google-api-python-client>=2.100.0
 google-auth-httplib2>=0.2.0
