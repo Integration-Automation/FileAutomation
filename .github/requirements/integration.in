@@ -15,7 +15,7 @@ PyYAML>=6.0.3
 # Keep Windows timezone data even when Dependabot recompiles this shared lock on Linux.
 tzdata>=2026.5
 opentelemetry-api>=1.44.0
-opentelemetry-sdk>=1.44.0
+opentelemetry-sdk>=1.45.1
 tomli>=2.0.1; python_version<"3.11"
 boto3>=1.43.108
 azure-storage-blob>=12.19.0
