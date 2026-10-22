@@ -1386,3 +1386,8 @@ sphinx-build -b html docs/source docs/_build/html
 ```
 
 架構筆記、程式碼慣例與安全考量請參見 [`CLAUDE.md`](CLAUDE.md)。
+
+## 安全性
+
+漏洞請私下回報。政策、支援版本與操作者注意事項見 [SECURITY.md](SECURITY.md)。
+
