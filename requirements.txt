@@ -13,5 +13,5 @@ pyarrow>=25.0.1
 opentelemetry-api>=1.45.1
 opentelemetry-sdk>=1.45.1
 msal>=1.39.0
-boxsdk>=10.17.1,<11
+boxsdk>=10.18.0,<11
 tomli; python_version<"3.11"
