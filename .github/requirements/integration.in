@@ -10,7 +10,7 @@ watchdog>=4.0.0
 cryptography>=50.0.2
 prometheus_client>=0.26.0
 defusedxml>=0.7.1
-je_action_core>=0.0.2
+je_action_core>=0.0.4
 PyYAML>=6.0.3
 # Keep Windows timezone data even when Dependabot recompiles this shared lock on Linux.
 tzdata>=2026.5
