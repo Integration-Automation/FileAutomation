@@ -1,8 +1,9 @@
 # Python 3.12 integration dependencies, locked for all runner platforms.
 # Regenerate: uv pip compile --universal --python-version 3.12 --generate-hashes
-# --only-binary :all: --exclude-newer 2026-10-05T00:00:00Z
+# --only-binary :all: --exclude-newer 2026-10-25T00:00:00Z --exclude-newer-package pyasn1=2026-10-28T00:00:00Z
+# (pyasn1 0.6.5, the security fix, is newer than the cut-off and exempt from it.)
 # .github/requirements/integration.in -o .github/requirements/integration.txt
-setuptools>=77
+setuptools>=84.1.0
 wheel
 requests>=2.31.0
 tqdm>=4.66.0
@@ -14,7 +15,7 @@ je_action_core>=0.0.2
 PyYAML>=6.0.3
 # Keep Windows timezone data even when Dependabot recompiles this shared lock on Linux.
 tzdata>=2026.5
-opentelemetry-api>=1.44.0
+opentelemetry-api>=1.45.1
 opentelemetry-sdk>=1.45.1
 tomli>=2.0.1; python_version<"3.11"
 boto3>=1.43.109
