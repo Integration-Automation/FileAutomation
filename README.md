@@ -1436,3 +1436,8 @@ sphinx-build -b html docs/source docs/_build/html
 
 See [`CLAUDE.md`](CLAUDE.md) for architecture notes, conventions, and security
 considerations.
+
+## Security
+
+Report vulnerabilities privately. The policy, supported versions, and operator notes are in [SECURITY.md](SECURITY.md).
+

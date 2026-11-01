@@ -58,6 +58,10 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261101-01 | 2026-11-01 | Patch the dependencies named in Dependabot security alerts | #bugfix #deps #security #ci | [2026-11](2026-11.md) |
+| U-20261022-03 | 2026-10-22 | Preserve complete dependency locks | #bugfix #deps #ci | [2026-10](2026-10.md) |
+| U-20261022-02 | 2026-10-22 | Preserve complete dependency locks | #bugfix #deps #ci | [2026-10](2026-10.md) |
+| U-20261022-01 | 2026-10-22 | Preserve complete dependency locks | #bugfix #deps #ci | [2026-10](2026-10.md) |
 | U-20261012-01 | 2026-10-12 | Preserve cross-platform integration dependencies during automated updates | #done #ci | [2026-10](2026-10.md) |
 | U-20261011-02 | 2026-10-11 | Keep circuit breaker clock fixtures lint clean | #done #ci | [2026-10](2026-10.md) |
 | U-20261011-01 | 2026-10-11 | Integrate open pull requests and stabilize circuit breaker tests | #ci #tests #dependencies | [2026-10](2026-10.md) |
@@ -137,5 +141,6 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
+| [2026-11.md](2026-11.md) | 2026-11 | 1 |
 | [2026-10.md](2026-10.md) | 2026-10 | 53 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |
