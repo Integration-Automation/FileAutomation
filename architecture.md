@@ -277,7 +277,7 @@ storage.observe → events.storage_bridge → StorageError (only for a failing b
   warns, the name stays for at least two minor releases, a major release removes it
   (`docs/source/Eng/usage/api_policy.rst`; CLAUDE.md § Conventions).
 - Only the three action shapes in §3. Extend through the registry, not by subclassing the executor.
-  Python 3.10+, `X | Y` unions, `from __future__ import annotations` (CLAUDE.md § Conventions).
+  Python 3.11+, `X | Y` unions, `from __future__ import annotations` (CLAUDE.md § Conventions).
 - Exceptions derive from `FileAutomationException`. Log through `file_automation_logger`; no
   `print()` diagnostics and no runtime `assert` (§ Conventions; § Code quality › Logging, printing, assertions).
 - Every user-supplied URL goes through `validate_http_url`. Never `verify=False`. Downloads have size

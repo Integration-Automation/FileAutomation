@@ -17,7 +17,6 @@ PyYAML>=6.0.3
 tzdata>=2026.5
 opentelemetry-api>=1.45.1
 opentelemetry-sdk>=1.45.1
-tomli>=2.0.1; python_version<"3.11"
 boto3>=1.43.109
 azure-storage-blob>=12.19.0
 google-api-python-client>=2.100.0

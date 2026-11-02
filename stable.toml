@@ -15,7 +15,7 @@ keywords = [
     "file-integrity", "audit", "automation", "mcp",
 ]
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 # The base install: the action engine, local operations, HTTP, the storage layer's local and
@@ -37,7 +37,6 @@ dependencies = [
     "tomli>=2.0.1; python_version<\"3.11\""
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
