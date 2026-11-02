@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -20,7 +20,7 @@ from automation_file.integrity import (
 )
 
 ROOT = "memory://detect/tree"
-MOMENT = datetime(2026, 10, 8, 10, 15, 30, tzinfo=timezone.utc)
+MOMENT = datetime(2026, 10, 8, 10, 15, 30, tzinfo=UTC)
 LATER = MOMENT + timedelta(hours=1)
 
 

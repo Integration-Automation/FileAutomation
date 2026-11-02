@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import fnmatch
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from automation_file.exceptions import FileAutomationException
@@ -155,21 +155,21 @@ def _select_kept(
 
 
 def _daily_key(mtime: float) -> str:
-    dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+    dt = datetime.fromtimestamp(mtime, tz=UTC)
     return dt.strftime("%Y-%m-%d")
 
 
 def _weekly_key(mtime: float) -> str:
-    dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+    dt = datetime.fromtimestamp(mtime, tz=UTC)
     year, week, _weekday = dt.isocalendar()
     return f"{year}-W{week:02d}"
 
 
 def _monthly_key(mtime: float) -> str:
-    dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+    dt = datetime.fromtimestamp(mtime, tz=UTC)
     return dt.strftime("%Y-%m")
 
 
 def _yearly_key(mtime: float) -> str:
-    dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+    dt = datetime.fromtimestamp(mtime, tz=UTC)
     return dt.strftime("%Y")

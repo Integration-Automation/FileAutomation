@@ -35,7 +35,7 @@ import itertools
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
@@ -109,7 +109,7 @@ class _Entry:
     data: bytes | None = None
     version: int = 1
     trashed: bool = False
-    modified: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    modified: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def resource(self, *, digests: bool = True) -> dict[str, Any]:
         stamp = self.modified.strftime("%Y-%m-%dT%H:%M:%S")
@@ -423,5 +423,5 @@ class FakeDrive:
         entry.data = content
         entry.mime_type = upload.mime_type
         entry.version += 1
-        entry.modified = datetime.now(timezone.utc)
+        entry.modified = datetime.now(UTC)
         return entry

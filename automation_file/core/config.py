@@ -44,7 +44,6 @@ Only the sections the caller uses need to appear; everything is optional.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -68,14 +67,9 @@ from automation_file.notify.sinks import (
 
 
 def _load_tomllib() -> Any:
-    if sys.version_info >= (3, 11):
-        import tomllib
+    import tomllib
 
-        return tomllib
-    # pragma: no cover - exercised only on Python 3.10 runners
-    import tomli  # pylint: disable=import-error  # declared in *.toml for Python<3.11
-
-    return tomli
+    return tomllib
 
 
 class ConfigException(FileAutomationException):

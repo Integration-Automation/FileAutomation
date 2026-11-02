@@ -18,10 +18,10 @@ import posixpath
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-MODIFIED = datetime(2026, 10, 8, 2, 30, 15, 250000, tzinfo=timezone.utc)
+MODIFIED = datetime(2026, 10, 8, 2, 30, 15, 250000, tzinfo=UTC)
 NO_SUCH_FILE = "550 No such file or directory."
 
 
@@ -310,7 +310,7 @@ class FakeFTPServer:  # pylint: disable=too-many-instance-attributes  # the stat
 
         def stored(data: bytes) -> None:
             kept = data if self.transfer_error is None else data[: len(data) // 2]
-            self.entries[real] = _Entry(data=kept, modified=datetime.now(timezone.utc))
+            self.entries[real] = _Entry(data=kept, modified=datetime.now(UTC))
             self._reply(self.transfer_error or "226 Transfer complete.")
 
         self._transfer(b"", stored)
@@ -328,7 +328,7 @@ class FakeFTPServer:  # pylint: disable=too-many-instance-attributes  # the stat
         if entry is not None or not self._holds(real):
             self._reply("550 Create directory operation failed.")
             return
-        self.entries[real] = _Entry(modified=datetime.now(timezone.utc))
+        self.entries[real] = _Entry(modified=datetime.now(UTC))
         self._reply(f'257 "{real}" created')
 
     def _do_rmd(self, argument: str) -> None:

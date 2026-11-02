@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -64,7 +64,7 @@ _SEVERITY_ORDER = (Severity.INFO, Severity.WARNING, Severity.ERROR, Severity.CRI
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _event_id() -> str:

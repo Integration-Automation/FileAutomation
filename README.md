@@ -372,7 +372,7 @@ Upgrading from a release that bundled everything: install `automation_file[all]`
 what you had.
 
 Requirements:
-- Python 3.10+
+- Python 3.11+
 - Base dependencies: `requests`, `tqdm`, `watchdog`, `cryptography`, `prometheus_client`, `defusedxml`,
   `PyYAML`, `opentelemetry-api`, `opentelemetry-sdk`, `je_action_core` (the action executor
   shared with APITestka, LoadDensity and MailThunder)

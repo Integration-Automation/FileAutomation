@@ -21,7 +21,7 @@ from __future__ import annotations
 import contextlib
 import errno
 from collections.abc import Hashable, Iterable, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from automation_file.remote.smb.client import SMBClient, SMBEntry
 
 SMB_SCHEME = "smb"
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _MISSING_ERRNO = frozenset({errno.ENOENT, errno.ENOTDIR})
 # NTSTATUS STATUS_ACCESS_DENIED, which smbprotocol passes on without an errno.
 _STATUS_ACCESS_DENIED = 0xC0000022

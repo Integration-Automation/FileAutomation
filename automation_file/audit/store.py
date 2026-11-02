@@ -35,7 +35,7 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
 from typing import Any, TypeVar
 
@@ -207,7 +207,7 @@ def purge_cutoff(older_than_seconds: float) -> datetime:
     if not older_than_seconds > 0:
         raise AuditException("older_than_seconds must be positive")
     try:
-        return datetime.now(timezone.utc) - timedelta(seconds=older_than_seconds)
+        return datetime.now(UTC) - timedelta(seconds=older_than_seconds)
     except (OverflowError, ValueError) as err:
         raise AuditException(f"older_than_seconds is out of range: {older_than_seconds!r}") from err
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,7 +11,7 @@ from automation_file import RotateException, build_default_registry, rotate_back
 
 def _make_file(path: Path, days_ago: int) -> None:
     path.write_text("data", encoding="utf-8")
-    when = (datetime.now(tz=timezone.utc) - timedelta(days=days_ago)).timestamp()
+    when = (datetime.now(tz=UTC) - timedelta(days=days_ago)).timestamp()
     os.utime(path, (when, when))
 
 

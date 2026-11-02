@@ -12,7 +12,7 @@ import json
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -75,7 +75,7 @@ class RunStatus(str, Enum):
 
 def utc_now() -> datetime:
     """Return the current time as a timezone-aware UTC ``datetime``."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(moment: datetime | None) -> str | None:

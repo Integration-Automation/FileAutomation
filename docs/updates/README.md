@@ -58,6 +58,7 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | ID | Date | Title | Tags | Batch |
 |---|---|---|---|---|
+| U-20261102-01 | 2026-11-02 | Require Python 3.11; stop supporting 3.10 | #migration #deps #ci | [2026-11](2026-11.md) |
 | U-20261101-01 | 2026-11-01 | Patch the dependencies named in Dependabot security alerts | #bugfix #deps #security #ci | [2026-11](2026-11.md) |
 | U-20261022-03 | 2026-10-22 | Preserve complete dependency locks | #bugfix #deps #ci | [2026-10](2026-10.md) |
 | U-20261022-02 | 2026-10-22 | Preserve complete dependency locks | #bugfix #deps #ci | [2026-10](2026-10.md) |
@@ -141,6 +142,6 @@ In the same commit: delete the item from `progress.md`, add a `#done` entry here
 
 | File | Period | Entries |
 |---|---|---:|
-| [2026-11.md](2026-11.md) | 2026-11 | 1 |
+| [2026-11.md](2026-11.md) | 2026-11 | 2 |
 | [2026-10.md](2026-10.md) | 2026-10 | 53 |
 | [2026-09.md](2026-09.md) | 2026-09 | 21 |

@@ -20,7 +20,7 @@ import posixpath
 import stat
 from collections.abc import Iterable, Iterator
 from contextlib import AbstractContextManager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -102,7 +102,7 @@ def _file_info(path: str, attributes: Any) -> FileInfo:
         path=path,
         is_dir=is_dir,
         size=None if is_dir else attributes.st_size,
-        modified_at=None if modified is None else datetime.fromtimestamp(modified, timezone.utc),
+        modified_at=None if modified is None else datetime.fromtimestamp(modified, UTC),
     )
 
 

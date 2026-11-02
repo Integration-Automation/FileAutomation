@@ -1,6 +1,6 @@
 # Ruff configuration matching the rules documented in CLAUDE.md.
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 extend-exclude = ["docs/_build", "build", "dist", ".venv"]
 
 [lint]
@@ -29,6 +29,9 @@ ignore = [
     "RUF022",    # __all__ is grouped thematically, not alphabetically
     "PLW0108",   # tests occasionally use single-line lambdas for clarity
     "PLR0911",   # download_file legitimately has >6 return points (SSRF guards)
+    # UP042 wants StrEnum, whose str() is the value rather than Class.MEMBER. That changes
+    # runtime output, so it is a separate decision from the 3.11 floor that enabled the rule.
+    "UP042",
 ]
 
 [lint.per-file-ignores]

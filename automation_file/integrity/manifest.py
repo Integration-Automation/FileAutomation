@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from automation_file.exceptions import StorageURIException
@@ -131,7 +131,7 @@ def _from_legacy(document: Mapping[str, Any], origin: str) -> Snapshot:
             root=_legacy_root(document.get("root")),
             backend=LOCAL_SCHEME,
             algorithm=name,
-            created_at=created_at or datetime.now(timezone.utc),
+            created_at=created_at or datetime.now(UTC),
             entries=tuple(_legacy_entry(path, meta, name) for path, meta in files.items()),
         )
     except IntegrityException as error:

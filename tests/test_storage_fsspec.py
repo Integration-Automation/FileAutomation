@@ -19,7 +19,7 @@ import os
 import secrets
 import sys
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +99,7 @@ class KeyValueFileSystem(AbstractFileSystem):
 
     def put_file(self, lpath: str, rpath: str, callback: Any = None, **kwargs: Any) -> None:
         self.calls.append("put_file")
-        self.objects[self._key(rpath)] = (Path(lpath).read_bytes(), datetime.now(timezone.utc))
+        self.objects[self._key(rpath)] = (Path(lpath).read_bytes(), datetime.now(UTC))
 
     def get_file(self, rpath: str, lpath: str, callback: Any = None, **kwargs: Any) -> None:
         self.calls.append("get_file")
@@ -120,7 +120,7 @@ class KeyValueFileSystem(AbstractFileSystem):
 
     def cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         self.calls.append("cp_file")
-        self.objects[self._key(path2)] = (self.cat_file(path1), datetime.now(timezone.utc))
+        self.objects[self._key(path2)] = (self.cat_file(path1), datetime.now(UTC))
 
     def mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
         """A prefix needs no creating."""
@@ -183,7 +183,7 @@ class TestKeyValueFsspecStorageContract(StorageContract):
     @pytest.fixture
     def backend(self) -> StorageBackend:
         filesystem = KeyValueFileSystem()
-        filesystem.objects["bucket/other-tenant/keep.txt"] = (b"keep", datetime.now(timezone.utc))
+        filesystem.objects["bucket/other-tenant/keep.txt"] = (b"keep", datetime.now(UTC))
         return FsspecStorage(filesystem, root="bucket/tenant/a", directories=False)
 
 
@@ -207,7 +207,7 @@ def _stored() -> dict[str, bytes]:
 def test_stat_takes_the_time_from_info_when_it_is_there(tmp_path: Path) -> None:
     storage = FsspecStorage(LocalFileSystem(), root=str(tmp_path))
     info = storage.write_bytes("dir/a.txt", b"xyz")
-    expected = datetime.fromtimestamp(os.stat(tmp_path / "dir" / "a.txt").st_mtime, timezone.utc)
+    expected = datetime.fromtimestamp(os.stat(tmp_path / "dir" / "a.txt").st_mtime, UTC)
     assert info.size == 3
     assert abs(info.modified_at - expected) < CLOSE_ENOUGH
     assert info.modified_at.utcoffset() == timedelta(0)
@@ -249,7 +249,7 @@ def test_capabilities_and_scheme_belong_to_the_instance(tmp_path: Path) -> None:
         FsspecStorage(KeyValueFileSystem(), scheme="not a scheme")
 
 
-AWARE = datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)
+AWARE = datetime(2026, 10, 8, 2, 30, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(

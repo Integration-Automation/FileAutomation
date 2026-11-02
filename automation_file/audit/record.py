@@ -17,7 +17,7 @@ import json
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from automation_file.core.audit import AuditException
@@ -34,7 +34,7 @@ STATUS_ERROR = "error"
 #: The ``source`` of the records made from storage operations.
 STORAGE_SOURCE = "storage"
 
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _MICROSECOND = timedelta(microseconds=1)
 _ZULU = "Z"
 _UTC_OFFSET = "+00:00"
@@ -56,7 +56,7 @@ def _new_id() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def to_microseconds(moment: datetime) -> int:
@@ -95,7 +95,7 @@ def parse_time(value: object, name: str = "timestamp") -> datetime:
         raise AuditException(f"{name} must be a time, got {value!r}")
     if value.utcoffset() is None:
         raise AuditException(f"{name} needs a time zone, got {value.isoformat()!r}")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 def _check_text(name: str, value: object, *, optional: bool) -> None:
