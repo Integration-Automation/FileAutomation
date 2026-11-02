@@ -27,7 +27,7 @@ import itertools
 import json
 import mimetypes
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlsplit
 
@@ -93,7 +93,7 @@ class _Item:
     parent: str | None
     data: bytes | None = None
     revision: int = 1
-    modified: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    modified: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def resource(self, child_count: int) -> dict[str, Any]:
         stamp = self.modified.strftime("%Y-%m-%dT%H:%M:%S")
@@ -311,7 +311,7 @@ class FakeGraph(BaseAdapter):
             raise _Failure(409)
         existing.data = data
         existing.revision += 1
-        existing.modified = datetime.now(timezone.utc)
+        existing.modified = datetime.now(UTC)
         return existing, False
 
     # ------------------------------------------------------------------ Graph calls

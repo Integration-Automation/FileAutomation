@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Hashable, Iterable, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -113,8 +113,8 @@ def _modified(text: str | None) -> datetime | None:
     except (TypeError, ValueError):
         return None
     if moment.tzinfo is None:
-        return moment.replace(tzinfo=timezone.utc)
-    return moment.astimezone(timezone.utc)
+        return moment.replace(tzinfo=UTC)
+    return moment.astimezone(UTC)
 
 
 def _etag(text: str | None) -> str | None:

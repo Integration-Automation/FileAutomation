@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from automation_file.exceptions import FileAutomationException
 from automation_file.integrity.detector import Change, ChangeKind
@@ -119,7 +119,7 @@ class Remediator:
         """
         if not self._policy.active:
             return []
-        stamp = datetime.now(timezone.utc).strftime(_STAMP_FORMAT)
+        stamp = datetime.now(UTC).strftime(_STAMP_FORMAT)
         steps: list[RemediationStep] = []
         for change in changes:
             steps.extend(self._handle(change, stamp, engine))

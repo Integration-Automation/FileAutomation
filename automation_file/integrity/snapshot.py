@@ -14,7 +14,7 @@ from __future__ import annotations
 from bisect import bisect_left
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from automation_file.exceptions import FileNotExistsException, StorageURIException
@@ -29,7 +29,7 @@ _AFTER_SEPARATOR = chr(ord("/") + 1)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def as_utc(moment: datetime | None) -> datetime | None:
@@ -37,8 +37,8 @@ def as_utc(moment: datetime | None) -> datetime | None:
     if moment is None:
         return None
     if moment.tzinfo is None:
-        return moment.replace(tzinfo=timezone.utc)
-    return moment.astimezone(timezone.utc)
+        return moment.replace(tzinfo=UTC)
+    return moment.astimezone(UTC)
 
 
 def parse_timestamp(value: object, name: str) -> datetime | None:

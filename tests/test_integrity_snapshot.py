@@ -12,7 +12,7 @@ import os
 import stat
 import threading
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +38,7 @@ from automation_file.storage import FileInfo, Storage, clear_memory_stores
 
 TREE = "memory://snap/tree"
 FILES = {"a.txt": b"alpha", "sub/b.bin": b"bravo!", "sub/deep/c.txt": b""}
-MOMENT = datetime(2026, 10, 8, 10, 15, 30, 123456, tzinfo=timezone.utc)
+MOMENT = datetime(2026, 10, 8, 10, 15, 30, 123456, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +70,7 @@ def _entry(path: str = "a.txt", **fields: Any) -> SnapshotEntry:
 def test_a_snapshot_lists_every_file_with_what_the_backend_reports() -> None:
     storage = _write(TREE, FILES)
     storage.mkdir("empty")
-    before = datetime.now(timezone.utc) - timedelta(seconds=5)
+    before = datetime.now(UTC) - timedelta(seconds=5)
     snapshot = _snapshot()
     assert snapshot.root == TREE
     assert snapshot.backend == "memory"
@@ -206,7 +206,7 @@ def test_from_dict_fills_the_gaps_and_reads_a_z_suffix() -> None:
         backend="memory",
     )
     assert (entry.algorithm, entry.backend, entry.checksum) == ("blake2b", "memory", "abc")
-    assert entry.modified_at == datetime(2026, 10, 8, 10, 15, 30, tzinfo=timezone.utc)
+    assert entry.modified_at == datetime(2026, 10, 8, 10, 15, 30, tzinfo=UTC)
     assert (entry.size, entry.mode, entry.etag) == (None, None, None)
 
 

@@ -8,7 +8,7 @@ that say so in words) and what remediation did. ``to_dict`` is JSON-friendly.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from automation_file.integrity.detector import Change, ChangeKind
@@ -17,7 +17,7 @@ from automation_file.integrity.snapshot import Snapshot
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True)

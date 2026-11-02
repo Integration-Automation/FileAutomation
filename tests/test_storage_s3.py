@@ -24,7 +24,7 @@ import hashlib
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -153,7 +153,7 @@ class FakeS3Client:
         self.objects(bucket, "PutObject")[key] = _Object(
             Path(filename).read_bytes(),
             extra.get("ContentType", "binary/octet-stream"),
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
 
     def download_file(self, bucket: str, key: str, filename: str) -> None:
@@ -170,9 +170,7 @@ class FakeS3Client:
         if copy_source["Key"] not in source:
             raise _client_error("NoSuchKey", "CopyObject")
         item = source[copy_source["Key"]]
-        self.buckets[bucket][key] = _Object(
-            item.data, item.content_type, datetime.now(timezone.utc)
-        )
+        self.buckets[bucket][key] = _Object(item.data, item.content_type, datetime.now(UTC))
 
 
 _FAILURES = {
@@ -205,7 +203,7 @@ class TestPrefixedS3StorageContract(TestS3StorageContract):
     def backend(self) -> StorageBackend:
         client = FakeS3Client()
         client.buckets["bucket"]["other-tenant/keep.txt"] = _Object(
-            b"keep", "text/plain", datetime.now(timezone.utc)
+            b"keep", "text/plain", datetime.now(UTC)
         )
         return S3Storage("bucket", client=client, prefix="tenant/a")
 
@@ -245,9 +243,7 @@ def test_listing_reads_every_page(storage: S3Storage, client: FakeS3Client) -> N
 
 
 def test_a_prefix_confines_the_backend_to_its_keys(client: FakeS3Client) -> None:
-    client.buckets["bucket"]["other/keep.txt"] = _Object(
-        b"k", "text/plain", datetime.now(timezone.utc)
-    )
+    client.buckets["bucket"]["other/keep.txt"] = _Object(b"k", "text/plain", datetime.now(UTC))
     tenant = S3Storage("bucket", client=client, prefix="/tenant//a/")
     assert tenant.prefix == "tenant/a"
     tenant.write_bytes("docs/a.txt", b"x")
@@ -261,9 +257,7 @@ def test_a_prefix_confines_the_backend_to_its_keys(client: FakeS3Client) -> None
 def test_a_folder_placeholder_is_a_directory_not_a_file(
     storage: S3Storage, client: FakeS3Client
 ) -> None:
-    client.buckets["bucket"]["folder/"] = _Object(
-        b"", "application/x-directory", datetime.now(timezone.utc)
-    )
+    client.buckets["bucket"]["folder/"] = _Object(b"", "application/x-directory", datetime.now(UTC))
     assert storage.stat("folder").is_dir is True
     assert storage.list_dir("folder") == []
     assert [(info.path, info.is_dir) for info in storage.list_dir()] == [("folder", True)]
@@ -381,7 +375,7 @@ def real_client() -> Any:
 def test_requests_and_responses_fit_the_service_model(real_client: Any) -> None:
     """Stubber checks every request against botocore's model of S3, parameter by parameter."""
     storage = S3Storage("bucket", client=real_client)
-    modified = datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)
+    modified = datetime(2026, 10, 8, 2, 30, tzinfo=UTC)
     listing = {
         "KeyCount": 2,
         "IsTruncated": False,

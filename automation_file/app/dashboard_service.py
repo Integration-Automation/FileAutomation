@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from automation_file.app.audit_service import AuditService
@@ -111,7 +111,7 @@ def brief_run(view: dict[str, Any]) -> dict[str, Any]:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 class DashboardService:

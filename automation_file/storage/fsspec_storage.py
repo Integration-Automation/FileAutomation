@@ -25,7 +25,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Hashable, Iterable, Iterator, Mapping
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +49,7 @@ _DIRECTORY = "directory"
 # The keys under which filesystems report a modification time in info() and ls().
 _MODIFIED_KEYS = ("mtime", "LastModified", "last_modified", "modified", "updated")
 _GLOB_CHARACTERS = frozenset("*?[")
-_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 @contextlib.contextmanager
@@ -86,8 +86,8 @@ def _utc(value: Any) -> datetime | None:
             return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         try:
             return _EPOCH + timedelta(seconds=value)

@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import threading
 from collections.abc import Iterator
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from typing import Any
 
 import pytest
@@ -125,7 +125,7 @@ def test_the_times_of_a_record_are_aware_utc(rig: Rig) -> None:
     assert run.wait(WAIT)
     for moment in (run.scheduled_at, run.started_at, run.finished_at):
         assert moment is not None and moment.utcoffset() == timedelta(0)
-        assert moment.tzinfo is timezone.utc
+        assert moment.tzinfo is UTC
 
 
 def test_a_record_is_json_friendly(rig: Rig) -> None:

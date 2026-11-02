@@ -17,17 +17,13 @@ import json
 import re
 import subprocess  # nosec B404  # the test starts this interpreter with a fixed argument list
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
 from automation_file.core.optional import EXTRAS, install_hint, require_module
 from automation_file.exceptions import FileAutomationException, OptionalDependencyException
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # declared in *.toml for Python<3.11
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
