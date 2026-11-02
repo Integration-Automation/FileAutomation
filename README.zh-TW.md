@@ -368,7 +368,7 @@ pip install "automation_file[all,dev]"   # 另含 ruff、mypy、pre-commit、pyt
 從先前內含所有套件的版本升級時：安裝 `automation_file[all]` 即可保留原有的全部功能。
 
 需求：
-- Python 3.10+
+- Python 3.11+
 - 基礎相依套件：`requests`、`tqdm`、`watchdog`、`cryptography`、`prometheus_client`、`defusedxml`、
   `PyYAML`、`opentelemetry-api`、`opentelemetry-sdk`、`je_action_core`（與 APITestka、
   LoadDensity、MailThunder 共用的 action 執行器）

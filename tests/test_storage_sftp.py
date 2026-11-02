@@ -23,7 +23,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -342,7 +342,7 @@ def test_stat_reports_the_size_and_the_modification_time(
     session.write("/reports/q1.csv", b"a,b\n")
     info = storage.stat("reports/q1.csv")
     assert (info.path, info.is_dir, info.size) == ("reports/q1.csv", False, 4)
-    assert info.modified_at == datetime.fromtimestamp(MODIFIED, timezone.utc)
+    assert info.modified_at == datetime.fromtimestamp(MODIFIED, UTC)
     assert (info.etag, info.version, info.content_type, dict(info.metadata)) == (
         None,
         None,

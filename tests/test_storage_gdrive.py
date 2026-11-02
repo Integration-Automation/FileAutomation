@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -124,7 +124,7 @@ def test_stat_reports_what_drive_holds(storage: GoogleDriveStorage, drive: FakeD
     assert info.content_type == "application/json"
     assert info.modified_at is not None
     assert info.modified_at.utcoffset() == timedelta(0)
-    assert datetime.now(timezone.utc) - info.modified_at < timedelta(minutes=1)
+    assert datetime.now(UTC) - info.modified_at < timedelta(minutes=1)
     assert dict(info.metadata) == {}
     assert drive.only("q1.json").mime_type == "application/json"
 

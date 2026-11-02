@@ -10,18 +10,13 @@ from lingering unnoticed: GitHub removed Node 20 from its runners on 2026-09-23.
 from __future__ import annotations
 
 import re
-import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # declared in *.toml for Python<3.11
 
 _ROOT = next(p for p in Path(__file__).resolve().parents if (p / ".github" / "workflows").is_dir())
 _WORKFLOWS = sorted((_ROOT / ".github" / "workflows").glob("*.yml"))

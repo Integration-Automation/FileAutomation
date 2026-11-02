@@ -25,7 +25,7 @@ stable_release = _load_script()
 
 def _metadata(root: Path, stable: str, dev: str) -> None:
     (root / "stable.toml").write_text(
-        f'[project]\nname = "automation_file"\nversion = "{stable}"\nrequires-python = ">=3.10"\n',
+        f'[project]\nname = "automation_file"\nversion = "{stable}"\nrequires-python = ">=3.11"\n',
         encoding="utf-8",
     )
     (root / "dev.toml").write_text(
@@ -74,7 +74,7 @@ def test_bump_writes_a_patch_release_into_both_files(tmp_path):
     _metadata(tmp_path, "0.0.51", "0.0.33")
     assert stable_release.bump(tmp_path, (0, 0, 51)) == ((0, 0, 52), (0, 0, 34))
     assert _versions(tmp_path) == ("0.0.52", "0.0.34")
-    assert 'requires-python = ">=3.10"' in (tmp_path / "stable.toml").read_text(encoding="utf-8")
+    assert 'requires-python = ">=3.11"' in (tmp_path / "stable.toml").read_text(encoding="utf-8")
 
 
 def test_bump_keeps_a_raised_major_or_minor_as_written(tmp_path):

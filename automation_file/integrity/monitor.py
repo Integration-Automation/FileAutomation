@@ -34,7 +34,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, fields
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from automation_file.events.bus import EventBus, event_bus
@@ -551,7 +551,7 @@ class IntegrityMonitor:
         signature: _Signature = (("error", message),)
         announce = repeat or signature != self._announced
         self._last_summary, self._last_error = summary, message
-        self._last_run = datetime.now(timezone.utc)
+        self._last_run = datetime.now(UTC)
         self._announced = signature
         if announce:
             with correlation_scope():

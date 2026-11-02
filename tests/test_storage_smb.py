@@ -20,7 +20,7 @@ import os
 import stat
 import sys
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType, SimpleNamespace, TracebackType
 from typing import Any
@@ -288,7 +288,7 @@ def test_stat_reports_size_and_modification_time(storage: SMBStorage, share: Fak
     path = f"{SHARE_ROOT}\\reports\\q1.json"
     assert info.path == "reports/q1.json"
     assert info.size == 2
-    assert info.modified_at == datetime.fromtimestamp(share.modified[path], tz=timezone.utc)
+    assert info.modified_at == datetime.fromtimestamp(share.modified[path], tz=UTC)
     assert info.modified_at.utcoffset() == timedelta(0)
     assert (info.etag, info.version, info.content_type) == (None, None, None)
     folder = storage.stat("reports")
@@ -300,7 +300,7 @@ def test_a_time_before_1970_is_reported(storage: SMBStorage, share: FakeShare) -
     storage.write_bytes("old.txt", b"x")
     # A server that keeps no time sends the FILETIME epoch, the year 1601.
     share.modified[f"{SHARE_ROOT}\\old.txt"] = -11_644_473_600.0
-    assert storage.stat("old.txt").modified_at == datetime(1601, 1, 1, tzinfo=timezone.utc)
+    assert storage.stat("old.txt").modified_at == datetime(1601, 1, 1, tzinfo=UTC)
     share.modified[f"{SHARE_ROOT}\\old.txt"] = 1e20
     assert storage.stat("old.txt").modified_at is None
 

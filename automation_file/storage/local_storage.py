@@ -25,7 +25,7 @@ import shutil
 import stat
 import uuid
 from collections.abc import Hashable, Iterable, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
 
@@ -81,7 +81,7 @@ def _file_info(path: str, result: os.stat_result) -> FileInfo:
         path=path,
         is_dir=is_dir,
         size=None if is_dir else result.st_size,
-        modified_at=datetime.fromtimestamp(result.st_mtime, tz=timezone.utc),
+        modified_at=datetime.fromtimestamp(result.st_mtime, tz=UTC),
         content_type=None if is_dir else guess_content_type(path),
     )
 

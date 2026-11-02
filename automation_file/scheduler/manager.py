@@ -60,7 +60,7 @@ _MAX_TIMEOUT = 366 * 24 * 3600.0
 
 
 def _utc_now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _checked_name(name: Any) -> str:

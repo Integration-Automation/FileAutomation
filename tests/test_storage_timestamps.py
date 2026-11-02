@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -12,22 +12,22 @@ from automation_file.storage.timestamps import parse_rfc3339
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("2026-10-08T02:30:00Z", datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)),
-        ("2026-10-08T02:30:00.123Z", datetime(2026, 10, 8, 2, 30, 0, 123000, tzinfo=timezone.utc)),
+        ("2026-10-08T02:30:00Z", datetime(2026, 10, 8, 2, 30, tzinfo=UTC)),
+        ("2026-10-08T02:30:00.123Z", datetime(2026, 10, 8, 2, 30, 0, 123000, tzinfo=UTC)),
         # Seven digits, as Microsoft Graph sends: cut to microseconds, not rounded.
         (
             "2026-10-08T02:30:00.1234567Z",
-            datetime(2026, 10, 8, 2, 30, 0, 123456, tzinfo=timezone.utc),
+            datetime(2026, 10, 8, 2, 30, 0, 123456, tzinfo=UTC),
         ),
-        ("2026-10-08T02:30:00.5z", datetime(2026, 10, 8, 2, 30, 0, 500000, tzinfo=timezone.utc)),
-        ("2026-10-08T10:30:00+08:00", datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)),
+        ("2026-10-08T02:30:00.5z", datetime(2026, 10, 8, 2, 30, 0, 500000, tzinfo=UTC)),
+        ("2026-10-08T10:30:00+08:00", datetime(2026, 10, 8, 2, 30, tzinfo=UTC)),
         (
             "2026-10-07T21:00:00.25-05:30",
-            datetime(2026, 10, 8, 2, 30, 0, 250000, tzinfo=timezone.utc),
+            datetime(2026, 10, 8, 2, 30, 0, 250000, tzinfo=UTC),
         ),
-        ("2026-10-08t02:30:00+00:00", datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)),
-        (" 2026-10-08 02:30:00Z ", datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc)),
-        ("0001-01-01T00:00:00Z", datetime(1, 1, 1, tzinfo=timezone.utc)),
+        ("2026-10-08t02:30:00+00:00", datetime(2026, 10, 8, 2, 30, tzinfo=UTC)),
+        (" 2026-10-08 02:30:00Z ", datetime(2026, 10, 8, 2, 30, tzinfo=UTC)),
+        ("0001-01-01T00:00:00Z", datetime(1, 1, 1, tzinfo=UTC)),
     ],
 )
 def test_a_timestamp_becomes_an_aware_utc_datetime(text: str, expected: datetime) -> None:

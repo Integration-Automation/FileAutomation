@@ -8,7 +8,7 @@ import json
 import time
 import zoneinfo
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,6 @@ from automation_file.scheduler import (
 from automation_file.scheduler.targets import fill_params
 from tests.scheduler_kit import START, WAIT, Rig, wait_until
 
-UTC = timezone.utc
 NIGHTLY = Schedule("0 2 * * *", "UTC")
 
 

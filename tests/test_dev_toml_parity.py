@@ -7,15 +7,10 @@ rule on one side only ships a package that differs from the one the tests ran ag
 
 from __future__ import annotations
 
-import sys
+import tomllib
 from pathlib import Path
 
 import pytest
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # declared in *.toml for Python<3.11
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

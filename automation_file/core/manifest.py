@@ -67,7 +67,7 @@ def write_manifest(
         "version": _MANIFEST_VERSION,
         "algorithm": algorithm,
         "root": str(root_path.resolve()),
-        "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "created_at": dt.datetime.now(dt.UTC).isoformat(),
         "files": files,
     }
     Path(manifest_path).parent.mkdir(parents=True, exist_ok=True)

@@ -25,7 +25,7 @@ import mimetypes
 import secrets
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Any
@@ -134,7 +134,7 @@ class FakeDavServer:
 
     def __init__(self) -> None:
         self.files: dict[str, _Resource] = {}
-        self.collections: dict[str, datetime] = {DAV_ROOT: datetime.now(timezone.utc)}
+        self.collections: dict[str, datetime] = {DAV_ROOT: datetime.now(UTC)}
         self.requests: list[tuple[str, str]] = []
         self.headers: list[dict[str, str]] = []
         self.auth: list[Any] = []
@@ -212,7 +212,7 @@ class FakeDavServer:
         body = options["data"]
         data = body if isinstance(body, bytes) else body.read()
         created = path not in self.files
-        self.files[path] = _Resource(data, datetime.now(timezone.utc).replace(microsecond=0))
+        self.files[path] = _Resource(data, datetime.now(UTC).replace(microsecond=0))
         return _Response(201 if created else 204)
 
     def _get(self, path: str, options: dict[str, Any]) -> _Response:
@@ -232,7 +232,7 @@ class FakeDavServer:
             return _Response(405)
         if not self._parent_exists(path):
             return _Response(409)
-        self.collections[path] = datetime.now(timezone.utc).replace(microsecond=0)
+        self.collections[path] = datetime.now(UTC).replace(microsecond=0)
         return _Response(201)
 
     def _relocate(self, path: str, options: dict[str, Any], *, move: bool) -> _Response:
@@ -287,7 +287,7 @@ class TestWebDAVStorageContract(StorageContract):
 class TestRootedWebDAVStorageContract(StorageContract):
     @pytest.fixture
     def backend(self, client: WebDAVClient, server: FakeDavServer) -> StorageBackend:
-        moment = datetime.now(timezone.utc)
+        moment = datetime.now(UTC)
         for collection in ("team", "team/a b", "other-team"):
             server.collections[f"{DAV_ROOT}/{collection}"] = moment
         server.files[f"{DAV_ROOT}/other-team/keep.txt"] = _Resource(b"keep", moment)
@@ -442,9 +442,9 @@ def test_a_delete_the_server_could_not_finish_is_an_error(
 def test_mkdir_accepts_a_collection_that_appeared_meanwhile(
     storage: WebDAVStorage, server: FakeDavServer
 ) -> None:
-    server.collections[f"{DAV_ROOT}/dir"] = datetime.now(timezone.utc)
+    server.collections[f"{DAV_ROOT}/dir"] = datetime.now(UTC)
     storage._mkdir("dir")
-    server.files[f"{DAV_ROOT}/file"] = _Resource(b"x", datetime.now(timezone.utc))
+    server.files[f"{DAV_ROOT}/file"] = _Resource(b"x", datetime.now(UTC))
     with pytest.raises(StorageException) as caught:
         storage._mkdir("file")
     assert caught.value.__cause__.status_code == 405
@@ -532,7 +532,7 @@ def test_a_path_ending_in_white_space_is_refused(
 def test_a_directory_whose_name_ends_in_white_space_can_still_be_listed_and_deleted(
     storage: WebDAVStorage, server: FakeDavServer
 ) -> None:
-    moment = datetime.now(timezone.utc)
+    moment = datetime.now(UTC)
     server.collections[f"{DAV_ROOT}/dir"] = moment
     server.collections[f"{DAV_ROOT}/dir/odd "] = moment
     server.files[f"{DAV_ROOT}/dir/odd /a.txt"] = _Resource(b"x", moment)

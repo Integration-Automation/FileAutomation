@@ -44,7 +44,7 @@ def resolve_timezone(name: str | None) -> dt.tzinfo | None:
         )
     key = name.strip()
     if key.upper() == _UTC:
-        return dt.timezone.utc
+        return dt.UTC
     try:
         return zoneinfo.ZoneInfo(key)
     except zoneinfo.ZoneInfoNotFoundError as error:

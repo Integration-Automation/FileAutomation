@@ -19,7 +19,7 @@ import hashlib
 import inspect
 import io
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -165,7 +165,7 @@ class FakeDropbox:
             raise _api_error(files.UploadError.path(failed))
         self._make_parents(path)
         self._revision += 1
-        moment = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
+        moment = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
         self.stored[path] = _Stored(data, self._revision, moment)
         return self.stored[path].metadata(path)
 
@@ -343,7 +343,7 @@ def test_stat_reports_what_the_metadata_carries(
     stored = client.stored["/reports/q1.json"]
     assert info.path == "reports/q1.json"
     assert info.size == 2
-    assert info.modified_at == stored.modified.replace(tzinfo=timezone.utc)
+    assert info.modified_at == stored.modified.replace(tzinfo=UTC)
     assert info.modified_at.utcoffset() == timedelta(0)
     assert info.version == f"{stored.revision:016x}"
     assert info.etag == _content_hash(b"{}")
@@ -715,7 +715,7 @@ def test_the_sdk_decodes_metadata_the_way_the_adapter_reads_it() -> None:
     assert decoded.server_modified.tzinfo is None
     info = dropbox_storage_module._file_info("a.txt", decoded, files)
     assert info is not None
-    assert info.modified_at == datetime(2026, 10, 8, 2, 30, 5, tzinfo=timezone.utc)
+    assert info.modified_at == datetime(2026, 10, 8, 2, 30, 5, tzinfo=UTC)
     assert (info.size, info.version, info.etag) == (3, "0123456789abcdef", "a" * 64)
     folder = json_compat_obj_decode(
         files.Metadata_validator,

@@ -23,7 +23,7 @@ import hashlib
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, BinaryIO
@@ -121,7 +121,7 @@ class _BlobClient:
         if self._name in blobs and not overwrite:
             raise ResourceExistsError("The specified blob already exists.")
         content_type = getattr(content_settings, "content_type", None)
-        blobs[self._name] = _Blob(data.read(), content_type, datetime.now(timezone.utc))
+        blobs[self._name] = _Blob(data.read(), content_type, datetime.now(UTC))
 
     def download_blob(self) -> _Download:
         return _Download(self._existing().data)
@@ -214,7 +214,7 @@ class TestPrefixedAzureStorageContract(TestAzureStorageContract):
     def backend(self) -> StorageBackend:
         service = FakeBlobService()
         service.containers["container"]["other-tenant/keep.txt"] = _Blob(
-            b"keep", "text/plain", datetime.now(timezone.utc)
+            b"keep", "text/plain", datetime.now(UTC)
         )
         return AzureStorage("container", service=service, prefix="tenant/a")
 
@@ -246,9 +246,7 @@ def test_a_blob_without_a_known_suffix_has_no_content_type(storage: AzureStorage
 
 
 def test_a_prefix_confines_the_backend_to_its_blobs(service: FakeBlobService) -> None:
-    service.containers["container"]["other/keep.txt"] = _Blob(
-        b"k", None, datetime.now(timezone.utc)
-    )
+    service.containers["container"]["other/keep.txt"] = _Blob(b"k", None, datetime.now(UTC))
     tenant = AzureStorage("container", service=service, prefix="tenant/a")
     tenant.write_bytes("docs/a.txt", b"x")
     assert sorted(service.containers["container"]) == ["other/keep.txt", "tenant/a/docs/a.txt"]
@@ -261,7 +259,7 @@ def test_a_prefix_confines_the_backend_to_its_blobs(service: FakeBlobService) ->
 def test_a_folder_placeholder_is_a_directory_not_a_file(
     storage: AzureStorage, service: FakeBlobService
 ) -> None:
-    service.containers["container"]["folder/"] = _Blob(b"", None, datetime.now(timezone.utc))
+    service.containers["container"]["folder/"] = _Blob(b"", None, datetime.now(UTC))
     assert storage.stat("folder").is_dir is True
     assert storage.list_dir("folder") == []
     assert [(info.path, info.is_dir) for info in storage.list_dir()] == [("folder", True)]

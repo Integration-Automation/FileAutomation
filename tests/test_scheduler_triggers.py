@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import zoneinfo
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +35,6 @@ from automation_file.scheduler.triggers import as_triggers
 from automation_file.trigger import manager as watch_manager
 from automation_file.trigger.manager import FileWatcher, TriggerException
 from tests.scheduler_kit import START, WAIT, Rig, wait_until
-
-UTC = timezone.utc
 
 
 @pytest.fixture

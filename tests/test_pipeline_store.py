@@ -12,7 +12,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +38,7 @@ from automation_file.pipeline import (
 )
 
 WAIT = 5.0
-START = datetime(2026, 10, 8, 2, 0, tzinfo=timezone.utc)
+START = datetime(2026, 10, 8, 2, 0, tzinfo=UTC)
 
 
 @pytest.fixture(params=["memory", "sqlite"])

@@ -26,7 +26,7 @@ import posixpath
 import weakref
 from collections.abc import Iterable, Iterator
 from contextlib import AbstractContextManager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -124,7 +124,7 @@ def _timestamp(text: str | None) -> datetime | None:
         microsecond = int(fraction[:6].ljust(6, "0")) if fraction else 0
     except ValueError:
         return None
-    return moment.replace(microsecond=microsecond, tzinfo=timezone.utc)
+    return moment.replace(microsecond=microsecond, tzinfo=UTC)
 
 
 def _fact_info(path: str, facts: dict[str, str]) -> FileInfo:

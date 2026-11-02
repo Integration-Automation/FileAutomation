@@ -15,7 +15,7 @@ import sqlite3
 import threading
 from collections.abc import Iterator
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +63,7 @@ from automation_file.exceptions import StorageNotFoundException, StoragePermissi
 from automation_file.storage import MemoryStorage, observe
 from automation_file.storage.observe import StorageOperation
 
-_T0 = datetime(2026, 10, 1, 12, 0, 0, tzinfo=timezone.utc)
+_T0 = datetime(2026, 10, 1, 12, 0, 0, tzinfo=UTC)
 _FIELDS = (
     "id timestamp actor source pipeline task action resource backend status duration_ms error "
     "metadata correlation_id"
@@ -437,7 +437,7 @@ def test_an_id_is_stored_once(store: AuditStore) -> None:
 
 
 def test_purge_removes_what_is_older(store: AuditStore) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old = AuditRecord(action="old", timestamp=now - timedelta(days=2))
     recent = AuditRecord(action="recent", timestamp=now - timedelta(minutes=1))
     store.append(old)

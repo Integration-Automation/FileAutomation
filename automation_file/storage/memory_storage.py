@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from automation_file.storage.backend import StorageBackend, parent_of
@@ -65,7 +65,7 @@ class MemoryStorage(StorageBackend):
             return [info for info in map(self._stat, names) if info is not None]
 
     def _upload(self, source: Path, path: str) -> None:
-        blob = _Blob(source.read_bytes(), datetime.now(timezone.utc))
+        blob = _Blob(source.read_bytes(), datetime.now(UTC))
         with self._lock:
             self._files[path] = blob
 

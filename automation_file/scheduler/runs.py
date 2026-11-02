@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -59,7 +59,7 @@ class TriggerKind(str, Enum):
 
 def as_utc(moment: datetime) -> datetime:
     """Return ``moment`` as an aware UTC ``datetime``; a naive one is taken as local time."""
-    return moment.astimezone(timezone.utc)
+    return moment.astimezone(UTC)
 
 
 def _iso(moment: datetime | None) -> str | None:

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -80,7 +80,7 @@ def test_file_info_to_dict_is_json_serialisable() -> None:
     info = FileInfo(
         "dir/report.csv",
         size=12,
-        modified_at=datetime(2026, 10, 8, 2, 30, tzinfo=timezone.utc),
+        modified_at=datetime(2026, 10, 8, 2, 30, tzinfo=UTC),
         etag="abc",
         version="7",
         content_type="text/csv",

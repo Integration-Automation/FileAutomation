@@ -20,7 +20,7 @@ import hashlib
 import threading
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -60,7 +60,7 @@ class _Bucket(ObjectStorage):
         self.downloads: list[str] = []
         self.heads: list[str] = []
         self.listings = threading.Semaphore(0)
-        self._clock = datetime(2026, 10, 8, tzinfo=timezone.utc)
+        self._clock = datetime(2026, 10, 8, tzinfo=UTC)
         self._lock = threading.Lock()
 
     def uri_for(self, path: str = "") -> str:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
 from typing import Any
 
@@ -18,7 +18,7 @@ from automation_file import executor
 from automation_file.events import Event, EventBus
 from automation_file.scheduler import JobRun, Scheduler
 
-START = datetime(2026, 10, 8, 2, 0, tzinfo=timezone.utc)
+START = datetime(2026, 10, 8, 2, 0, tzinfo=UTC)
 WAIT = 5.0
 _POLL = 0.005
 _PREFIX = "scheduler_test_"
